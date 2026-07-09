@@ -1,0 +1,148 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\AutomationLog;
+use App\Models\AiSetting;
+use App\Models\ConnectedAccount;
+use App\Models\Conversation;
+use App\Models\Customer;
+use App\Models\Message;
+
+class MessageIngestionService
+{
+    public function __construct(private readonly AiReplyService $aiReplyService)
+    {
+    }
+
+    public function ingest(array $payload): Conversation
+    {
+        $businessId = (int) $payload['business_id'];
+        $channel = $payload['channel'] ?? 'Instagram';
+        $customerName = $payload['customer_name'] ?? 'Demo Customer';
+        $customerExternalId = $payload['customer_external_id'] ?? 'demo-customer';
+        $body = $payload['body'];
+        $accountExternalId = $payload['external_account_id']
+            ?? $payload['account_external_id']
+            ?? $payload['page_id']
+            ?? $payload['phone_number_id']
+            ?? strtolower($channel).'-demo-'.$businessId;
+
+        $account = ConnectedAccount::firstOrCreate(
+            ['business_id' => $businessId, 'platform' => $channel, 'external_account_id' => $accountExternalId],
+            [
+                'account_name' => $channel.' Demo Account',
+                'page_id' => $payload['page_id'] ?? null,
+                'phone_number_id' => $payload['phone_number_id'] ?? null,
+                'status' => 'connected',
+                'connected_at' => now(),
+            ]
+        );
+
+        $customer = Customer::firstOrCreate(
+            ['business_id' => $businessId, 'external_id' => $customerExternalId, 'channel' => $channel],
+            ['name' => $customerName, 'tags' => ['demo']]
+        );
+
+        $conversation = Conversation::firstOrCreate(
+            [
+                'business_id' => $businessId,
+                'connected_account_id' => $account->id,
+                'customer_external_id' => $customerExternalId,
+                'channel' => $channel,
+            ],
+            [
+                'customer_id' => $customer->id,
+                'customer_name' => $customerName,
+                'status' => Conversation::STATE_AI_HANDLING,
+                'ai_mode' => 'auto',
+                'last_message_at' => now(),
+            ]
+        );
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $businessId,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => $body,
+            'metadata' => array_merge(
+                ['source' => $payload['source'] ?? 'api'],
+                $payload['metadata'] ?? []
+            ),
+        ]);
+
+        $aiSettings = AiSetting::firstOrCreate(['business_id' => $businessId]);
+        if (! $aiSettings->auto_reply_enabled || ! $this->isWithinReplyWindow($aiSettings)) {
+            $conversation->update([
+                'connected_account_id' => $account->id,
+                'customer_id' => $customer->id,
+                'customer_name' => $customerName,
+                'status' => Conversation::STATE_NEEDS_HUMAN,
+                'ai_mode' => 'human',
+                'last_message_at' => now(),
+            ]);
+
+            AutomationLog::create([
+                'business_id' => $businessId,
+                'connected_account_id' => $account->id,
+                'event_type' => 'incoming_message_received',
+                'status' => 'success',
+                'message' => $aiSettings->auto_reply_enabled
+                    ? 'Incoming message received outside business hours.'
+                    : 'Incoming message received while auto replies were disabled.',
+                'metadata' => ['conversation_id' => $conversation->id, 'state' => $conversation->fresh()->status],
+            ]);
+
+            return $conversation->fresh(['messages']);
+        }
+
+        $nextState = $this->aiReplyService->decideState($body, (float) ($payload['confidence'] ?? 0.82));
+        $conversation->update([
+            'connected_account_id' => $account->id,
+            'customer_id' => $customer->id,
+            'customer_name' => $customerName,
+            'status' => $nextState,
+            'ai_mode' => 'auto',
+            'last_message_at' => now(),
+        ]);
+
+        if ($nextState === Conversation::STATE_AI_HANDLING) {
+            Message::create([
+                'conversation_id' => $conversation->id,
+                'business_id' => $businessId,
+                'direction' => 'outgoing',
+                'sender_type' => 'ai',
+                'body' => $this->aiReplyService->generatePlaceholderReply([
+                    'business' => $conversation->business,
+                    'conversation' => $conversation,
+                ]),
+                'metadata' => ['confidence' => $payload['confidence'] ?? 0.82],
+            ]);
+
+            $conversation->update(['status' => Conversation::STATE_WAITING, 'last_message_at' => now()]);
+        }
+
+        AutomationLog::create([
+            'business_id' => $businessId,
+            'connected_account_id' => $account->id,
+            'event_type' => 'incoming_message_received',
+            'status' => 'success',
+            'message' => 'Incoming message processed by the AI Conversation State Engine.',
+            'metadata' => ['conversation_id' => $conversation->id, 'state' => $conversation->fresh()->status],
+        ]);
+
+        return $conversation->fresh(['messages']);
+    }
+
+    private function isWithinReplyWindow(AiSetting $settings): bool
+    {
+        if (! $settings->business_hours_enabled) {
+            return true;
+        }
+
+        $hour = now()->hour;
+
+        return $hour >= 9 && $hour < 19;
+    }
+}

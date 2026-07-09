@@ -1,0 +1,590 @@
+# Perpetual Inbox AI Project Memory
+
+Last updated: 2026-07-09
+
+## Current Instruction
+
+The Laravel/Blade MVP is now an active working demo. Continue tightening the product around the unified inbox, customer communication workflow, business isolation, and the AI Conversation State Engine.
+
+Current build priority:
+- Keep the inbox as the default dashboard screen.
+- Keep every business-owned query scoped by `business_id`.
+- Preserve the calm, mature workflow-product tone. Avoid AI hype in public-facing copy.
+- Use fake/demo integrations for Meta channels first. Gmail OAuth/manual sync and Telegram Bot API are now the first real provider connections. Real Meta, n8n, and OpenAI integrations remain later-phase work.
+- Maintain the current dark DM-style inbox UI unless the user explicitly asks for a redesign.
+- Keep dashboard surfaces flat and premium. Do not add gradients to dashboard pages, tabs, cards, loading states, or channel badges.
+- Use `docs/INTEGRATION_READY.md` as the handoff checklist when wiring OpenAI, Meta, and n8n.
+- Connected accounts must support multiple accounts per platform per workspace. Disconnect should preserve records internally but hide disconnected accounts from the active Accounts UI.
+- AI settings must be behavior-backed, not cosmetic. Auto reply, human takeover, and business-hours settings must affect ingestion and inbox actions.
+- Conversations should default to `ai_mode=auto`. `Needs Human` is a queue/status, while `ai_mode=human` is reserved for explicit takeover, manual staff replies, or disabled automation conditions.
+- Staff-facing customer identity should show Instagram/Facebook usernames, WhatsApp phone numbers, Gmail email addresses, or Telegram chat IDs where available. Add a separate stable provider ID later if real provider payloads require both identity matching and friendly display.
+
+## Product Brief
+
+Build a complete MVP SaaS web app called "Perpetual Inbox AI".
+
+It is a unified customer communication inbox for businesses. Businesses sign up, create a workspace, connect Instagram/Facebook/WhatsApp/Gmail/Telegram accounts, add FAQs/business rules, and manage customer conversations from one dashboard. AI/smart assistance should feel like background workflow support, not the core marketing headline. n8n will be used as the automation bridge later, but Laravel is the main brain/source of truth.
+
+Channel scope: private inbox messages only. Do not ingest comments, posts, public feed activity, or story replies unless product scope changes later.
+
+For the MVP, do not implement real Meta API or real OpenAI yet. Build the full working Laravel app, UI, database, fake/demo integrations, placeholder API endpoints, and clean architecture so real Meta, n8n, and OpenAI can be added later.
+
+## AI Conversation State Engine
+
+Replace the traditional inbox architecture with an AI Conversation State Engine.
+
+Every conversation must always belong to one of four states:
+- `AI Handling`
+- `Waiting`
+- `Needs Human`
+- `Closed`
+
+These states are represented throughout the application using colors:
+- Green: `AI Handling`
+- Yellow: `Waiting`
+- Red: `Needs Human`
+- Grey: `Closed`
+
+Every incoming message should be processed by `AiReplyService`.
+
+The AI decides whether it should:
+- Continue handling the conversation.
+- Wait for the customer.
+- Escalate to a human.
+- Close the conversation.
+
+When the AI determines that human judgment is required, it must:
+- Stop generating further replies.
+- Change the conversation status to `Needs Human`.
+- Display a red status indicator throughout the UI.
+
+The AI should escalate conversations when:
+- Customer requests a discount.
+- Customer files a complaint.
+- Customer requests a refund.
+- Customer asks for a custom quotation.
+- Customer requests manager approval.
+- AI confidence falls below a configurable threshold.
+- Request is outside the business knowledge base.
+- Business rules require human approval.
+
+The state engine should make the inbox operationally focused: staff should immediately see which conversations are being handled by AI, which are waiting, which need human attention, and which are closed.
+
+## Tech Stack
+
+- Laravel latest stable supported by this machine
+- Laravel Blade
+- Tailwind CSS
+- Alpine.js
+- SQLite for now
+- Laravel Breeze/Fortify-style authentication
+- Laravel Socialite for Google OAuth
+- Vite
+- No React
+- No Vue
+- Reusable Blade components
+- Fully responsive desktop and mobile
+
+Note: Composer selected Laravel 12 because Laravel 13 requires PHP 8.3 and this machine currently has PHP 8.2.12.
+
+## Design Direction
+
+Use a clean mature SaaS UI inspired by Front, Intercom, Help Scout, Linear, Attio, Notion, WhatsApp, and Instagram DM workflows. The public landing page should position the product as calm customer communication and workflow management:
+
+- Main headline: "Every customer conversation, organized in one inbox."
+- Do not make the landing page scream AI.
+- Avoid robot/brain illustrations, glowing gradients, futuristic/cyber visuals, excessive green, and repeated "powered by AI" language.
+- Emphasize unified inbox, team workflow, faster replies, human takeover, smart routing, customer history, and never missing enquiries.
+- Use `docs/VISUAL_MOOD_BOARD.md` as the extracted visual mood board reference for palette, typography, components, iconography, and spacing direction.
+
+Dashboard/inbox direction:
+- Desktop keeps a permanent dark side rail.
+- Mobile uses a menu icon to open/close the sidebar.
+- `/dashboard` defaults to `/dashboard/inbox`.
+- Inbox is full-bleed inside the dashboard shell.
+- Conversation list follows WhatsApp/Instagram DM structure: search, social-channel filters, state filters, full-width list rows, social platform logo badges, unread count, and no framed card around the list.
+- Mobile inbox behaves like normal DM apps: list first, tap chat to open thread, use back button to return.
+- Mobile thread headers let staff tap the customer name to open a compact customer profile bottom sheet.
+- Composer controls support text replies, private file/image/audio uploads, and attachment-only staff replies.
+- Human takeover/pause automation should be a compact icon action in the composer, not a large switch or pill button.
+- Status messages appear as top-right toast notifications that auto-dismiss after 3 seconds.
+
+## Core Multi-Tenant Requirement
+
+One Laravel app must support many businesses. Each business/workspace must have its own dashboard data, connected accounts, inbox conversations, customers, AI settings, FAQs, products/services, business rules, team members, and automation logs.
+
+Every query must be scoped by `business_id`. When a user logs in, detect their active business/workspace and show only data belonging to that business. Add a workspace switcher in the topbar for users who belong to multiple businesses. Use middleware or helper methods to resolve the current business.
+
+Example isolation:
+- VIP Rentals should only see VIP Rentals messages/settings.
+- Lagos Detailing should only see Lagos Detailing messages/settings.
+- They must never see each other's conversations, customers, FAQs, connected accounts, or logs.
+- A single workspace may have multiple connected accounts for the same platform, such as three WhatsApp Business numbers or two Instagram accounts. Account routing must use account identifiers, not only platform.
+
+## Auth Requirements
+
+Implemented/available:
+- Email/password registration
+- Email/password login
+- Password reset
+- Email verification
+- Logout
+- Remember me
+- Google OAuth login/sign-up using Laravel Socialite
+
+Google routes:
+- `GET /auth/google/redirect`
+- `GET /auth/google/callback`
+
+Google behavior:
+- If user signs up with Google, create user automatically.
+- If Google email already exists, safely link Google provider to existing user.
+- Store `google_id`.
+- Store `avatar` if available.
+- Never store Google access token unless needed.
+
+User columns:
+- `google_id` nullable
+- `avatar` nullable
+- `email_verified_at`
+- `last_login_at`
+- `last_login_ip`
+
+## Security Requirements
+
+Implement seriously:
+- Laravel password hashing
+- CSRF protection on all forms
+- Validation on every request
+- Authorization checks/policies for business-owned resources
+- Middleware to ensure user belongs to selected workspace
+- Every query scoped by `business_id`
+- Prevent URL ID manipulation from exposing another business's data
+- Encrypt connected account `access_token`
+- Never expose `access_token` in Blade or API responses
+- Rate limit login, register, password reset, AI generation, and webhook endpoints
+- Webhook secret verification for n8n/API endpoints
+- Per-business webhook secrets with global secret fallback
+- Per-user conversation read tracking
+- Input validation and sanitization where needed
+- Escape all Blade output
+- Use fillable/guarded properly
+- Secure sessions
+- Basic error pages: 403, 404, 500
+
+Role model is planned but not fully enforced yet:
+- Owner: full access
+- Admin: manage settings, accounts, inbox, team except owner-only billing/danger zone
+- Agent: inbox and customers only
+
+Agents must not access AI settings, connected account tokens, billing, or workspace danger zone.
+
+Audit/automation logs should be created for login, logout, account connected, account disconnected, AI settings changed, team member invited, role changed, webhook failed, incoming message received, AI reply generated, and outgoing message saved.
+
+## Routes To Support
+
+Public and auth:
+- `/`
+- `/login`
+- `/register`
+- `/forgot-password`
+- `/auth/google/redirect`
+- `/auth/google/callback`
+
+Onboarding:
+- `/onboarding/workspace`
+
+Dashboard:
+- `/dashboard`
+- `/dashboard/inbox`
+- `/dashboard/accounts`
+- `GET /dashboard/accounts/gmail/redirect`
+- `GET /dashboard/accounts/gmail/callback`
+- `POST /dashboard/accounts/gmail/{account}/sync`
+- `PATCH /dashboard/accounts/{account}/disconnect`
+- `/dashboard/ai-settings`
+- `/dashboard/knowledge-base`
+- `POST /dashboard/knowledge-base/faqs`
+- `PATCH /dashboard/knowledge-base/faqs/{faq}`
+- `DELETE /dashboard/knowledge-base/faqs/{faq}`
+- `POST /dashboard/knowledge-base/products`
+- `PATCH /dashboard/knowledge-base/products/{product}`
+- `DELETE /dashboard/knowledge-base/products/{product}`
+- `POST /dashboard/knowledge-base/rules`
+- `PATCH /dashboard/knowledge-base/rules/{rule}`
+- `DELETE /dashboard/knowledge-base/rules/{rule}`
+- `POST /dashboard/knowledge-base/saved-replies`
+- `PATCH /dashboard/knowledge-base/saved-replies/{savedReply}`
+- `DELETE /dashboard/knowledge-base/saved-replies/{savedReply}`
+- `/dashboard/settings`
+- `PATCH /dashboard/settings/business`
+
+API:
+- `POST /api/n8n/incoming-message`
+- `POST /api/n8n/save-outgoing-message`
+- `POST /api/n8n/log-event`
+- `POST /api/webhooks/meta`
+- `POST /api/incoming-message`
+- `POST /api/generate-ai-reply`
+- `POST /api/save-outgoing-message`
+
+n8n endpoints require `X-N8N-SECRET`, compare it with `N8N_WEBHOOK_SECRET` or `APP_WEBHOOK_SECRET`, return 401 if invalid, are API-rate-limited, and validate request data.
+
+Public webhook endpoints require `X-WEBHOOK-SECRET` or `X-META-SECRET`. They prefer the business-specific `businesses.webhook_secret` when a request is tied to a business/conversation, with `APP_WEBHOOK_SECRET`/`META_WEBHOOK_SECRET` as global fallback.
+
+## Current Page Scope
+
+Landing page:
+- Current headline: "Every customer conversation, organized in one inbox."
+- Current subtext: "Bring Instagram, Facebook, WhatsApp and Gmail messages into one workspace. Let routine enquiries flow smoothly while your team focuses on conversations that need attention."
+- CTAs: Start Free Trial/Open Dashboard, View Demo
+- Tone: calm, mature, business-friendly, communication/workflow product.
+- Feature framing: unified inbox, color-coded conversation states, human takeover, team visibility, customer history, smart assistance in the background.
+
+Dashboard layout:
+- Sidebar: Inbox, Accounts, AI Settings, Knowledge Base, Settings
+- No Home tab, Customers tab, Team tab, or Logs tab in the current dashboard.
+- Logout sits at the bottom of the side panel.
+- Mobile: collapsible sidebar and usable DM-style inbox.
+
+Feature pages:
+- Dashboard home redirects to inbox by default.
+- 3-column inbox with conversation list, thread, media-capable composer, and customer details
+- Connected accounts with fake Meta-channel connection flow, real Gmail OAuth/manual sync, multiple accounts per platform, active-only account list, disconnect support, and no intro/explainer header block
+- AI settings with fake preview reply
+- Editable knowledge base sections for FAQs, products/services, business rules, and saved replies. Mobile should show one active section at a time through section tabs, not a long stacked page of every form.
+- Settings with editable business profile and workspace summary. Internal API, billing, and danger-zone placeholders are intentionally hidden from normal workspace users for now.
+
+Inbox state UI:
+- At the top of the conversation list, create horizontal filter tabs similar to the X/Twitter timeline.
+- Tabs: `All`, `Needs Human`, `AI Handling`, `Waiting`, `Closed`.
+- Each tab should show a live conversation count.
+- Each conversation row should display a colored status indicator.
+- Example row indicators: red `Needs Human`, green `AI Handling`, yellow `Waiting`, grey `Closed`.
+- The currently selected tab should only display conversations belonging to that state.
+
+Human takeover:
+- Human takeover is displayed as a modern switch control.
+- Off state posts to `dashboard.inbox.take-over`.
+- On state posts to `dashboard.inbox.resume-ai`.
+- Resuming AI should not automatically send a message. It only returns the conversation to automation control; later OpenAI/state-engine logic should decide whether a reply is needed.
+- Staff may reply manually, and any manual staff reply should automatically switch the conversation to human mode.
+- The close backend route still exists, but the visible close composer button was removed from the current UI.
+
+## Database Tables
+
+Tables from the brief:
+- `users`
+- `businesses`
+- `business_user`
+- `connected_accounts`
+- `conversations`
+- `messages`
+- `ai_settings`
+- `faqs`
+- `products`
+- `business_rules`
+- `saved_replies`
+- `customers`
+- `team_invites`
+- `automation_logs`
+- `conversation_reads`
+- `message_attachments`
+
+Structural migrations for these tables have been created. Additional production-readiness migrations add inbox query indexes, per-user conversation read receipts, and per-business webhook secrets.
+
+Connected account behavior:
+- `connected_accounts` intentionally allows multiple rows with the same `business_id` and `platform`.
+- Active account routing should use `platform + external_account_id`; inbound payloads may also supply `page_id` or `phone_number_id`.
+- Disconnect sets `status` to `disconnected`, clears `connected_at`, clears encrypted `access_token`, and logs `account_disconnected`.
+- Disconnected account rows are retained for audit/history and conversation safety, but are not shown on the active Accounts page.
+- Demo connect counts only active accounts when naming new demo accounts.
+- Gmail uses `platform=gmail`; synced conversations use channel `Gmail`.
+- Gmail access and refresh tokens are encrypted; `provider_meta` stores non-secret profile/scope metadata.
+- Gmail sync imports recent inbox emails manually, skips duplicate Gmail message IDs, and defaults imported email threads to `Needs Human`/`ai_mode=human`.
+
+Knowledge base behavior:
+- FAQs, products/services, business rules, and saved replies can be created, edited, and deleted from the dashboard.
+- Knowledge base mutations are scoped to the active workspace and reject foreign-business records.
+- `saved_replies` stores reusable manual responses with optional shortcuts.
+- The Knowledge Base page uses server-side section tabs (`faqs`, `products`, `rules`, `saved-replies`) so mobile users edit one focused content type at a time.
+
+## Controllers
+
+Created:
+- `LandingController`
+- `DashboardController`
+- `WorkspaceController`
+- `InboxController`
+- `ConnectedAccountController`
+- `AiSettingsController`
+- `KnowledgeBaseController`
+- `SettingsController`
+- `GoogleAuthController`
+- `WebhookController`
+- `N8nController`
+
+Removed from current dashboard scope:
+- `CustomerController`
+- `TeamController`
+- `AutomationLogController`
+
+Current status: primary MVP controller logic is implemented for dashboard inbox, account demo connection, AI settings, knowledge base, settings, workspace creation/switching, webhooks, and n8n-compatible endpoints.
+
+## Service Classes
+
+Created:
+- `AiReplyService`
+- `ChannelResolverService`
+- `MessageIngestionService`
+- `MetaConnectionService`
+- `GmailConnectionService`
+- `CurrentBusinessService`
+- `ConversationMessageService`
+- `InboxUi`
+
+Current status:
+- `AiReplyService` contains demo state-decision and placeholder reply behavior.
+- `MessageIngestionService` creates/updates accounts, customers, conversations, messages, and automation logs for incoming demo/API messages.
+- `MessageIngestionService` resolves connected accounts by `business_id + platform + external_account_id`, with payload fallbacks for `page_id` and `phone_number_id`, so multiple same-platform accounts can coexist.
+- `MessageIngestionService` honors AI settings: disabled auto reply sends incoming conversations to staff review, enabled business-hours mode only auto-replies inside the fixed demo reply window, and AI-escalated conversations remain in `ai_mode=auto` unless automation is explicitly disabled.
+- `ConversationMessageService` centralizes outgoing message writes and read-receipt marking.
+- `CurrentBusinessService` handles active workspace resolution and switching.
+- `InboxUi` holds inbox presentation metadata for states, social channels, and intent labels.
+- `GmailConnectionService` handles Gmail OAuth redirect URL building, auth-code token exchange, Gmail profile fetch, access-token refresh, recent inbox sync, email parsing, duplicate detection, and local inbox import.
+
+Knowledge base CRUD pass on 2026-07-08:
+- Reworked the Knowledge Base page from read-only demo cards into editable workspace content.
+- Added create/update/delete flows for FAQs, products/services, business rules, and saved replies.
+- Added `saved_replies` table and `SavedReply` model.
+- Added feature tests for knowledge base CRUD and cross-workspace mutation protection.
+- Latest verification after this pass: PHPUnit passes with `67 tests, 254 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+
+Settings cleanup pass on 2026-07-08:
+- Removed the user-facing API/billing placeholder card from the Settings page.
+- Added editable business profile fields for name, category, email, phone, website, and description.
+- Added `PATCH /dashboard/settings/business` for scoped workspace profile updates.
+- Added feature tests confirming settings profile updates and that API/billing placeholder copy is not shown.
+- Latest verification after this pass: PHPUnit passes with `69 tests, 268 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+
+Knowledge base mobile refinement pass on 2026-07-08:
+- Reworked the Knowledge Base page into focused server-side section tabs so mobile users only see one editable content type at a time.
+- Section tabs include live counts and return users to the relevant section after create, update, or delete actions.
+- Updated feature coverage for the tabbed Knowledge Base behavior.
+- Latest verification after this pass: PHPUnit passes with `69 tests, 272 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+
+Inbox composer media pass on 2026-07-08:
+- Replaced the large human/AI mode switch in the composer with a compact pause-automation icon action.
+- Added manual staff reply uploads for files, images, and audio notes using private `message_attachments` storage.
+- Attachment-only staff replies are allowed; video uploads are rejected in the manual reply flow.
+- Latest verification after this pass: PHPUnit passes with `70 tests, 276 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+
+## Seed Demo Data To Build Later
+
+Seeder currently includes:
+- Demo user: `demo@perpetualinbox.test` / `password`
+- Demo businesses: VIP Rentals and Lagos Detailing
+- Attach demo user as Owner to both businesses
+- Connected/demo social accounts
+- Demo AI settings for each
+- FAQs, products, business rules, customers, conversations, messages, and automation logs
+
+The workspace switcher must switch between VIP Rentals and Lagos Detailing, showing different data for each.
+
+## Blade Components To Build Later
+
+Required reusable components:
+- `AppLayout`
+- `AuthLayout`
+- `Sidebar`
+- `Topbar`
+- `StatCard`
+- `ChannelCard`
+- `ConversationListItem`
+- `ChatBubble`
+- `EmptyState`
+- `Modal`
+- `Badge`
+- `ToggleSwitch`
+- `SettingsSection`
+- `Button`
+- `Input`
+- `Textarea`
+
+## Environment Variables
+
+Documented placeholders:
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI`
+- `GMAIL_CLIENT_ID`
+- `GMAIL_CLIENT_SECRET`
+- `GMAIL_REDIRECT_URI`
+- `APP_WEBHOOK_SECRET`
+- `META_WEBHOOK_SECRET`
+- `OPENAI_API_KEY`
+- `N8N_WEBHOOK_SECRET`
+- `N8N_BASE_URL`
+
+Integration readiness guide:
+- `docs/INTEGRATION_READY.md`
+
+## Progress So Far
+
+Completed in this setup pass:
+- Created Laravel project in `C:\Users\USER\no-name`.
+- Installed Laravel 12.x because PHP is 8.2.12.
+- Installed Laravel Breeze Blade auth scaffold.
+- Installed Laravel Socialite.
+- Installed npm dependencies generated by Breeze.
+- Confirmed Vite build ran once through Breeze installer.
+- Added Google OAuth environment placeholders and config mapping.
+- Added structural web routes and API routes from the brief.
+- Added `routes/api.php` to Laravel bootstrap routing.
+- Created initial named controllers and services.
+- Created current-business middleware alias `current.business`.
+- Created structural migrations for the multi-tenant database shape.
+- Added model fillable/cast placeholders, including encrypted `connected_accounts.access_token`.
+- Preserved the product direction and build memory in this file.
+- Added the AI Conversation State Engine requirement to memory on 2026-07-04.
+
+Completed in the first MVP build pass on 2026-07-04:
+- Implemented current workspace resolution with session-backed active business selection.
+- Added workspace switching from the dashboard topbar.
+- Added business relationship methods across the main models.
+- Added conversation state constants for `AI Handling`, `Waiting`, `Needs Human`, and `Closed`.
+- Replaced placeholder dashboard controllers with business-scoped data queries.
+- Built the SaaS dashboard shell with sidebar navigation and topbar workspace switcher.
+- Built dashboard home with operational stats, recent conversations, and setup checklist.
+- Built the inbox page with state filter tabs, live counts, colored status indicators, conversation list, thread, composer, and customer details.
+- Implemented human takeover, resume AI, close conversation, and manual reply actions.
+- Implemented fake AI state decisions in `AiReplyService`.
+- Implemented demo message ingestion in `MessageIngestionService`.
+- Implemented basic API endpoints for incoming messages, AI reply preview, outgoing messages, and n8n secret-gated endpoints.
+- Built connected accounts page with fake account connection flow.
+- Built AI settings page with persisted settings updates.
+- Built knowledge base and workspace settings pages.
+- Customers, team, and automation logs pages were later removed from the dashboard scope.
+- Built onboarding workspace creation.
+- Replaced the default Laravel welcome page with the Perpetual Inbox AI landing page.
+- Seeded demo user `demo@perpetualinbox.test` / `password`.
+- Seeded demo businesses VIP Rentals and Lagos Detailing with accounts, settings, FAQs, products/services, business rules, customers, conversations, messages, and logs.
+- Verified `npm run build` passes.
+- Verified Blade templates compile with `php artisan view:cache`.
+- Verified PHPUnit passes with `.\vendor\bin\phpunit.bat --do-not-cache-result`.
+
+UI correction pass on 2026-07-04:
+- Reworked the dashboard shell after the first UI pass was rejected as too bare.
+- Added a darker operational sidebar, stronger product identity, active workspace panel, and improved navigation treatment.
+- Added shared CSS component classes for app shell, nav links, metric cards, content cards, state pills, and state dots.
+- Redesigned the dashboard home with a stronger command-center header, state summary panel, richer metric cards, improved recent conversation rows, and clearer setup checklist.
+- Redesigned the inbox page with a denser operational layout, queue rail, improved state tabs, stronger thread header, better message surfaces, and customer profile cards.
+- Replaced the plain landing page with a full-viewport product-scene hero, stronger brand header, CTA treatment, state-engine product preview, channel positioning, and a visible feature band below the fold.
+- Added lightweight SPA-style dashboard navigation in `resources/js/app.js`: internal dashboard links and non-logout dashboard forms fetch the next Blade response, swap the app shell, update browser history, and avoid full-page reloads.
+- Fixed dashboard responsiveness: desktop keeps a permanent side rail; mobile uses a menu button that opens/closes the sidebar as a drawer with backdrop.
+- Replaced sidebar letter badges with modern inline line icons across dashboard navigation and added icon treatment for logout/menu controls.
+- Updated the inbox to follow an Instagram/WhatsApp DM pattern: full-width state tabs, no framed border around the conversation list, and mobile list-to-thread navigation with a back button instead of showing list and chat together.
+- Refined the inbox again against a WhatsApp reference: dark list and thread UI, rounded search bar, pill filters, archived row, compact circular-avatar chat rows, dark chat header action icons, textured chat background, message bubbles, and rounded composer.
+- Made the inbox route full-bleed inside the dashboard content area so it no longer sits inside the standard page padding/max-width frame.
+- Added an inbox-specific dark shell theme so the sidebar, active nav, topbar, workspace switcher, logout button, and inbox surface use one coherent dark/green palette instead of mixing blue, white, and chat colors.
+- Applied the attached premium redesign brief: the dashboard now uses a global dark-first theme, reduced blue dominance, emerald/coral/amber/slate state colors, cohesive sidebar, AI-assisted three-zone inbox, useful customer context panel, dark account cards, AI teammate settings, dark knowledge base, and settings pages.
+- Verified the redesign with `npm run build` and `php artisan view:cache`.
+
+Major product/UI refinement pass on 2026-07-06:
+- Repositioned landing page away from AI hype and toward calm customer communication/workflow management.
+- Updated landing headline to "Every customer conversation, organized in one inbox."
+- Removed Home tab from dashboard navigation.
+- Removed Customers, Team, and Logs tabs, their dashboard routes, their Blade screens, and their orphaned controllers.
+- Made `/dashboard` redirect to `/dashboard/inbox`.
+- Reworked inbox into a full-width dark WhatsApp/Instagram-style DM interface.
+- Added social-channel filtering for All, Instagram, WhatsApp, and Facebook.
+- Replaced initial-avatar row badges with colored social platform logo badges.
+- Removed extra status dots from channel logos.
+- Replaced Take Over/Resume AI pill buttons with a switch-style Human takeover control.
+- Removed the visible Close button from the composer action row.
+- Added top-right toast notifications that auto-dismiss after 3 seconds.
+- Added search behavior that preserves selected state/channel context.
+- Added SPA-style dashboard navigation for internal dashboard links/forms.
+
+Backend/security/scalability pass on 2026-07-06:
+- Secured public webhook write routes with `X-WEBHOOK-SECRET` / `X-META-SECRET`.
+- Kept n8n routes gated by `X-N8N-SECRET`.
+- Registered the missing `api` rate limiter used by `throttle:api`.
+- Added per-business `webhook_secret` with global `APP_WEBHOOK_SECRET` / `META_WEBHOOK_SECRET` fallback.
+- New workspaces receive generated `whsec_...` secrets.
+- Added `conversation_reads` for per-user read tracking.
+- Opening a conversation explicitly marks it read for the current user.
+- Added inbox query indexes for business/status/channel/recent access.
+- Limited inbox list rendering to latest 50 matching conversations.
+- Limited selected thread history to latest 100 messages.
+- Added a visible cap notice when more conversations exist.
+- Added `ConversationMessageService` for shared outgoing message writes and read marking.
+- Added `InboxUi` support class so channel/status/intent presentation metadata is no longer defined inside the Blade view.
+- Added feature tests for webhook auth, workspace switching, inbox search/channel filters, read receipts, default dashboard redirect, and cross-business inbox mutation denial.
+- Latest verification: `npm run build` passes, PHPUnit passes with `55 tests, 171 assertions`, and `php artisan view:cache` passes.
+
+Connected accounts pass on 2026-07-06:
+- Accounts page was redesigned into active channel cards and a responsive active-account list.
+- Workspaces can now connect multiple accounts for the same social platform.
+- Fake account connection creates a new connected account row instead of overwriting by platform.
+- Account display names can be supplied when creating a demo connection.
+- Account disconnect is implemented as a scoped `PATCH /dashboard/accounts/{account}/disconnect` action.
+- Disconnect preserves the account row, clears `access_token`, clears `connected_at`, sets `status` to `disconnected`, and writes an automation log.
+- Disconnected accounts are hidden from the Accounts page and active counts, but remain in the database for history/audit and conversation safety.
+- Added feature tests for multiple same-platform accounts, account-identifier routing, disconnect behavior, foreign-workspace disconnect denial, and hiding disconnected accounts.
+
+Settings/profile/performance/UI refinement pass on 2026-07-06:
+- Removed the Accounts page intro/explainer block so the page starts directly with the connected channel controls.
+- Confirmed dashboard CSS has no gradients in app shell, chat wallpaper, loading indicators, tabs, cards, or social channel badges.
+- Wired AI settings into behavior: auto replies, human takeover availability, and business-hours gating now affect ingestion and inbox actions.
+- Added tests for disabled human takeover, disabled auto reply, and business-hours reply gating.
+- Added a test ensuring AI-escalated `Needs Human` conversations stay in `ai_mode=auto` by default.
+- Fixed the mode switch so icon visibility changes immediately with the optimistic UI state, and resume AI no longer sends a duplicate placeholder reply.
+- Manual staff reply now flips the visible mode switch to human immediately and persists `ai_mode=human` on the conversation.
+- Added mobile customer profile bottom sheet opened from the chat header name.
+- Updated profile identity labels to be channel-aware: Instagram username, Facebook username, or WhatsApp number.
+- Seeded demo customer external IDs with readable handles and phone numbers.
+- Changed `/dashboard/inbox` so it no longer selects the first conversation by default; thread/profile data loads only after a conversation is opened.
+- Hardened the dashboard SPA helper so Alpine and SPA event listeners initialize once, clicked controls show immediate pending feedback, and form submit buttons temporarily disable to prevent double submits.
+- Latest verification after this pass: PHPUnit passes with `55 tests, 171 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+
+Gmail integration pass on 2026-07-07:
+- Added Gmail as the first real provider connection while preserving the existing inbox and AI Conversation State Engine architecture.
+- Added `connected_accounts.refresh_token`, `token_expires_at`, and `provider_meta`.
+- Added encrypted casts for Gmail access/refresh token storage.
+- Added `GmailConnectionService` for OAuth URL creation, auth-code exchange, profile fetch, token refresh, manual inbox sync, MIME body parsing, and local import.
+- Added Gmail dashboard routes: redirect, callback, and manual sync.
+- Added Gmail card to Accounts page with Connect Gmail, Sync emails, and Disconnect actions.
+- Added Gmail channel metadata, icon, inbox filter support, Gmail subject preview, and email-address customer identity label.
+- Gmail sync imports latest 20 inbox emails, maps conversations by Gmail thread when possible, stores subject/from/to/internal date in message metadata, and skips duplicate Gmail message IDs.
+- Gmail imported messages default to `Needs Human` and `ai_mode=human`; Gmail auto-reply and sending are intentionally disabled for now.
+- Added feature tests for Gmail auth requirement, callback account creation, foreign-business sync denial, scoped import, duplicate prevention, and token secrecy.
+- Latest verification after this pass: PHPUnit passes with `55 tests, 171 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+
+Telegram integration pass on 2026-07-09:
+- Added Telegram as a real bot-backed provider connection, not a demo channel and not private-user MTProto inbox import.
+- Accounts page now includes a Telegram card that accepts a bot username, encrypted bot token, and optional display name.
+- Telegram connect creates a scoped `ConnectedAccount`, stores webhook metadata in `provider_meta`, and registers a Bot API webhook when `APP_URL` is public HTTPS.
+- Local `http://127.0.0.1` / non-HTTPS development URLs cannot receive Telegram push events directly; use a public HTTPS URL or tunnel when testing real incoming messages.
+- Added `POST /api/webhooks/telegram/{account}` with `X-Telegram-Bot-Api-Secret-Token` verification.
+- Incoming Telegram updates are normalized into the unified inbox through `MessageIngestionService`.
+- Staff text replies in Telegram conversations are sent through Telegram `sendMessage`; Telegram media sending is not implemented yet.
+- Added Telegram channel icon/filter support in the inbox and kept all channel filters on one horizontal row.
+- Latest verification after this pass: PHPUnit passes with `74 tests, 292 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+
+Not built yet:
+- Authorization policies/roles beyond current business-ownership checks
+- Advanced workspace settings, billing, and danger-zone controls
+- Configurable business-hours schedule UI
+- Separate immutable provider customer IDs from display usernames/phone numbers before production if real Meta payloads require both
+- Real Google OAuth login/linking behavior
+- Real Meta API integration
+- Real OpenAI integration
+- Real n8n workflow integration beyond placeholder-compatible endpoints
+- Gmail Pub/Sub/watch real-time sync
+- Gmail outbound sending from the inbox
+- Telegram private-user inbox import through MTProto
+- Telegram media sending from the inbox
+- Billing/subscription system
+- True infinite loading for older conversations/messages
+- Production error pages and observability
