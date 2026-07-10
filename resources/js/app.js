@@ -88,7 +88,7 @@ async function visit(url, options = {}) {
 
         if (next.frame && currentFrame) {
             currentFrame.replaceWith(next.frame);
-            if (nextSidebar && currentSidebar) {
+            if (nextSidebar && currentSidebar && targetUrl.pathname !== window.location.pathname) {
                 currentSidebar.replaceWith(nextSidebar);
             }
         } else {
@@ -192,6 +192,40 @@ async function submitForm(form, submitter = null) {
                 targetUrl.searchParams.append(key, value);
             }
         }
+    }
+
+    if (submitter?.dataset?.instantAction === 'true') {
+        markPending(submitter);
+
+        if (submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement) {
+            submitter.disabled = true;
+        }
+
+        try {
+            const response = await fetch(targetUrl.href, {
+                method,
+                body: method === 'GET' ? null : formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Instant action failed with ${response.status}`);
+            }
+        } catch (error) {
+            window.location.href = targetUrl.href;
+        } finally {
+            clearPending(submitter);
+
+            if (submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement) {
+                submitter.disabled = false;
+            }
+        }
+
+        return;
     }
 
     document.documentElement.classList.add('spa-loading');

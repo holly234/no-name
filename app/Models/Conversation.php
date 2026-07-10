@@ -108,7 +108,7 @@ class Conversation extends Model
             });
     }
 
-    private function messageDisablesReplies(Message $message): bool
+    public function messageDisablesReplies(Message $message): bool
     {
         if ((bool) ($message->metadata['reply_disabled'] ?? false)) {
             return true;

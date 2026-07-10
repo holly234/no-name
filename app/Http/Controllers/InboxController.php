@@ -48,14 +48,6 @@ class InboxController extends Controller
             'customer',
             'reads' => fn ($query) => $query->where('user_id', $user->id),
         ])
-            ->withExists([
-                'messages as has_reply_disabled_message' => fn ($query) => $query
-                    ->where('metadata->reply_disabled', true)
-                    ->orWhere('metadata->from_email', 'like', '%noreply%')
-                    ->orWhere('metadata->from_email', 'like', '%no-reply%')
-                    ->orWhere('metadata->from_email', 'like', '%donotreply%')
-                    ->orWhere('metadata->from_email', 'like', '%do-not-reply%'),
-            ])
             ->where('business_id', $business->id)
             ->latest('last_message_at');
 
@@ -132,7 +124,9 @@ class InboxController extends Controller
             $conversation->setAttribute('intent', InboxUi::intentFor($conversation));
             $conversation->setAttribute('status_meta', InboxUi::statusMeta($conversation->status));
             $conversation->setAttribute('channel_meta', InboxUi::channelMeta($conversation->channel));
-            $conversation->setAttribute('reply_disabled', (bool) $conversation->getAttribute('has_reply_disabled_message'));
+            $conversation->setAttribute('reply_disabled', $conversation->latestMessage
+                ? $conversation->messageDisablesReplies($conversation->latestMessage)
+                : false);
         });
 
         if ($selectedConversation) {
@@ -240,6 +234,14 @@ class InboxController extends Controller
             'message' => 'AI replies were disabled for this conversation.',
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'ok',
+                'conversation_status' => $conversation->status,
+                'ai_mode' => $conversation->ai_mode,
+            ]);
+        }
+
         return back()->with('status', 'Human takeover enabled.');
     }
 
@@ -265,6 +267,14 @@ class InboxController extends Controller
             'status' => 'success',
             'message' => 'AI mode was resumed for this conversation without sending an automatic reply.',
         ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'ok',
+                'conversation_status' => $conversation->status,
+                'ai_mode' => $conversation->ai_mode,
+            ]);
+        }
 
         return back()->with('status', 'AI resumed.');
     }

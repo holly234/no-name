@@ -399,13 +399,13 @@
                                             </svg>
                                         </span>
                                     @else
-                                        <button x-show="! automationPaused" x-on:click="automationPaused = true" formaction="{{ route('dashboard.inbox.take-over', $selectedConversation) }}" formnovalidate class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#EFF6FF] text-[#2563EB] transition hover:bg-[#DBEAFE] sm:h-9 sm:w-9" aria-label="Automation active. Pause automation." title="Automation active">
+                                        <button x-show="! automationPaused" x-on:click="automationPaused = true" data-instant-action="true" formaction="{{ route('dashboard.inbox.take-over', $selectedConversation) }}" formnovalidate class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#EFF6FF] text-[#2563EB] transition hover:bg-[#DBEAFE] sm:h-9 sm:w-9" aria-label="Automation active. Pause automation." title="Automation active">
                                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
                                                 <path d="M10 5v14"></path>
                                                 <path d="M14 5v14"></path>
                                             </svg>
                                         </button>
-                                        <button x-cloak x-show="automationPaused" x-on:click="automationPaused = false" formaction="{{ route('dashboard.inbox.resume-ai', $selectedConversation) }}" formnovalidate class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#9CA3AF] transition hover:bg-[#EFF6FF] hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Automation paused. Resume automation." title="Automation paused">
+                                        <button x-cloak x-show="automationPaused" x-on:click="automationPaused = false" data-instant-action="true" formaction="{{ route('dashboard.inbox.resume-ai', $selectedConversation) }}" formnovalidate class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#9CA3AF] transition hover:bg-[#EFF6FF] hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Automation paused. Resume automation." title="Automation paused">
                                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
                                                 <path d="M7.5 5.7c0-.9 1-1.4 1.8-.9l8.6 5.3c.7.4.7 1.4 0 1.8l-8.6 5.3c-.8.5-1.8-.1-1.8-.9V5.7Z"></path>
                                             </svg>
