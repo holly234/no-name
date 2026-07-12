@@ -27,17 +27,26 @@ class MessageIngestionService
             ?? $payload['page_id']
             ?? $payload['phone_number_id']
             ?? strtolower($channel).'-demo-'.$businessId;
+        $connectedAccountId = isset($payload['connected_account_id']) ? (int) $payload['connected_account_id'] : null;
 
-        $account = ConnectedAccount::firstOrCreate(
-            ['business_id' => $businessId, 'platform' => $channel, 'external_account_id' => $accountExternalId],
-            [
-                'account_name' => $channel.' Demo Account',
-                'page_id' => $payload['page_id'] ?? null,
-                'phone_number_id' => $payload['phone_number_id'] ?? null,
-                'status' => 'connected',
-                'connected_at' => now(),
-            ]
-        );
+        $account = $connectedAccountId
+            ? ConnectedAccount::where('business_id', $businessId)
+                ->where('platform', $channel)
+                ->find($connectedAccountId)
+            : null;
+
+        if (! $account) {
+            $account = ConnectedAccount::firstOrCreate(
+                ['business_id' => $businessId, 'platform' => $channel, 'external_account_id' => $accountExternalId],
+                [
+                    'account_name' => $channel.' Demo Account',
+                    'page_id' => $payload['page_id'] ?? null,
+                    'phone_number_id' => $payload['phone_number_id'] ?? null,
+                    'status' => 'connected',
+                    'connected_at' => now(),
+                ]
+            );
+        }
 
         $customer = Customer::firstOrCreate(
             ['business_id' => $businessId, 'external_id' => $customerExternalId, 'channel' => $channel],

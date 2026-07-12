@@ -89,8 +89,16 @@ class TelegramConnectionService
 
         $account = $conversation->connectedAccount;
 
-        if (! $account || $account->platform !== 'Telegram' || ! $account->access_token) {
-            return null;
+        if (! $account || $account->platform !== 'Telegram') {
+            throw new \RuntimeException('This conversation is not linked to a Telegram account.');
+        }
+
+        if ($account->status !== 'connected') {
+            throw new \RuntimeException('The Telegram account for this conversation is disconnected.');
+        }
+
+        if (! $account->access_token) {
+            throw new \RuntimeException('The Telegram account for this conversation has no bot token.');
         }
 
         $response = Http::timeout(15)
@@ -142,6 +150,7 @@ class TelegramConnectionService
         return [
             'business_id' => $account->business_id,
             'channel' => 'Telegram',
+            'connected_account_id' => $account->id,
             'external_account_id' => $account->external_account_id,
             'customer_name' => $name !== '' ? $name : ($username ? '@'.$username : 'Telegram Customer'),
             'customer_external_id' => (string) $chatId,

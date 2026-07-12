@@ -95,6 +95,37 @@ class TelegramIntegrationTest extends TestCase
         ]);
     }
 
+    public function test_telegram_webhook_uses_the_exact_connected_account_from_the_route(): void
+    {
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        ConnectedAccount::create([
+            'business_id' => $business->id,
+            'platform' => 'Telegram',
+            'account_name' => 'Old Telegram',
+            'external_account_id' => '@BrandSupportBot',
+            'status' => 'disconnected',
+            'connected_at' => now()->subDay(),
+            'access_token' => null,
+            'provider_meta' => [
+                'bot_username' => '@BrandSupportBot',
+            ],
+        ]);
+        $account = $this->createTelegramAccount($business);
+
+        $this
+            ->withHeader('X-Telegram-Bot-Api-Secret-Token', $account->provider_meta['webhook_secret'])
+            ->postJson('/api/webhooks/telegram/'.$account->id, $this->telegramUpdate())
+            ->assertOk();
+
+        $this->assertDatabaseHas('conversations', [
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_external_id' => '98765',
+            'channel' => 'Telegram',
+        ]);
+    }
+
     public function test_staff_reply_to_telegram_sends_through_bot_api(): void
     {
         Http::fake([
@@ -259,6 +290,55 @@ class TelegramIntegrationTest extends TestCase
             'status' => 'failed',
             'message' => 'Telegram reply failed unexpectedly.',
         ]);
+    }
+
+    public function test_staff_reply_fails_when_conversation_is_linked_to_disconnected_telegram_account(): void
+    {
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = ConnectedAccount::create([
+            'business_id' => $business->id,
+            'platform' => 'Telegram',
+            'account_name' => 'Old Telegram',
+            'external_account_id' => '@BrandSupportBot',
+            'status' => 'disconnected',
+            'connected_at' => now()->subDay(),
+            'access_token' => null,
+            'provider_meta' => [
+                'bot_username' => '@BrandSupportBot',
+            ],
+        ]);
+        $customer = Customer::create([
+            'business_id' => $business->id,
+            'name' => 'Ada Johnson',
+            'external_id' => '98765',
+            'channel' => 'Telegram',
+        ]);
+        $conversation = Conversation::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_id' => $customer->id,
+            'customer_name' => 'Ada Johnson',
+            'customer_external_id' => '98765',
+            'channel' => 'Telegram',
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+            'last_message_at' => now(),
+        ]);
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => 'Need help',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->post(route('dashboard.inbox.reply', $conversation), ['body' => 'We can help.'])
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Reply saved locally, but Telegram did not confirm delivery: The Telegram account for this conversation is disconnected.');
     }
 
     private function createBusiness(User $owner): Business
