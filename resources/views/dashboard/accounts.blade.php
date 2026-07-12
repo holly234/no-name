@@ -238,6 +238,9 @@
                                 @elseif ($account->platform === 'Telegram')
                                     @php
                                         $webhookStatus = $account->provider_meta['webhook_status'] ?? 'not_registered';
+                                        $webhookLastAttempt = $account->provider_meta['last_webhook_attempt_at'] ?? null;
+                                        $webhookLastProcessed = $account->provider_meta['last_webhook_processed_at'] ?? null;
+                                        $webhookLastError = $account->provider_meta['last_webhook_error'] ?? null;
                                         $webhookCopy = match ($webhookStatus) {
                                             'active' => 'Webhook live',
                                             'needs_public_https' => 'Needs public HTTPS URL',
@@ -246,7 +249,19 @@
                                             default => 'Webhook pending',
                                         };
                                     @endphp
-                                    <p class="mb-2 text-xs font-semibold {{ $webhookStatus === 'active' ? 'text-[#047857]' : 'text-[#B45309]' }}">{{ $webhookCopy }}</p>
+                                    <div class="mb-2 space-y-1 text-xs font-semibold">
+                                        <p class="{{ $webhookStatus === 'active' ? 'text-[#047857]' : 'text-[#B45309]' }}">{{ $webhookCopy }}</p>
+                                        @if ($webhookLastProcessed)
+                                            <p class="text-[#047857]">Last message received</p>
+                                        @elseif ($webhookLastAttempt)
+                                            <p class="text-[#B45309]">Telegram reached app, not processed</p>
+                                        @else
+                                            <p class="text-[#6B7280]">No Telegram delivery yet</p>
+                                        @endif
+                                        @if ($webhookLastError)
+                                            <p class="max-w-[9rem] truncate text-[#BE185D]" title="{{ $webhookLastError }}">{{ $webhookLastError }}</p>
+                                        @endif
+                                    </div>
                                 @endif
                                 <form method="POST" action="{{ route('dashboard.accounts.disconnect', $account) }}">
                                     @csrf

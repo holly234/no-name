@@ -73,8 +73,7 @@ class TelegramConnectionService
             ->asJson()
             ->post($this->endpoint($account, 'deleteWebhook'), [
                 'drop_pending_updates' => false,
-            ])
-            ->throw();
+            ]);
     }
 
     public function webhookUrl(ConnectedAccount $account): string

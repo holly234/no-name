@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Business;
+use App\Models\AutomationLog;
 use App\Models\ConnectedAccount;
 use App\Models\Conversation;
 use App\Services\AiReplyService;
@@ -59,23 +60,58 @@ class WebhookController extends Controller
     ) {
         abort_unless($account->platform === 'Telegram' && $account->status === 'connected', 404);
 
+        $this->updateTelegramWebhookMeta($account, [
+            'last_webhook_attempt_at' => now()->toIso8601String(),
+            'last_webhook_update_id' => $request->input('update_id'),
+            'last_webhook_error' => null,
+        ]);
+
         $expectedSecret = $account->provider_meta['webhook_secret'] ?? null;
         $providedSecret = $request->header('X-Telegram-Bot-Api-Secret-Token');
 
-        abort_unless(
-            is_string($expectedSecret)
-            && $expectedSecret !== ''
-            && hash_equals($expectedSecret, (string) $providedSecret),
-            401
-        );
+        if (
+            ! is_string($expectedSecret)
+            || $expectedSecret === ''
+            || ! hash_equals($expectedSecret, (string) $providedSecret)
+        ) {
+            $this->recordTelegramWebhookFailure($account, 'Telegram webhook secret mismatch.', [
+                'update_id' => $request->input('update_id'),
+                'has_secret_header' => $providedSecret !== null,
+            ]);
+
+            abort(401);
+        }
 
         $payload = $telegramConnectionService->normalizeUpdate($account, $request->all());
 
         if (! $payload) {
+            $this->recordTelegramWebhookFailure($account, 'Telegram update ignored because it did not contain a supported message.', [
+                'update_id' => $request->input('update_id'),
+                'keys' => array_keys($request->all()),
+            ], 'ignored');
+
             return response()->json(['message' => 'Telegram update ignored.']);
         }
 
         $conversation = $messageIngestionService->ingest($payload + ['source' => 'telegram']);
+
+        $this->updateTelegramWebhookMeta($account, [
+            'last_webhook_processed_at' => now()->toIso8601String(),
+            'last_webhook_error' => null,
+        ]);
+
+        AutomationLog::create([
+            'business_id' => $account->business_id,
+            'connected_account_id' => $account->id,
+            'event_type' => 'telegram_webhook',
+            'status' => 'success',
+            'message' => 'Telegram message processed.',
+            'metadata' => [
+                'update_id' => $request->input('update_id'),
+                'conversation_id' => $conversation->id,
+                'telegram_chat_id' => $payload['metadata']['telegram_chat_id'] ?? null,
+            ],
+        ]);
 
         return response()->json([
             'message' => 'Telegram message processed.',
@@ -119,5 +155,29 @@ class WebhookController extends Controller
         );
 
         return response()->json(['message' => 'Outgoing message saved.', 'id' => $message->id]);
+    }
+
+    private function recordTelegramWebhookFailure(ConnectedAccount $account, string $message, array $metadata = [], string $status = 'failed'): void
+    {
+        $this->updateTelegramWebhookMeta($account, [
+            'last_webhook_error' => $message,
+            'last_webhook_error_at' => now()->toIso8601String(),
+        ]);
+
+        AutomationLog::create([
+            'business_id' => $account->business_id,
+            'connected_account_id' => $account->id,
+            'event_type' => 'telegram_webhook',
+            'status' => $status,
+            'message' => $message,
+            'metadata' => $metadata,
+        ]);
+    }
+
+    private function updateTelegramWebhookMeta(ConnectedAccount $account, array $meta): void
+    {
+        $account->forceFill([
+            'provider_meta' => array_merge($account->provider_meta ?? [], $meta),
+        ])->save();
     }
 }
