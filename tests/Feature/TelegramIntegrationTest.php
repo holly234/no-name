@@ -98,7 +98,13 @@ class TelegramIntegrationTest extends TestCase
     public function test_staff_reply_to_telegram_sends_through_bot_api(): void
     {
         Http::fake([
-            'https://api.telegram.org/bot123456:test-token/sendMessage' => Http::response(['ok' => true], 200),
+            'https://api.telegram.org/bot123456:test-token/sendMessage' => Http::response([
+                'ok' => true,
+                'result' => [
+                    'message_id' => 77,
+                    'chat' => ['id' => 98765],
+                ],
+            ], 200),
         ]);
 
         $user = User::factory()->create();
@@ -139,6 +145,14 @@ class TelegramIntegrationTest extends TestCase
         Http::assertSent(fn ($request) => $request->url() === 'https://api.telegram.org/bot123456:test-token/sendMessage'
             && $request['chat_id'] === '98765'
             && $request['text'] === 'We can help.');
+
+        $this->assertDatabaseHas('automation_logs', [
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'event_type' => 'manual_reply_saved',
+            'status' => 'success',
+            'message' => 'A staff reply was saved and the conversation is waiting for the customer.',
+        ]);
     }
 
     public function test_staff_reply_surfaces_telegram_rejection_reason(): void
@@ -191,6 +205,59 @@ class TelegramIntegrationTest extends TestCase
             'event_type' => 'manual_reply_failed',
             'status' => 'failed',
             'message' => 'Telegram rejected the reply.',
+        ]);
+    }
+
+    public function test_staff_reply_requires_telegram_ok_response(): void
+    {
+        Http::fake([
+            'https://api.telegram.org/bot123456:test-token/sendMessage' => Http::response([
+                'ok' => false,
+                'description' => 'Bad Request: chat not found',
+            ], 200),
+        ]);
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createTelegramAccount($business);
+        $customer = Customer::create([
+            'business_id' => $business->id,
+            'name' => 'Ada Johnson',
+            'external_id' => '98765',
+            'channel' => 'Telegram',
+        ]);
+        $conversation = Conversation::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_id' => $customer->id,
+            'customer_name' => 'Ada Johnson',
+            'customer_external_id' => '98765',
+            'channel' => 'Telegram',
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+            'last_message_at' => now(),
+        ]);
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => 'Need help',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->post(route('dashboard.inbox.reply', $conversation), ['body' => 'We can help.'])
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Reply saved locally, but Telegram did not confirm delivery: Bad Request: chat not found');
+
+        $this->assertDatabaseHas('automation_logs', [
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'event_type' => 'manual_reply_failed',
+            'status' => 'failed',
+            'message' => 'Telegram reply failed unexpectedly.',
         ]);
     }
 

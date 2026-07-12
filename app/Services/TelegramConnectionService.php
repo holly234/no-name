@@ -81,26 +81,33 @@ class TelegramConnectionService
         return rtrim((string) config('app.url'), '/').'/api/webhooks/telegram/'.$account->id;
     }
 
-    public function sendTextMessage(Conversation $conversation, string $body): void
+    public function sendTextMessage(Conversation $conversation, string $body): ?array
     {
         if ($conversation->channel !== 'Telegram' || $body === '') {
-            return;
+            return null;
         }
 
         $account = $conversation->connectedAccount;
 
         if (! $account || $account->platform !== 'Telegram' || ! $account->access_token) {
-            return;
+            return null;
         }
 
-        Http::timeout(15)
+        $response = Http::timeout(15)
             ->asJson()
             ->post($this->endpoint($account, 'sendMessage'), [
                 'chat_id' => $conversation->customer_external_id,
                 'text' => $body,
                 'disable_web_page_preview' => false,
             ])
-            ->throw();
+            ->throw()
+            ->json();
+
+        if (! (bool) ($response['ok'] ?? false)) {
+            throw new \RuntimeException($response['description'] ?? 'Telegram did not confirm the reply was sent.');
+        }
+
+        return $response;
     }
 
     public function normalizeUpdate(ConnectedAccount $account, array $update): ?array

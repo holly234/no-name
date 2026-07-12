@@ -186,10 +186,16 @@ class InboxController extends Controller
             'human',
             attachments: $attachments,
         );
+        $deliveryMeta = [];
 
         if ($conversation->channel === 'Telegram' && trim((string) ($validated['body'] ?? '')) !== '') {
             try {
-                $telegramConnectionService->sendTextMessage($conversation->fresh('connectedAccount'), $message->body);
+                $telegramResponse = $telegramConnectionService->sendTextMessage($conversation->fresh('connectedAccount'), $message->body);
+                $deliveryMeta = [
+                    'telegram_response' => $telegramResponse,
+                    'telegram_message_id' => $telegramResponse['result']['message_id'] ?? null,
+                    'telegram_chat_id' => $telegramResponse['result']['chat']['id'] ?? $conversation->customer_external_id,
+                ];
             } catch (ConnectionException $exception) {
                 report($exception);
 
@@ -217,7 +223,7 @@ class InboxController extends Controller
                     'error' => $exception->getMessage(),
                 ]);
 
-                return back()->with('error', 'Reply saved locally, but Telegram rejected the send request.');
+                return back()->with('error', 'Reply saved locally, but Telegram did not confirm delivery: '.$exception->getMessage());
             }
         }
 
@@ -227,6 +233,7 @@ class InboxController extends Controller
             'event_type' => 'manual_reply_saved',
             'status' => 'success',
             'message' => 'A staff reply was saved and the conversation is waiting for the customer.',
+            'metadata' => $deliveryMeta === [] ? null : $deliveryMeta,
         ]);
 
         return back()->with('status', 'Reply sent.');
