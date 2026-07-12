@@ -126,6 +126,33 @@ class TelegramIntegrationTest extends TestCase
         ]);
     }
 
+    public function test_telegram_webhook_does_not_generate_placeholder_ai_reply(): void
+    {
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        AiSetting::create([
+            'business_id' => $business->id,
+            'auto_reply_enabled' => true,
+            'human_takeover_enabled' => true,
+        ]);
+        $account = $this->createTelegramAccount($business);
+
+        $this
+            ->withHeader('X-Telegram-Bot-Api-Secret-Token', $account->provider_meta['webhook_secret'])
+            ->postJson('/api/webhooks/telegram/'.$account->id, $this->telegramUpdate())
+            ->assertOk();
+
+        $conversation = Conversation::where('business_id', $business->id)
+            ->where('channel', 'Telegram')
+            ->where('customer_external_id', '98765')
+            ->firstOrFail();
+
+        $this->assertSame(Conversation::STATE_NEEDS_HUMAN, $conversation->status);
+        $this->assertSame('human', $conversation->ai_mode);
+        $this->assertSame(1, $conversation->messages()->count());
+        $this->assertFalse($conversation->messages()->where('sender_type', 'ai')->exists());
+    }
+
     public function test_staff_reply_to_telegram_sends_through_bot_api(): void
     {
         Http::fake([

@@ -107,12 +107,16 @@ class MessageIngestionService
         }
 
         $nextState = $this->aiReplyService->decideState($body, (float) ($payload['confidence'] ?? 0.82));
+        if ($channel === 'Telegram' && $nextState === Conversation::STATE_AI_HANDLING) {
+            $nextState = Conversation::STATE_NEEDS_HUMAN;
+        }
+
         $conversation->update([
             'connected_account_id' => $account->id,
             'customer_id' => $customer->id,
             'customer_name' => $customerName,
             'status' => $nextState,
-            'ai_mode' => 'auto',
+            'ai_mode' => $channel === 'Telegram' && $nextState === Conversation::STATE_NEEDS_HUMAN ? 'human' : 'auto',
             'last_message_at' => now(),
         ]);
 
