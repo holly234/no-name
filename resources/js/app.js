@@ -37,22 +37,46 @@ function shouldIgnoreLink(link, event) {
 }
 
 function isInboxPage() {
-    return window.location.pathname === '/dashboard/inbox';
+    return window.location.pathname.replace(/\/+$/, '') === '/dashboard/inbox';
 }
 
-function userIsTyping() {
+function hasUnsavedUserInput() {
     const activeElement = document.activeElement;
 
-    return activeElement instanceof HTMLInputElement ||
-        activeElement instanceof HTMLTextAreaElement ||
-        activeElement instanceof HTMLSelectElement ||
-        activeElement?.isContentEditable === true;
+    if (activeElement?.isContentEditable && activeElement.textContent?.trim() !== '') {
+        return true;
+    }
+
+    const fields = document.querySelectorAll('input, textarea, select');
+
+    return Array.from(fields).some((field) => {
+        if (field instanceof HTMLInputElement && field.type === 'file') {
+            return field.files?.length > 0;
+        }
+
+        if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+            return field.value !== field.defaultValue;
+        }
+
+        if (field instanceof HTMLSelectElement) {
+            return field.value !== field.querySelector('option[selected]')?.value;
+        }
+
+        return false;
+    });
 }
 
 function dashboardIsBusy() {
     return document.documentElement.classList.contains('spa-loading') ||
         document.querySelector('.spa-pending') !== null ||
         document.querySelector('form[aria-busy="true"]') !== null;
+}
+
+function canRefreshInbox() {
+    return isInboxPage() &&
+        !document.hidden &&
+        !hasUnsavedUserInput() &&
+        !dashboardIsBusy();
 }
 
 function extractAppShell(html) {
@@ -341,11 +365,19 @@ if (shouldInitializeSpa) {
         visit(window.location.href, { replace: true });
     });
 
-    window.setInterval(() => {
-        if (!isInboxPage() || document.hidden || userIsTyping() || dashboardIsBusy()) {
+    const refreshInbox = () => {
+        if (!canRefreshInbox()) {
             return;
         }
 
         visit(window.location.href, { replace: true });
-    }, 8000);
+    };
+
+    window.setInterval(refreshInbox, 5000);
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            refreshInbox();
+        }
+    });
 }
