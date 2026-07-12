@@ -9,6 +9,7 @@ use App\Services\ConversationMessageService;
 use App\Services\TelegramConnectionService;
 use App\Support\InboxUi;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
 
 class InboxController extends Controller
@@ -192,9 +193,29 @@ class InboxController extends Controller
             } catch (ConnectionException $exception) {
                 report($exception);
 
+                $this->logReplyFailure($business->id, $conversation, 'Telegram connection failed while sending reply.', [
+                    'error' => $exception->getMessage(),
+                ]);
+
                 return back()->with('error', 'Reply saved locally, but Telegram could not be reached from this machine.');
+            } catch (RequestException $exception) {
+                report($exception);
+
+                $response = $exception->response?->json();
+                $telegramReason = $response['description'] ?? $exception->getMessage();
+
+                $this->logReplyFailure($business->id, $conversation, 'Telegram rejected the reply.', [
+                    'telegram_response' => $response,
+                    'http_status' => $exception->response?->status(),
+                ]);
+
+                return back()->with('error', 'Reply saved locally, but Telegram rejected it: '.$telegramReason);
             } catch (\Throwable $exception) {
                 report($exception);
+
+                $this->logReplyFailure($business->id, $conversation, 'Telegram reply failed unexpectedly.', [
+                    'error' => $exception->getMessage(),
+                ]);
 
                 return back()->with('error', 'Reply saved locally, but Telegram rejected the send request.');
             }
@@ -305,5 +326,17 @@ class InboxController extends Controller
         }
 
         return $latestMessage->created_at?->gt($lastReadAt) ? 1 : 0;
+    }
+
+    private function logReplyFailure(int $businessId, Conversation $conversation, string $message, array $metadata = []): void
+    {
+        AutomationLog::create([
+            'business_id' => $businessId,
+            'connected_account_id' => $conversation->connected_account_id,
+            'event_type' => 'manual_reply_failed',
+            'status' => 'failed',
+            'message' => $message,
+            'metadata' => $metadata,
+        ]);
     }
 }

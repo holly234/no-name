@@ -141,6 +141,59 @@ class TelegramIntegrationTest extends TestCase
             && $request['text'] === 'We can help.');
     }
 
+    public function test_staff_reply_surfaces_telegram_rejection_reason(): void
+    {
+        Http::fake([
+            'https://api.telegram.org/bot123456:test-token/sendMessage' => Http::response([
+                'ok' => false,
+                'description' => 'Forbidden: bot was blocked by the user',
+            ], 403),
+        ]);
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createTelegramAccount($business);
+        $customer = Customer::create([
+            'business_id' => $business->id,
+            'name' => 'Ada Johnson',
+            'external_id' => '98765',
+            'channel' => 'Telegram',
+        ]);
+        $conversation = Conversation::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_id' => $customer->id,
+            'customer_name' => 'Ada Johnson',
+            'customer_external_id' => '98765',
+            'channel' => 'Telegram',
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+            'last_message_at' => now(),
+        ]);
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => 'Need help',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->post(route('dashboard.inbox.reply', $conversation), ['body' => 'We can help.'])
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Reply saved locally, but Telegram rejected it: Forbidden: bot was blocked by the user');
+
+        $this->assertDatabaseHas('automation_logs', [
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'event_type' => 'manual_reply_failed',
+            'status' => 'failed',
+            'message' => 'Telegram rejected the reply.',
+        ]);
+    }
+
     private function createBusiness(User $owner): Business
     {
         $business = Business::create([
