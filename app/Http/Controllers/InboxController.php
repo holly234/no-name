@@ -149,6 +149,7 @@ class InboxController extends Controller
             'conversationPageSize' => self::CONVERSATION_PAGE_SIZE,
             'messageHistoryLimit' => self::MESSAGE_HISTORY_LIMIT,
             'aiSettings' => $aiSettings,
+            'inboxVersion' => $this->inboxVersion($business->id),
         ]);
     }
 
@@ -245,13 +246,6 @@ class InboxController extends Controller
         $business = $request->attributes->get('currentBusiness');
         $selectedId = $request->integer('conversation');
 
-        $latestConversationActivity = Conversation::where('business_id', $business->id)
-            ->max('last_message_at') ?: '';
-        $latestMessageActivity = Message::where('business_id', $business->id)
-            ->max('updated_at') ?: '';
-        $conversationCount = Conversation::where('business_id', $business->id)->count();
-        $messageCount = Message::where('business_id', $business->id)->count();
-
         $selectedMessageCount = null;
         $selectedLatestMessageActivity = null;
 
@@ -272,12 +266,7 @@ class InboxController extends Controller
 
         return response()
             ->json([
-                'version' => implode('|', [
-                    $latestConversationActivity,
-                    $latestMessageActivity,
-                    $conversationCount,
-                    $messageCount,
-                ]),
+                'version' => $this->inboxVersion($business->id),
                 'conversation_id' => $selectedId ?: null,
                 'selected_message_count' => $selectedMessageCount,
                 'selected_latest_message_activity' => $selectedLatestMessageActivity,
@@ -376,6 +365,16 @@ class InboxController extends Controller
         }
 
         return (int) $query->where('created_at', '>', $lastReadAt)->count();
+    }
+
+    private function inboxVersion(int $businessId): string
+    {
+        return implode('|', [
+            Conversation::where('business_id', $businessId)->max('last_message_at') ?: '',
+            Message::where('business_id', $businessId)->max('updated_at') ?: '',
+            Conversation::where('business_id', $businessId)->count(),
+            Message::where('business_id', $businessId)->count(),
+        ]);
     }
 
     private function logReplyFailure(int $businessId, Conversation $conversation, string $message, array $metadata = []): void

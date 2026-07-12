@@ -10,7 +10,7 @@
         } : 'Customer identifier';
     @endphp
 
-    <div x-data="{ profileOpen: false }" class="grid h-full min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] overflow-hidden bg-[#F5F6F8] text-[#111827] lg:grid-cols-[410px_minmax(0,1fr)] xl:grid-cols-[410px_minmax(0,1fr)_320px]">
+    <div x-data="{ profileOpen: false }" data-inbox-version="{{ $inboxVersion }}" class="grid h-full min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] overflow-hidden bg-[#F5F6F8] text-[#111827] lg:grid-cols-[410px_minmax(0,1fr)] xl:grid-cols-[410px_minmax(0,1fr)_320px]">
         <aside class="{{ $conversationIsOpen ? 'hidden' : 'flex' }} h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden border-r border-[#E5E7EB] bg-white lg:flex">
             <div class="w-full max-w-full shrink-0 overflow-hidden border-b border-[#E5E7EB] bg-white px-4 py-3 sm:px-5 sm:py-4">
                 <div class="flex w-full min-w-0 items-center gap-2">

@@ -104,10 +104,26 @@ function inboxPulseUrl() {
     return pulseUrl;
 }
 
+function renderedInboxVersion() {
+    return document.querySelector('[data-inbox-version]')?.dataset?.inboxVersion || null;
+}
+
+function syncInboxVersionFromDom() {
+    if (!isInboxPage()) {
+        latestInboxVersion = null;
+        pendingInboxRefresh = false;
+        return;
+    }
+
+    latestInboxVersion = renderedInboxVersion() || latestInboxVersion;
+}
+
 async function pollInbox() {
     if (!isInboxPage() || document.hidden || dashboardIsBusy() || inboxPulseInFlight) {
         return;
     }
+
+    latestInboxVersion = latestInboxVersion || renderedInboxVersion();
 
     if (pendingInboxRefresh && !hasUnsavedUserInput()) {
         pendingInboxRefresh = false;
@@ -216,6 +232,7 @@ async function visit(url, options = {}) {
         window.scrollTo({ top: 0, behavior: 'instant' });
         window.Alpine?.initTree(document.querySelector('[data-spa-frame]') || document.querySelector('[data-spa-shell]'));
         window.Alpine?.initTree(document.querySelector('.app-sidebar') || document.querySelector('[data-spa-shell]'));
+        syncInboxVersionFromDom();
     } catch (error) {
         window.location.href = targetUrl.href;
     } finally {
@@ -378,6 +395,7 @@ async function submitForm(form, submitter = null) {
         window.history.replaceState({}, '', response.url || targetUrl.href);
         window.scrollTo({ top: 0, behavior: 'instant' });
         window.Alpine?.initTree(document.querySelector('[data-spa-shell]'));
+        syncInboxVersionFromDom();
     } catch (error) {
         form.submit();
     } finally {
@@ -431,6 +449,8 @@ if (shouldInitializeSpa) {
         visit(window.location.href, { replace: true });
     });
 
+    syncInboxVersionFromDom();
+    window.setTimeout(pollInbox, 300);
     window.setInterval(pollInbox, inboxPollIntervalMs);
     window.addEventListener('focus', () => {
         pollInbox();
