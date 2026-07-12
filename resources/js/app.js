@@ -36,6 +36,25 @@ function shouldIgnoreLink(link, event) {
         !link.href;
 }
 
+function isInboxPage() {
+    return window.location.pathname === '/dashboard/inbox';
+}
+
+function userIsTyping() {
+    const activeElement = document.activeElement;
+
+    return activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement instanceof HTMLSelectElement ||
+        activeElement?.isContentEditable === true;
+}
+
+function dashboardIsBusy() {
+    return document.documentElement.classList.contains('spa-loading') ||
+        document.querySelector('.spa-pending') !== null ||
+        document.querySelector('form[aria-busy="true"]') !== null;
+}
+
 function extractAppShell(html) {
     const parser = new DOMParser();
     const documentFragment = parser.parseFromString(html, 'text/html');
@@ -321,4 +340,12 @@ if (shouldInitializeSpa) {
     window.addEventListener('popstate', () => {
         visit(window.location.href, { replace: true });
     });
+
+    window.setInterval(() => {
+        if (!isInboxPage() || document.hidden || userIsTyping() || dashboardIsBusy()) {
+            return;
+        }
+
+        visit(window.location.href, { replace: true });
+    }, 8000);
 }

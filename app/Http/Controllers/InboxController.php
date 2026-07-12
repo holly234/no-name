@@ -322,17 +322,13 @@ class InboxController extends Controller
 
     private function unreadCount(Conversation $conversation, mixed $lastReadAt): int
     {
-        $latestMessage = $conversation->latestMessage;
-
-        if (! $latestMessage || $latestMessage->direction !== 'incoming') {
-            return 0;
-        }
+        $query = $conversation->messages()->where('direction', 'incoming');
 
         if (! $lastReadAt) {
-            return 1;
+            return (int) $query->count();
         }
 
-        return $latestMessage->created_at?->gt($lastReadAt) ? 1 : 0;
+        return (int) $query->where('created_at', '>', $lastReadAt)->count();
     }
 
     private function logReplyFailure(int $businessId, Conversation $conversation, string $message, array $metadata = []): void

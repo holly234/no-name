@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Business;
 use App\Models\ConnectedAccount;
 use App\Models\Conversation;
+use App\Models\ConversationRead;
 use App\Models\Customer;
 use App\Models\Message;
 use App\Models\MessageAttachment;
@@ -101,6 +102,88 @@ class InboxUnreadBadgeTest extends TestCase
         $response->assertSee('Replied Customer');
         $response->assertSee('aria-label="1 unread message"', false);
         $this->assertSame(1, substr_count($response->getContent(), 'aria-label="1 unread message"'));
+    }
+
+    public function test_inbox_badge_counts_every_unread_incoming_message_in_conversation(): void
+    {
+        $user = User::factory()->create();
+        $business = Business::create([
+            'owner_id' => $user->id,
+            'name' => 'Lagos Detailing',
+            'slug' => 'lagos-detailing-unread-count-test',
+            'category' => 'Auto care',
+            'email' => 'lagos-unread-count@example.test',
+        ]);
+        $business->users()->attach($user->id, ['role' => 'Owner']);
+
+        $account = ConnectedAccount::create([
+            'business_id' => $business->id,
+            'platform' => 'Telegram',
+            'account_name' => 'Lagos Telegram',
+            'external_account_id' => '@LagosBot',
+            'status' => 'connected',
+        ]);
+
+        $customer = Customer::create([
+            'business_id' => $business->id,
+            'name' => 'Olamide',
+            'external_id' => '7385715961',
+            'channel' => 'Telegram',
+        ]);
+
+        $conversation = Conversation::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_id' => $customer->id,
+            'customer_name' => 'Olamide',
+            'customer_external_id' => '7385715961',
+            'channel' => 'Telegram',
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+            'last_message_at' => now(),
+        ]);
+
+        $readAt = now()->subMinutes(10);
+        ConversationRead::create([
+            'conversation_id' => $conversation->id,
+            'user_id' => $user->id,
+            'last_read_at' => $readAt,
+        ]);
+
+        foreach (['First unread', 'Second unread', 'Third unread', 'Fourth unread'] as $index => $body) {
+            $message = Message::create([
+                'conversation_id' => $conversation->id,
+                'business_id' => $business->id,
+                'direction' => 'incoming',
+                'sender_type' => 'customer',
+                'body' => $body,
+            ]);
+            $message->forceFill([
+                'created_at' => $readAt->copy()->addSeconds($index + 1),
+                'updated_at' => $readAt->copy()->addSeconds($index + 1),
+            ])->save();
+        }
+
+        $outgoing = Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'outgoing',
+            'sender_type' => 'human',
+            'body' => 'Outgoing messages do not count as unread.',
+        ]);
+        $outgoing->forceFill([
+            'created_at' => $readAt->copy()->addMinute(),
+            'updated_at' => $readAt->copy()->addMinute(),
+        ])->save();
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('dashboard.inbox'));
+
+        $response->assertOk();
+        $response->assertSee('Olamide');
+        $response->assertSee('aria-label="4 unread message"', false);
+        $response->assertSee('>4</span>', false);
     }
 
     public function test_inbox_search_filters_conversations(): void
