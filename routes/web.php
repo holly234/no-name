@@ -33,6 +33,7 @@ Route::middleware(['auth', 'verified', 'current.business'])
     ->group(function () {
         Route::get('/', DashboardController::class)->name('dashboard');
         Route::get('/inbox', [InboxController::class, 'index'])->name('dashboard.inbox');
+        Route::get('/inbox/pulse', [InboxController::class, 'pulse'])->name('dashboard.inbox.pulse');
         Route::post('/inbox/{conversation}/reply', [InboxController::class, 'reply'])->name('dashboard.inbox.reply');
         Route::post('/inbox/{conversation}/take-over', [InboxController::class, 'takeOver'])->name('dashboard.inbox.take-over');
         Route::post('/inbox/{conversation}/resume-ai', [InboxController::class, 'resumeAi'])->name('dashboard.inbox.resume-ai');

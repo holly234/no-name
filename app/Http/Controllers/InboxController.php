@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AutomationLog;
 use App\Models\AiSetting;
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Services\ConversationMessageService;
 use App\Services\TelegramConnectionService;
 use App\Support\InboxUi;
@@ -237,6 +238,52 @@ class InboxController extends Controller
         ]);
 
         return back()->with('status', 'Reply sent.');
+    }
+
+    public function pulse(Request $request)
+    {
+        $business = $request->attributes->get('currentBusiness');
+        $selectedId = $request->integer('conversation');
+
+        $latestConversationActivity = Conversation::where('business_id', $business->id)
+            ->max('last_message_at') ?: '';
+        $latestMessageActivity = Message::where('business_id', $business->id)
+            ->max('updated_at') ?: '';
+        $conversationCount = Conversation::where('business_id', $business->id)->count();
+        $messageCount = Message::where('business_id', $business->id)->count();
+
+        $selectedMessageCount = null;
+        $selectedLatestMessageActivity = null;
+
+        if ($selectedId) {
+            $selectedConversationExists = Conversation::where('business_id', $business->id)
+                ->where('id', $selectedId)
+                ->exists();
+
+            if ($selectedConversationExists) {
+                $selectedMessageCount = Message::where('business_id', $business->id)
+                    ->where('conversation_id', $selectedId)
+                    ->count();
+                $selectedLatestMessageActivity = Message::where('business_id', $business->id)
+                    ->where('conversation_id', $selectedId)
+                    ->max('updated_at') ?: '';
+            }
+        }
+
+        return response()
+            ->json([
+                'version' => implode('|', [
+                    $latestConversationActivity,
+                    $latestMessageActivity,
+                    $conversationCount,
+                    $messageCount,
+                ]),
+                'conversation_id' => $selectedId ?: null,
+                'selected_message_count' => $selectedMessageCount,
+                'selected_latest_message_activity' => $selectedLatestMessageActivity,
+                'server_time' => now()->toIso8601String(),
+            ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     public function takeOver(Request $request, Conversation $conversation)

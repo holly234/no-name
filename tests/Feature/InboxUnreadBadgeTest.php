@@ -186,6 +186,62 @@ class InboxUnreadBadgeTest extends TestCase
         $response->assertSee('>4</span>', false);
     }
 
+    public function test_inbox_pulse_version_changes_when_new_message_arrives(): void
+    {
+        $user = User::factory()->create();
+        $business = Business::create([
+            'owner_id' => $user->id,
+            'name' => 'Lagos Detailing',
+            'slug' => 'lagos-detailing-pulse-test',
+            'category' => 'Auto care',
+            'email' => 'lagos-pulse@example.test',
+        ]);
+        $business->users()->attach($user->id, ['role' => 'Owner']);
+
+        $account = ConnectedAccount::create([
+            'business_id' => $business->id,
+            'platform' => 'Telegram',
+            'account_name' => 'Lagos Telegram',
+            'external_account_id' => '@LagosBot',
+            'status' => 'connected',
+        ]);
+
+        $conversation = $this->createConversationWithMessage(
+            business: $business,
+            account: $account,
+            customerName: 'Olamide',
+            body: 'First message',
+            channel: 'Telegram',
+        );
+
+        $firstPulse = $this
+            ->actingAs($user)
+            ->getJson(route('dashboard.inbox.pulse'))
+            ->assertOk()
+            ->assertHeader('Cache-Control');
+
+        $this->assertStringContainsString('no-store', $firstPulse->headers->get('Cache-Control'));
+        $firstVersion = $firstPulse->json('version');
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => 'Second message',
+        ]);
+
+        $conversation->update(['last_message_at' => now()->addSecond()]);
+
+        $secondVersion = $this
+            ->actingAs($user)
+            ->getJson(route('dashboard.inbox.pulse'))
+            ->assertOk()
+            ->json('version');
+
+        $this->assertNotSame($firstVersion, $secondVersion);
+    }
+
     public function test_inbox_search_filters_conversations(): void
     {
         $user = User::factory()->create();

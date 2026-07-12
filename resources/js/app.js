@@ -14,6 +14,11 @@ const shouldInitializeSpa = !window.__perpetualInboxSpaInitialized;
 window.__perpetualInboxSpaInitialized = true;
 
 const dashboardPathPrefix = '/dashboard';
+const inboxPulsePath = '/dashboard/inbox/pulse';
+const inboxPollIntervalMs = 2500;
+let latestInboxVersion = null;
+let pendingInboxRefresh = false;
+let inboxPulseInFlight = false;
 
 function isDashboardUrl(url) {
     return url.origin === window.location.origin && (
@@ -72,13 +77,6 @@ function dashboardIsBusy() {
         document.querySelector('form[aria-busy="true"]') !== null;
 }
 
-function canRefreshInbox() {
-    return isInboxPage() &&
-        !document.hidden &&
-        !hasUnsavedUserInput() &&
-        !dashboardIsBusy();
-}
-
 function extractAppShell(html) {
     const parser = new DOMParser();
     const documentFragment = parser.parseFromString(html, 'text/html');
@@ -89,6 +87,74 @@ function extractAppShell(html) {
         frame: documentFragment.querySelector('[data-spa-frame]'),
         main: documentFragment.querySelector('[data-spa-main]'),
     };
+}
+
+function inboxPulseUrl() {
+    const pulseUrl = new URL(inboxPulsePath, window.location.origin);
+    const currentUrl = new URL(window.location.href);
+
+    for (const key of ['state', 'channel', 'q', 'conversation']) {
+        const value = currentUrl.searchParams.get(key);
+
+        if (value) {
+            pulseUrl.searchParams.set(key, value);
+        }
+    }
+
+    return pulseUrl;
+}
+
+async function pollInbox() {
+    if (!isInboxPage() || document.hidden || dashboardIsBusy() || inboxPulseInFlight) {
+        return;
+    }
+
+    if (pendingInboxRefresh && !hasUnsavedUserInput()) {
+        pendingInboxRefresh = false;
+        await visit(window.location.href, { replace: true });
+        return;
+    }
+
+    inboxPulseInFlight = true;
+
+    try {
+        const response = await fetch(inboxPulseUrl().href, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            cache: 'no-store',
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        const payload = await response.json();
+
+        if (!payload?.version) {
+            return;
+        }
+
+        if (latestInboxVersion === null) {
+            latestInboxVersion = payload.version;
+            return;
+        }
+
+        if (payload.version !== latestInboxVersion) {
+            latestInboxVersion = payload.version;
+
+            if (hasUnsavedUserInput()) {
+                pendingInboxRefresh = true;
+                return;
+            }
+
+            await visit(window.location.href, { replace: true });
+        }
+    } finally {
+        inboxPulseInFlight = false;
+    }
 }
 
 async function visit(url, options = {}) {
@@ -365,19 +431,14 @@ if (shouldInitializeSpa) {
         visit(window.location.href, { replace: true });
     });
 
-    const refreshInbox = () => {
-        if (!canRefreshInbox()) {
-            return;
-        }
-
-        visit(window.location.href, { replace: true });
-    };
-
-    window.setInterval(refreshInbox, 5000);
+    window.setInterval(pollInbox, inboxPollIntervalMs);
+    window.addEventListener('focus', () => {
+        pollInbox();
+    });
 
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
-            refreshInbox();
+            pollInbox();
         }
     });
 }
