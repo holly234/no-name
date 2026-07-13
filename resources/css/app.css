@@ -10,6 +10,12 @@
     body {
         background: #f5f6f8;
     }
+
+    body:has(.app-inbox-frame) {
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+    }
 }
 
 @layer components {
@@ -23,6 +29,7 @@
         height: 100vh;
         height: 100dvh;
         min-height: 0;
+        overscroll-behavior: none;
     }
 
     .app-sidebar {

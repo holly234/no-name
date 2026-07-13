@@ -286,6 +286,9 @@
                                             @php
                                                 $isPdf = $attachment->mime_type === 'application/pdf';
                                                 $isImage = str_starts_with((string) $attachment->mime_type, 'image/');
+                                                $isAudio = str_starts_with((string) $attachment->mime_type, 'audio/');
+                                                $isVideo = str_starts_with((string) $attachment->mime_type, 'video/');
+                                                $inlineUrl = route('dashboard.attachments.download', ['attachment' => $attachment, 'inline' => 1]);
                                                 $size = (int) ($attachment->size ?? 0);
                                                 if ($size >= 1048576) {
                                                     $sizeLabel = round($size / 1048576, 1).' MB';
@@ -297,8 +300,29 @@
                                                     $sizeLabel = 'Unknown size';
                                                 }
                                             @endphp
+                                            @if ($isImage)
+                                                <a href="{{ route('dashboard.attachments.download', $attachment) }}" class="block overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] transition hover:opacity-90">
+                                                    <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-80 w-full object-cover">
+                                                </a>
+                                            @elseif ($isVideo)
+                                                <div class="overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#111827]">
+                                                    <video controls preload="metadata" src="{{ $inlineUrl }}" class="max-h-80 w-full bg-[#111827]"></video>
+                                                </div>
+                                            @elseif ($isAudio)
+                                                <div class="rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3">
+                                                    <div class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]">
+                                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                                            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                                                            <path d="M19 11a7 7 0 0 1-14 0"></path>
+                                                            <path d="M12 18v3"></path>
+                                                        </svg>
+                                                        Voice note
+                                                    </div>
+                                                    <audio controls preload="metadata" src="{{ $inlineUrl }}" class="w-full"></audio>
+                                                </div>
+                                            @endif
                                             <a href="{{ route('dashboard.attachments.download', $attachment) }}" class="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3 transition hover:bg-[#EEF0F3]">
-                                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {{ $isPdf ? 'bg-pink-50 text-[#BE185D]' : ($isImage ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#EEF0F3] text-[#374151]') }}">
+                                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {{ $isPdf ? 'bg-pink-50 text-[#BE185D]' : ($isImage ? 'bg-[#EFF6FF] text-[#2563EB]' : ($isVideo ? 'bg-[#EEF2FF] text-[#4F46E5]' : ($isAudio ? 'bg-[#ECFDF5] text-[#047857]' : 'bg-[#EEF0F3] text-[#374151]'))) }}">
                                                     @if ($isPdf)
                                                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
                                                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -311,6 +335,17 @@
                                                             <rect x="3" y="5" width="18" height="14" rx="2"></rect>
                                                             <circle cx="8.5" cy="10" r="1.5"></circle>
                                                             <path d="m21 15-4.5-4.5L9 18"></path>
+                                                        </svg>
+                                                    @elseif ($isAudio)
+                                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                                                            <path d="M19 11a7 7 0 0 1-14 0"></path>
+                                                            <path d="M12 18v3"></path>
+                                                        </svg>
+                                                    @elseif ($isVideo)
+                                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                            <path d="M15 10.5 20 7v10l-5-3.5"></path>
+                                                            <rect x="3" y="6" width="12" height="12" rx="2"></rect>
                                                         </svg>
                                                     @else
                                                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
@@ -378,6 +413,9 @@
                             </form>
                         </div>
                     @else
+                        @php
+                            $voiceNotesDisabled = $selectedConversation->channel === 'Gmail';
+                        @endphp
                         <form method="POST" action="{{ route('dashboard.inbox.reply', $selectedConversation) }}" enctype="multipart/form-data" class="space-y-2" data-human-on-submit="true" x-data="{ fileCount: 0, emojiOpen: false, automationPaused: @js($selectedConversation->ai_mode === 'human'), updateFiles() { this.fileCount = (this.$refs.fileInput?.files?.length || 0) + (this.$refs.imageInput?.files?.length || 0) + (this.$refs.audioInput?.files?.length || 0) }, insertEmoji(emoji) { const input = this.$refs.messageInput; const start = input.selectionStart ?? input.value.length; const end = input.selectionEnd ?? input.value.length; input.value = input.value.slice(0, start) + emoji + input.value.slice(end); input.focus(); input.selectionStart = input.selectionEnd = start + emoji.length; this.emojiOpen = false } }">
                             @csrf
                             <div class="flex items-end gap-2">
@@ -404,7 +442,9 @@
                                     <textarea x-ref="messageInput" name="body" rows="1" class="min-w-[5rem] max-h-28 flex-1 resize-none border-0 bg-transparent py-3 text-sm text-[#111827] placeholder:text-[#6B7280] focus:ring-0" placeholder="Message"></textarea>
                                     <input x-ref="fileInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-attachments-{{ $selectedConversation->id }}" multiple class="hidden">
                                     <input x-ref="imageInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-images-{{ $selectedConversation->id }}" multiple accept="image/*" class="hidden">
-                                    <input x-ref="audioInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-audio-{{ $selectedConversation->id }}" accept="audio/*" class="hidden">
+                                    @unless ($voiceNotesDisabled)
+                                        <input x-ref="audioInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-audio-{{ $selectedConversation->id }}" accept="audio/*" class="hidden">
+                                    @endunless
                                     <label for="message-attachments-{{ $selectedConversation->id }}" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Attach file" title="Attach file">
                                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
                                             <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 1 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
@@ -417,13 +457,24 @@
                                             <path d="m21 15-4.5-4.5L8 19"></path>
                                         </svg>
                                     </label>
-                                    <label for="message-audio-{{ $selectedConversation->id }}" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Upload voice note" title="Upload voice note">
-                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
-                                            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
-                                            <path d="M19 11a7 7 0 0 1-14 0"></path>
-                                            <path d="M12 18v3"></path>
-                                        </svg>
-                                    </label>
+                                    @if ($voiceNotesDisabled)
+                                        <span class="relative inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-md text-[#9CA3AF] sm:h-9 sm:w-9" aria-label="Voice notes are disabled for email" title="Voice notes are disabled for email">
+                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                                                <path d="M19 11a7 7 0 0 1-14 0"></path>
+                                                <path d="M12 18v3"></path>
+                                            </svg>
+                                            <span class="absolute h-px w-6 rotate-45 bg-[#9CA3AF]"></span>
+                                        </span>
+                                    @else
+                                        <label for="message-audio-{{ $selectedConversation->id }}" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Upload voice note" title="Upload voice note">
+                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                                                <path d="M19 11a7 7 0 0 1-14 0"></path>
+                                                <path d="M12 18v3"></path>
+                                            </svg>
+                                        </label>
+                                    @endif
                                     @if (! $aiSettings->human_takeover_enabled)
                                         <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#9CA3AF] sm:h-9 sm:w-9" aria-label="Pause automation unavailable" title="Pause automation unavailable">
                                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">

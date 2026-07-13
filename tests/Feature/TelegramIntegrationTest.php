@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -136,6 +137,90 @@ class TelegramIntegrationTest extends TestCase
         $this->assertNotNull($customer->avatar_path);
         Storage::disk('public')->assertExists($customer->avatar_path);
         $this->assertSame('fake-avatar-binary', Storage::disk('public')->get($customer->avatar_path));
+    }
+
+    public function test_telegram_webhook_stores_incoming_photo_attachment(): void
+    {
+        Storage::fake('local');
+        Http::fake([
+            'https://api.telegram.org/bot123456:test-token/getUserProfilePhotos?*' => Http::response([
+                'ok' => true,
+                'result' => ['total_count' => 0, 'photos' => []],
+            ], 200),
+            'https://api.telegram.org/bot123456:test-token/getFile?*' => Http::response([
+                'ok' => true,
+                'result' => ['file_path' => 'photos/incoming.jpg'],
+            ], 200),
+            'https://api.telegram.org/file/bot123456:test-token/photos/incoming.jpg' => Http::response('fake-photo-binary', 200),
+        ]);
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        AiSetting::create([
+            'business_id' => $business->id,
+            'auto_reply_enabled' => false,
+            'human_takeover_enabled' => true,
+        ]);
+        $account = $this->createTelegramAccount($business);
+
+        $this
+            ->withHeader('X-Telegram-Bot-Api-Secret-Token', $account->provider_meta['webhook_secret'])
+            ->postJson('/api/webhooks/telegram/'.$account->id, $this->telegramPhotoUpdate())
+            ->assertOk();
+
+        $message = Message::where('business_id', $business->id)
+            ->where('direction', 'incoming')
+            ->where('body', '[Photo]')
+            ->firstOrFail();
+        $attachment = $message->attachments()->firstOrFail();
+
+        $this->assertSame('telegram', $attachment->provider);
+        $this->assertSame('photo-unique-large', $attachment->provider_attachment_id);
+        $this->assertSame('image/jpeg', $attachment->mime_type);
+        Storage::disk('local')->assertExists($attachment->storage_path);
+        $this->assertSame('fake-photo-binary', Storage::disk('local')->get($attachment->storage_path));
+    }
+
+    public function test_telegram_webhook_stores_incoming_video_attachment(): void
+    {
+        Storage::fake('local');
+        Http::fake([
+            'https://api.telegram.org/bot123456:test-token/getUserProfilePhotos?*' => Http::response([
+                'ok' => true,
+                'result' => ['total_count' => 0, 'photos' => []],
+            ], 200),
+            'https://api.telegram.org/bot123456:test-token/getFile?*' => Http::response([
+                'ok' => true,
+                'result' => ['file_path' => 'videos/incoming.mp4'],
+            ], 200),
+            'https://api.telegram.org/file/bot123456:test-token/videos/incoming.mp4' => Http::response('fake-video-binary', 200),
+        ]);
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        AiSetting::create([
+            'business_id' => $business->id,
+            'auto_reply_enabled' => false,
+            'human_takeover_enabled' => true,
+        ]);
+        $account = $this->createTelegramAccount($business);
+
+        $this
+            ->withHeader('X-Telegram-Bot-Api-Secret-Token', $account->provider_meta['webhook_secret'])
+            ->postJson('/api/webhooks/telegram/'.$account->id, $this->telegramVideoUpdate())
+            ->assertOk();
+
+        $message = Message::where('business_id', $business->id)
+            ->where('direction', 'incoming')
+            ->where('body', '[Video]')
+            ->firstOrFail();
+        $attachment = $message->attachments()->firstOrFail();
+
+        $this->assertSame('telegram', $attachment->provider);
+        $this->assertSame('video-unique', $attachment->provider_attachment_id);
+        $this->assertSame('video/mp4', $attachment->mime_type);
+        Storage::disk('local')->assertExists($attachment->storage_path);
+        $this->assertSame('fake-video-binary', Storage::disk('local')->get($attachment->storage_path));
     }
 
     public function test_telegram_webhook_uses_the_exact_connected_account_from_the_route(): void
@@ -267,6 +352,130 @@ class TelegramIntegrationTest extends TestCase
             'event_type' => 'manual_reply_saved',
             'status' => 'success',
             'message' => 'A staff reply was saved and the conversation is waiting for the customer.',
+        ]);
+    }
+
+    public function test_staff_reply_to_telegram_sends_image_attachment_through_bot_api(): void
+    {
+        Storage::fake('local');
+        Http::fake([
+            'https://api.telegram.org/bot123456:test-token/sendPhoto' => Http::response([
+                'ok' => true,
+                'result' => [
+                    'message_id' => 88,
+                    'chat' => ['id' => 98765],
+                ],
+            ], 200),
+        ]);
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createTelegramAccount($business);
+        $customer = Customer::create([
+            'business_id' => $business->id,
+            'name' => 'Ada Johnson',
+            'external_id' => '98765',
+            'channel' => 'Telegram',
+        ]);
+        $conversation = Conversation::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_id' => $customer->id,
+            'customer_name' => 'Ada Johnson',
+            'customer_external_id' => '98765',
+            'channel' => 'Telegram',
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+            'last_message_at' => now(),
+        ]);
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => 'Need help',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->post(route('dashboard.inbox.reply', $conversation), [
+                'attachments' => [
+                    UploadedFile::fake()->create('proof.jpg', 128, 'image/jpeg'),
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Reply sent.');
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.telegram.org/bot123456:test-token/sendPhoto');
+
+        $this->assertDatabaseHas('message_attachments', [
+            'business_id' => $business->id,
+            'provider' => 'manual',
+            'filename' => 'proof.jpg',
+            'mime_type' => 'image/jpeg',
+        ]);
+    }
+
+    public function test_staff_reply_to_telegram_sends_video_attachment_through_bot_api(): void
+    {
+        Storage::fake('local');
+        Http::fake([
+            'https://api.telegram.org/bot123456:test-token/sendVideo' => Http::response([
+                'ok' => true,
+                'result' => [
+                    'message_id' => 89,
+                    'chat' => ['id' => 98765],
+                ],
+            ], 200),
+        ]);
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createTelegramAccount($business);
+        $customer = Customer::create([
+            'business_id' => $business->id,
+            'name' => 'Ada Johnson',
+            'external_id' => '98765',
+            'channel' => 'Telegram',
+        ]);
+        $conversation = Conversation::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_id' => $customer->id,
+            'customer_name' => 'Ada Johnson',
+            'customer_external_id' => '98765',
+            'channel' => 'Telegram',
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+            'last_message_at' => now(),
+        ]);
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => 'Need help',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->post(route('dashboard.inbox.reply', $conversation), [
+                'attachments' => [
+                    UploadedFile::fake()->create('walkthrough.mp4', 512, 'video/mp4'),
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Reply sent.');
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.telegram.org/bot123456:test-token/sendVideo');
+
+        $this->assertDatabaseHas('message_attachments', [
+            'business_id' => $business->id,
+            'provider' => 'manual',
+            'filename' => 'walkthrough.mp4',
+            'mime_type' => 'video/mp4',
         ]);
     }
 
@@ -476,6 +685,76 @@ class TelegramIntegrationTest extends TestCase
                     'username' => 'adajohnson',
                 ],
                 'text' => 'Hello from Telegram',
+            ],
+        ];
+    }
+
+    private function telegramPhotoUpdate(): array
+    {
+        return [
+            'update_id' => 1001,
+            'message' => [
+                'message_id' => 43,
+                'chat' => [
+                    'id' => 98765,
+                    'type' => 'private',
+                    'username' => 'adajohnson',
+                ],
+                'from' => [
+                    'id' => 98765,
+                    'is_bot' => false,
+                    'first_name' => 'Ada',
+                    'last_name' => 'Johnson',
+                    'username' => 'adajohnson',
+                ],
+                'photo' => [
+                    [
+                        'file_id' => 'photo-small',
+                        'file_unique_id' => 'photo-unique-small',
+                        'width' => 90,
+                        'height' => 90,
+                        'file_size' => 1024,
+                    ],
+                    [
+                        'file_id' => 'photo-large',
+                        'file_unique_id' => 'photo-unique-large',
+                        'width' => 900,
+                        'height' => 900,
+                        'file_size' => 4096,
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    private function telegramVideoUpdate(): array
+    {
+        return [
+            'update_id' => 1002,
+            'message' => [
+                'message_id' => 44,
+                'chat' => [
+                    'id' => 98765,
+                    'type' => 'private',
+                    'username' => 'adajohnson',
+                ],
+                'from' => [
+                    'id' => 98765,
+                    'is_bot' => false,
+                    'first_name' => 'Ada',
+                    'last_name' => 'Johnson',
+                    'username' => 'adajohnson',
+                ],
+                'video' => [
+                    'file_id' => 'video-file',
+                    'file_unique_id' => 'video-unique',
+                    'file_name' => 'incoming.mp4',
+                    'mime_type' => 'video/mp4',
+                    'file_size' => 4096,
+                    'width' => 720,
+                    'height' => 1280,
+                    'duration' => 8,
+                ],
             ],
         ];
     }

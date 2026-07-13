@@ -118,8 +118,20 @@ function syncInboxVersionFromDom() {
     latestInboxVersion = renderedInboxVersion() || latestInboxVersion;
 }
 
+function normalizeInboxViewport() {
+    if (!isInboxPage()) {
+        return;
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+}
+
 function scrollActiveChatToBottom() {
     const chatPane = document.querySelector('[data-chat-scroll]');
+
+    normalizeInboxViewport();
 
     if (!chatPane) {
         return;
@@ -198,6 +210,10 @@ async function visit(url, options = {}) {
         return;
     }
 
+    if (isInboxPage() && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+    }
+
     document.documentElement.classList.add('spa-loading');
 
     try {
@@ -247,6 +263,7 @@ async function visit(url, options = {}) {
         }
 
         if (isInboxPage()) {
+            normalizeInboxViewport();
             scrollActiveChatToBottom();
         } else {
             window.scrollTo({ top: 0, behavior: 'instant' });
@@ -375,6 +392,10 @@ async function submitForm(form, submitter = null) {
         return;
     }
 
+    if (isInboxPage() && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+    }
+
     document.documentElement.classList.add('spa-loading');
     animateModeToggle(submitter);
     animateManualReplyMode(form);
@@ -415,6 +436,7 @@ async function submitForm(form, submitter = null) {
         document.title = next.title || document.title;
         window.history.replaceState({}, '', response.url || targetUrl.href);
         if (isInboxPage()) {
+            normalizeInboxViewport();
             scrollActiveChatToBottom();
         } else {
             window.scrollTo({ top: 0, behavior: 'instant' });

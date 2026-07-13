@@ -171,16 +171,10 @@ class InboxController extends Controller
         $validated = $request->validate([
             'body' => ['nullable', 'required_without:attachments', 'string', 'max:4000'],
             'attachments' => ['nullable', 'array', 'max:6'],
-            'attachments.*' => ['file', 'max:12288'],
+            'attachments.*' => ['file', 'max:10240'],
         ]);
 
         $attachments = $request->file('attachments', []);
-
-        foreach ($attachments as $attachment) {
-            if (str_starts_with((string) $attachment->getMimeType(), 'video/')) {
-                return back()->with('error', 'Video uploads are not supported here. Use images, files, or audio notes.');
-            }
-        }
 
         $message = $conversationMessageService->saveOutgoing(
             $conversation,
@@ -190,13 +184,25 @@ class InboxController extends Controller
         );
         $deliveryMeta = [];
 
-        if ($conversation->channel === 'Telegram' && trim((string) ($validated['body'] ?? '')) !== '') {
+        if ($conversation->channel === 'Telegram' && ($message->body !== '' || $message->attachments()->exists())) {
             try {
-                $telegramResponse = $telegramConnectionService->sendTextMessage($conversation->fresh('connectedAccount'), $message->body);
+                $telegramConversation = $conversation->fresh('connectedAccount');
+                $telegramResponse = null;
+                $attachmentResponses = [];
+
+                if ($message->body !== '') {
+                    $telegramResponse = $telegramConnectionService->sendTextMessage($telegramConversation, $message->body);
+                }
+
+                foreach ($message->attachments as $attachment) {
+                    $attachmentResponses[] = $telegramConnectionService->sendAttachment($telegramConversation, $attachment);
+                }
+
                 $deliveryMeta = [
                     'telegram_response' => $telegramResponse,
                     'telegram_message_id' => $telegramResponse['result']['message_id'] ?? null,
                     'telegram_chat_id' => $telegramResponse['result']['chat']['id'] ?? $conversation->customer_external_id,
+                    'telegram_attachment_responses' => $attachmentResponses,
                 ];
             } catch (ConnectionException $exception) {
                 report($exception);

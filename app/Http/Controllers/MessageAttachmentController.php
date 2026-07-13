@@ -15,10 +15,16 @@ class MessageAttachmentController extends Controller
         abort_unless($attachment->business_id === $business->id, 403);
         abort_unless(Storage::disk($attachment->disk)->exists($attachment->storage_path), 404);
 
-        return Storage::disk($attachment->disk)->download(
-            $attachment->storage_path,
-            $attachment->filename,
-            ['Content-Type' => $attachment->mime_type ?: 'application/octet-stream']
-        );
+        $headers = ['Content-Type' => $attachment->mime_type ?: 'application/octet-stream'];
+
+        if ($request->boolean('inline')) {
+            return Storage::disk($attachment->disk)->response(
+                $attachment->storage_path,
+                $attachment->filename,
+                $headers
+            );
+        }
+
+        return Storage::disk($attachment->disk)->download($attachment->storage_path, $attachment->filename, $headers);
     }
 }

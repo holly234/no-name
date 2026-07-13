@@ -8,6 +8,7 @@ use App\Models\ConnectedAccount;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
+use App\Models\MessageAttachment;
 
 class MessageIngestionService
 {
@@ -78,7 +79,7 @@ class MessageIngestionService
             ]
         );
 
-        Message::create([
+        $message = Message::create([
             'conversation_id' => $conversation->id,
             'business_id' => $businessId,
             'direction' => 'incoming',
@@ -89,6 +90,33 @@ class MessageIngestionService
                 $payload['metadata'] ?? []
             ),
         ]);
+
+        foreach (($payload['attachments'] ?? []) as $attachment) {
+            if (! is_array($attachment)) {
+                continue;
+            }
+
+            if (empty($attachment['provider_attachment_id']) || empty($attachment['storage_path'])) {
+                continue;
+            }
+
+            MessageAttachment::updateOrCreate(
+                [
+                    'business_id' => $businessId,
+                    'provider' => $attachment['provider'] ?? strtolower($channel),
+                    'provider_attachment_id' => $attachment['provider_attachment_id'] ?? null,
+                ],
+                [
+                    'message_id' => $message->id,
+                    'filename' => $attachment['filename'] ?? 'attachment',
+                    'mime_type' => $attachment['mime_type'] ?? null,
+                    'size' => $attachment['size'] ?? null,
+                    'disk' => $attachment['disk'] ?? 'local',
+                    'storage_path' => $attachment['storage_path'] ?? '',
+                    'metadata' => $attachment['metadata'] ?? null,
+                ]
+            );
+        }
 
         $aiSettings = AiSetting::firstOrCreate(['business_id' => $businessId]);
         if (! $aiSettings->auto_reply_enabled || ! $this->isWithinReplyWindow($aiSettings)) {
