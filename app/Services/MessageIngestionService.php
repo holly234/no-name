@@ -53,6 +53,15 @@ class MessageIngestionService
             ['name' => $customerName, 'tags' => ['demo']]
         );
 
+        if (! empty($payload['customer_avatar']) && is_array($payload['customer_avatar'])) {
+            $customer->forceFill(array_filter([
+                'avatar_disk' => $payload['customer_avatar']['avatar_disk'] ?? null,
+                'avatar_path' => $payload['customer_avatar']['avatar_path'] ?? null,
+                'avatar_url' => $payload['customer_avatar']['avatar_url'] ?? null,
+                'avatar_provider_id' => $payload['customer_avatar']['avatar_provider_id'] ?? null,
+            ]))->save();
+        }
+
         $conversation = Conversation::firstOrCreate(
             [
                 'business_id' => $businessId,

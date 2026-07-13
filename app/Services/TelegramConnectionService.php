@@ -6,6 +6,7 @@ use App\Models\ConnectedAccount;
 use App\Models\Conversation;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class TelegramConnectionService
@@ -165,6 +166,64 @@ class TelegramConnectionService
         ];
     }
 
+    public function fetchCustomerAvatar(ConnectedAccount $account, string $telegramUserId): ?array
+    {
+        if ($account->platform !== 'Telegram' || ! $account->access_token || $telegramUserId === '') {
+            return null;
+        }
+
+        $profilePhotos = Http::timeout(8)
+            ->get($this->endpoint($account, 'getUserProfilePhotos'), [
+                'user_id' => $telegramUserId,
+                'limit' => 1,
+            ])
+            ->throw()
+            ->json();
+
+        $photoSizes = $profilePhotos['result']['photos'][0] ?? null;
+
+        if (! (bool) ($profilePhotos['ok'] ?? false) || ! is_array($photoSizes) || $photoSizes === []) {
+            return null;
+        }
+
+        $largestPhoto = collect($photoSizes)
+            ->sortByDesc(fn (array $photo) => (int) ($photo['file_size'] ?? (($photo['width'] ?? 0) * ($photo['height'] ?? 0))))
+            ->first();
+
+        $fileId = $largestPhoto['file_id'] ?? null;
+        $fileUniqueId = $largestPhoto['file_unique_id'] ?? $fileId;
+
+        if (! $fileId) {
+            return null;
+        }
+
+        $file = Http::timeout(8)
+            ->get($this->endpoint($account, 'getFile'), ['file_id' => $fileId])
+            ->throw()
+            ->json();
+
+        $filePath = $file['result']['file_path'] ?? null;
+
+        if (! (bool) ($file['ok'] ?? false) || ! $filePath) {
+            return null;
+        }
+
+        $download = Http::timeout(15)
+            ->get($this->fileEndpoint($account, $filePath))
+            ->throw();
+
+        $extension = pathinfo($filePath, PATHINFO_EXTENSION) ?: 'jpg';
+        $storagePath = 'customer-avatars/'.$account->business_id.'/'.$account->id.'/'.Str::slug($telegramUserId).'-'.Str::slug((string) $fileUniqueId).'.'.$extension;
+
+        Storage::disk('public')->put($storagePath, $download->body());
+
+        return [
+            'avatar_disk' => 'public',
+            'avatar_path' => $storagePath,
+            'avatar_provider_id' => (string) $fileUniqueId,
+        ];
+    }
+
     public function isConnectionError(\Throwable $exception): bool
     {
         return $exception instanceof ConnectionException;
@@ -184,6 +243,14 @@ class TelegramConnectionService
     private function endpoint(ConnectedAccount $account, string $method): string
     {
         return rtrim((string) config('services.telegram.api_base'), '/').$account->access_token.'/'.$method;
+    }
+
+    private function fileEndpoint(ConnectedAccount $account, string $filePath): string
+    {
+        $apiBase = rtrim((string) config('services.telegram.api_base'), '/');
+        $fileBase = str_replace('/bot', '/file/bot', $apiBase);
+
+        return $fileBase.$account->access_token.'/'.$filePath;
     }
 
     private function storeWebhookMeta(ConnectedAccount $account, array $meta): void

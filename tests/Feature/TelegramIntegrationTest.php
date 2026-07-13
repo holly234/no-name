@@ -11,6 +11,7 @@ use App\Models\Message;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TelegramIntegrationTest extends TestCase
@@ -64,6 +65,37 @@ class TelegramIntegrationTest extends TestCase
 
     public function test_telegram_webhook_imports_message_to_inbox(): void
     {
+        Storage::fake('public');
+        Http::fake([
+            'https://api.telegram.org/bot123456:test-token/getUserProfilePhotos?*' => Http::response([
+                'ok' => true,
+                'result' => [
+                    'total_count' => 1,
+                    'photos' => [[
+                        [
+                            'file_id' => 'small-photo-id',
+                            'file_unique_id' => 'small-photo-unique',
+                            'width' => 64,
+                            'height' => 64,
+                            'file_size' => 1000,
+                        ],
+                        [
+                            'file_id' => 'large-photo-id',
+                            'file_unique_id' => 'large-photo-unique',
+                            'width' => 320,
+                            'height' => 320,
+                            'file_size' => 4000,
+                        ],
+                    ]],
+                ],
+            ], 200),
+            'https://api.telegram.org/bot123456:test-token/getFile?*' => Http::response([
+                'ok' => true,
+                'result' => ['file_path' => 'photos/avatar.jpg'],
+            ], 200),
+            'https://api.telegram.org/file/bot123456:test-token/photos/avatar.jpg' => Http::response('fake-avatar-binary', 200),
+        ]);
+
         $user = User::factory()->create();
         $business = $this->createBusiness($user);
         AiSetting::create([
@@ -93,10 +125,28 @@ class TelegramIntegrationTest extends TestCase
             'direction' => 'incoming',
             'body' => 'Hello from Telegram',
         ]);
+
+        $customer = Customer::where('business_id', $business->id)
+            ->where('channel', 'Telegram')
+            ->where('external_id', '98765')
+            ->firstOrFail();
+
+        $this->assertSame('public', $customer->avatar_disk);
+        $this->assertSame('large-photo-unique', $customer->avatar_provider_id);
+        $this->assertNotNull($customer->avatar_path);
+        Storage::disk('public')->assertExists($customer->avatar_path);
+        $this->assertSame('fake-avatar-binary', Storage::disk('public')->get($customer->avatar_path));
     }
 
     public function test_telegram_webhook_uses_the_exact_connected_account_from_the_route(): void
     {
+        Http::fake([
+            'https://api.telegram.org/bot123456:test-token/getUserProfilePhotos?*' => Http::response([
+                'ok' => true,
+                'result' => ['total_count' => 0, 'photos' => []],
+            ], 200),
+        ]);
+
         $user = User::factory()->create();
         $business = $this->createBusiness($user);
         ConnectedAccount::create([
@@ -128,6 +178,13 @@ class TelegramIntegrationTest extends TestCase
 
     public function test_telegram_webhook_does_not_generate_placeholder_ai_reply(): void
     {
+        Http::fake([
+            'https://api.telegram.org/bot123456:test-token/getUserProfilePhotos?*' => Http::response([
+                'ok' => true,
+                'result' => ['total_count' => 0, 'photos' => []],
+            ], 200),
+        ]);
+
         $user = User::factory()->create();
         $business = $this->createBusiness($user);
         AiSetting::create([

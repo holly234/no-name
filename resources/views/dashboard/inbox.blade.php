@@ -84,13 +84,23 @@
                         $statusMeta = $conversation->getAttribute('status_meta');
                         $channel = $conversation->getAttribute('channel_meta');
                         $latestReplyDisabled = (bool) $conversation->getAttribute('reply_disabled');
+                        $avatarUrl = $conversation->customer?->avatarUrl();
                     @endphp
                     <a href="{{ route('dashboard.inbox', array_filter(['state' => $activeState, 'channel' => $activeChannel === 'All' ? null : $activeChannel, 'q' => $search ?: null, 'conversation' => $conversation->id])) }}" class="group block w-full min-w-0 max-w-full overflow-hidden px-4 transition hover:bg-[#F5F6F8] sm:px-5 {{ $selectedConversation?->id === $conversation->id ? 'bg-[#EFF6FF]' : '' }}">
                         <div class="flex w-full min-w-0 max-w-full gap-3 overflow-hidden border-b border-[#E5E7EB] py-3.5">
-                            <span class="relative mt-1 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-sm sm:h-12 sm:w-12 {{ $channel['class'] }}" title="{{ $conversation->channel }}" aria-label="{{ $conversation->channel }}">
-                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5">
-                                    {!! $channel['icon'] !!}
-                                </svg>
+                            <span class="relative mt-1 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-sm sm:h-12 sm:w-12 {{ $avatarUrl ? 'bg-[#EEF0F3]' : $channel['class'] }}" title="{{ $conversation->channel }}" aria-label="{{ $conversation->channel }}">
+                                @if ($avatarUrl)
+                                    <img src="{{ $avatarUrl }}" alt="" class="h-full w-full object-cover">
+                                    <span class="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-md border border-white {{ $channel['class'] }}">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3 w-3">
+                                            {!! $channel['icon'] !!}
+                                        </svg>
+                                    </span>
+                                @else
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5">
+                                        {!! $channel['icon'] !!}
+                                    </svg>
+                                @endif
                             </span>
                             <div class="min-w-0 max-w-full flex-1 overflow-hidden">
                                 <div class="flex min-w-0 items-start justify-between gap-3">
@@ -166,6 +176,8 @@
                     $replyDisabledReason = $selectedConversation->replyDisabledReason() ?? 'Automated or not replyable email';
                     $isGmailThread = $selectedConversation->channel === 'Gmail';
                     $gmailThreadMessageCount = $isGmailThread ? $selectedConversation->messages->where('metadata.source', 'gmail')->count() : 0;
+                    $selectedAvatarUrl = $selectedConversation->customer?->avatarUrl();
+                    $selectedChannel = \App\Support\InboxUi::channelMeta($selectedConversation->channel);
                 @endphp
                 <div class="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-[#E5E7EB] bg-white px-3 py-3 sm:px-4">
                     <div class="flex min-w-0 items-center gap-3">
@@ -174,7 +186,18 @@
                                 <path d="M15 18 9 12l6-6"></path>
                             </svg>
                         </a>
-                        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EEF0F3] text-sm font-bold text-[#111827]">{{ \Illuminate\Support\Str::of($selectedConversation->customer_name)->substr(0, 1) }}</span>
+                        <span class="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#EEF0F3] text-sm font-bold text-[#111827]">
+                            @if ($selectedAvatarUrl)
+                                <img src="{{ $selectedAvatarUrl }}" alt="" class="h-full w-full object-cover">
+                                <span class="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-md border border-white {{ $selectedChannel['class'] }}">
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3 w-3">
+                                        {!! $selectedChannel['icon'] !!}
+                                    </svg>
+                                </span>
+                            @else
+                                {{ \Illuminate\Support\Str::of($selectedConversation->customer_name)->substr(0, 1) }}
+                            @endif
+                        </span>
                         <button type="button" x-on:click="profileOpen = true" class="min-w-0 text-left xl:pointer-events-none" aria-label="Open customer profile">
                             <h3 class="truncate text-base font-semibold text-[#111827]">{{ $selectedConversation->customer_name }}</h3>
                             <p class="truncate text-xs font-semibold {{ $statusClass }}">
@@ -448,6 +471,19 @@
         <aside class="hidden h-full min-h-0 overflow-y-auto border-l border-[#E5E7EB] bg-white p-5 xl:block">
             @if ($selectedConversation)
                 <h3 class="font-bold text-[#111827]">Customer profile</h3>
+                <div class="mt-5 flex items-center gap-3 rounded-xl bg-[#F5F6F8] p-4">
+                    <span class="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-sm font-bold text-[#111827]">
+                        @if ($selectedAvatarUrl)
+                            <img src="{{ $selectedAvatarUrl }}" alt="" class="h-full w-full object-cover">
+                        @else
+                            {{ \Illuminate\Support\Str::of($selectedConversation->customer_name)->substr(0, 1) }}
+                        @endif
+                    </span>
+                    <div class="min-w-0">
+                        <p class="truncate font-bold text-[#111827]">{{ $selectedConversation->customer_name }}</p>
+                        <p class="truncate text-xs font-semibold text-[#6B7280]">{{ $selectedConversation->channel }}</p>
+                    </div>
+                </div>
                 <dl class="mt-5 space-y-3 text-sm">
                     <div class="rounded-xl bg-[#F5F6F8] p-4">
                         <dt class="font-semibold text-[#6B7280]">Name</dt>
@@ -519,7 +555,13 @@
                 >
                     <div class="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-4">
                         <div class="flex min-w-0 items-center gap-3">
-                            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EEF0F3] text-sm font-bold text-[#111827]">{{ \Illuminate\Support\Str::of($selectedConversation->customer_name)->substr(0, 1) }}</span>
+                            <span class="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#EEF0F3] text-sm font-bold text-[#111827]">
+                                @if ($selectedAvatarUrl)
+                                    <img src="{{ $selectedAvatarUrl }}" alt="" class="h-full w-full object-cover">
+                                @else
+                                    {{ \Illuminate\Support\Str::of($selectedConversation->customer_name)->substr(0, 1) }}
+                                @endif
+                            </span>
                             <div class="min-w-0">
                                 <h3 class="truncate text-base font-bold text-[#111827]">{{ $selectedConversation->customer_name }}</h3>
                                 <p class="mt-0.5 truncate text-xs font-bold {{ $statusClass }}">{{ $selectedConversation->status }} / {{ $selectedConversation->channel }}</p>

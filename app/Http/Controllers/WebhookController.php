@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\AutomationLog;
 use App\Models\ConnectedAccount;
 use App\Models\Conversation;
+use App\Models\Customer;
 use App\Services\AiReplyService;
 use App\Services\ConversationMessageService;
 use App\Services\MessageIngestionService;
@@ -93,6 +94,8 @@ class WebhookController extends Controller
             return response()->json(['message' => 'Telegram update ignored.']);
         }
 
+        $payload = $this->withTelegramCustomerAvatar($account, $payload, $telegramConnectionService);
+
         $conversation = $messageIngestionService->ingest($payload + ['source' => 'telegram']);
 
         $this->updateTelegramWebhookMeta($account, [
@@ -179,5 +182,40 @@ class WebhookController extends Controller
         $account->forceFill([
             'provider_meta' => array_merge($account->provider_meta ?? [], $meta),
         ])->save();
+    }
+
+    private function withTelegramCustomerAvatar(
+        ConnectedAccount $account,
+        array $payload,
+        TelegramConnectionService $telegramConnectionService
+    ): array {
+        $customerExternalId = (string) ($payload['customer_external_id'] ?? '');
+
+        if ($customerExternalId === '') {
+            return $payload;
+        }
+
+        $existingCustomer = Customer::where('business_id', $account->business_id)
+            ->where('channel', 'Telegram')
+            ->where('external_id', $customerExternalId)
+            ->first();
+
+        if ($existingCustomer?->avatar_path || $existingCustomer?->avatar_url) {
+            return $payload;
+        }
+
+        try {
+            $avatar = $telegramConnectionService->fetchCustomerAvatar($account, $customerExternalId);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            $avatar = null;
+        }
+
+        if ($avatar) {
+            $payload['customer_avatar'] = $avatar;
+        }
+
+        return $payload;
     }
 }
