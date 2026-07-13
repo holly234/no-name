@@ -3,8 +3,36 @@ import './bootstrap';
 import Alpine from 'alpinejs';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
+import Plyr from 'plyr';
+import * as FilePond from 'filepond';
+import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
+import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
+import FilePondPluginFileValidateSize from 'filepond-plugin-file-validate-size';
+import 'plyr/dist/plyr.css';
+import 'filepond/dist/filepond.min.css';
+import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
 
 window.Alpine = Alpine;
+
+FilePond.registerPlugin(
+    FilePondPluginImagePreview,
+    FilePondPluginFileValidateType,
+    FilePondPluginFileValidateSize,
+);
+
+window.videoPlayer = () => ({
+    player: null,
+    init() {
+        this.player = new Plyr(this.$refs.video, {
+            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
+            ratio: '4:3',
+        });
+    },
+    destroy() {
+        this.player?.destroy();
+        this.player = null;
+    },
+});
 
 window.voiceNotePlayer = (sourceUrl) => ({
     wave: null,
@@ -64,8 +92,12 @@ window.voiceNotePlayer = (sourceUrl) => ({
 
 window.inboxComposer = (initialAutomationPaused = false) => ({
     fileCount: 0,
+    genericFiles: [],
+    mediaFileCount: 0,
     emojiOpen: false,
     composerHasText: false,
+    mediaPond: null,
+    mediaPondReady: false,
     automationPaused: initialAutomationPaused,
     recorder: null,
     recorderWave: null,
@@ -76,9 +108,41 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
     voiceNoteReady: false,
     recordingStopResolver: null,
     maxVoiceBytes: 10 * 1024 * 1024,
+    init() {
+        this.setupMediaPond();
+    },
+    setupMediaPond() {
+        if (!this.$refs.imageInput || this.mediaPond) {
+            return;
+        }
+
+        this.mediaPond = FilePond.create(this.$refs.imageInput, {
+            allowMultiple: true,
+            storeAsFile: true,
+            credits: false,
+            maxFiles: 6,
+            maxFileSize: '10MB',
+            acceptedFileTypes: ['image/*', 'video/*'],
+            labelIdle: '<span class="filepond--label-action">Choose image or video</span>',
+            labelFileTypeNotAllowed: 'Use an image or video file.',
+            fileValidateTypeLabelExpectedTypes: 'Images or videos only',
+        });
+
+        this.mediaPond.on('updatefiles', (files) => {
+            this.mediaFileCount = files.length;
+            this.updateFiles();
+        });
+        this.mediaPondReady = true;
+    },
+    browseMedia() {
+        this.mediaPond?.browse();
+    },
     updateFiles() {
-        this.fileCount = (this.$refs.fileInput?.files?.length || 0) +
-            (this.$refs.imageInput?.files?.length || 0);
+        this.genericFiles = Array.from(this.$refs.fileInput?.files || []).map((file) => ({
+            name: file.name,
+            size: file.size,
+        }));
+        this.fileCount = this.genericFiles.length + this.mediaFileCount;
         this.voiceNoteReady = (this.$refs.audioInput?.files?.length || 0) > 0;
     },
     updateTyping() {

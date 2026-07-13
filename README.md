@@ -32,7 +32,7 @@ Built and working as a local MVP:
 - Per-user conversation read tracking
 - Conversation/message query limits and inbox indexes for scale
 - Feature tests covering workspace isolation, inbox filtering/unread, webhooks, connected account lifecycle, and authorization
-- Polished UI interactions may use focused third-party libraries when they provide better quality than hand-rolled controls. Current example: `wavesurfer.js` powers inbox voice-note waveform recording and playback.
+- Polished UI interactions may use focused third-party libraries when they provide better quality than hand-rolled controls. Current examples: `wavesurfer.js` powers inbox voice-note waveform recording/playback, `FilePond` handles media selection previews, and `Plyr` handles video playback UI.
 
 Latest verification:
 
@@ -69,6 +69,7 @@ The UI includes:
 - mobile list-to-thread behavior
 - thread view with message composer
 - manual composer supports text, private file/image/audio/video attachments, attachment-only staff replies, and in-app voice-note recording
+- composer image/video selection uses a preview tray instead of generic selected-file text
 - customer context panel on wide desktop
 - mobile customer profile bottom sheet opened from the chat header name
 - channel-aware customer identity labels: Instagram username, Facebook username, WhatsApp number, Gmail email address, or Telegram chat ID

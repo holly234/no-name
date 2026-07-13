@@ -279,6 +279,68 @@
         display: block;
     }
 
+    .chat-composer .filepond--root {
+        margin: 0;
+        font-family: inherit;
+        font-size: 0.875rem;
+    }
+
+    .chat-composer .filepond--panel-root {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        background: #f5f6f8;
+    }
+
+    .chat-composer .filepond--drop-label {
+        min-height: 2.75rem;
+        color: #6b7280;
+    }
+
+    .chat-composer .filepond--label-action {
+        color: #2563eb;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .chat-composer .filepond--list-scroller {
+        margin-top: 0.35rem;
+    }
+
+    .chat-composer .filepond--item {
+        width: calc(50% - 0.35rem);
+    }
+
+    .chat-composer .filepond--file {
+        border-radius: 0.75rem;
+        background: #111827;
+    }
+
+    .chat-composer .filepond--image-preview-wrapper,
+    .chat-composer .filepond--image-preview,
+    .chat-composer .filepond--image-clip {
+        border-radius: 0.75rem;
+    }
+
+    .chat-composer .filepond--file-info-main,
+    .chat-composer .filepond--file-info-sub {
+        font-family: inherit;
+    }
+
+    .plyr {
+        --plyr-color-main: #2563eb;
+        --plyr-video-control-color: #ffffff;
+        border-radius: 0.75rem;
+        font-family: inherit;
+    }
+
+    .plyr--video {
+        background: #111827;
+    }
+
+    .plyr--video .plyr__controls {
+        padding: 0.5rem;
+    }
+
     .chat-wallpaper {
         background-color: #0b1115;
     }

@@ -110,6 +110,8 @@ Dashboard/inbox direction:
 - Human takeover/pause automation should be a compact icon action in the composer, not a large switch or pill button.
 - Status messages appear as top-right toast notifications that auto-dismiss after 3 seconds.
 - Voice-note recording and playback should use a polished waveform pattern. Current implementation uses `wavesurfer.js` plus its Record plugin, styled to the project mood board.
+- Image/video selection should use a polished preview tray instead of selected-file text. Current implementation uses `FilePond`, styled to the project mood board.
+- Video playback should not use raw browser-default controls. Current implementation uses `Plyr`, styled to the project mood board.
 
 ## Core Multi-Tenant Requirement
 
@@ -391,6 +393,8 @@ Inbox media and voice-note pass on 2026-07-13:
 - Recorded voice notes are created inside the app with the `wavesurfer.js` Record plugin; pressing Send while recording automatically stops, attaches, and sends the note.
 - Voice-note playback uses `wavesurfer.js` for a compact waveform player instead of the browser default audio control.
 - Recorded voice-note attachments are explicitly marked as `media_type=voice` so they do not render as video even when the browser stores them as WebM.
+- Image/video upload selection now uses `FilePond` with preview, type validation, 6-file limit, and 10MB-per-file validation.
+- Inline video playback now uses `Plyr` instead of raw browser-default video controls.
 - Latest focused verification after this pass: `npm run build` passes and Telegram feature tests pass with `13 tests, 57 assertions`.
 
 ## Seed Demo Data To Build Later

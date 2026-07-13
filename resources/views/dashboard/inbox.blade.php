@@ -258,10 +258,12 @@
                                 '[Voice note]', '[Audio]' => $hasAudioAttachment,
                                 default => false,
                             };
+                            $mediaOnlyAudio = ! $isGmailMessage && $mediaOnlyPlaceholder && $hasAudioAttachment;
                             $mediaOnlyVisual = ! $isGmailMessage && $mediaOnlyPlaceholder && ($hasImageAttachment || $hasVideoAttachment);
+                            $mediaOnlyAttachment = $mediaOnlyVisual || $mediaOnlyAudio;
                         @endphp
                         <div class="flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}">
-                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : 'max-w-[86%] sm:max-w-[72%]') }} rounded-2xl border text-sm shadow-sm {{ $mediaOnlyVisual ? 'overflow-hidden p-1' : 'px-4 py-3' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
+                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : ($mediaOnlyAudio ? 'max-w-[18rem]' : 'max-w-[86%] sm:max-w-[72%]')) }} rounded-2xl border text-sm shadow-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 py-0.5' : ($mediaOnlyAudio ? 'px-2 py-1.5' : 'px-4 py-3') }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
                                 @if ($isGmailMessage)
                                     <div class="mb-3 border-b border-[#E5E7EB] pb-3">
                                         <div class="flex items-center gap-2 text-xs font-bold text-[#6B7280]">
@@ -341,14 +343,14 @@
                                                     </div>
                                                 </div>
                                             @elseif ($isVideo)
-                                                <div class="overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#111827]">
-                                                    <video controls preload="metadata" src="{{ $inlineUrl }}" class="max-h-80 w-full bg-[#111827]"></video>
+                                                <div x-data="window.videoPlayer()" x-on:destroy.window="destroy" class="overflow-hidden rounded-xl bg-[#111827]">
+                                                    <video x-ref="video" playsinline preload="metadata" src="{{ $inlineUrl }}" class="max-h-80 w-full bg-[#111827]"></video>
                                                 </div>
                                             @elseif ($isAudio)
                                                 <div
                                                     x-data="window.voiceNotePlayer(@js($inlineUrl))"
                                                     x-on:destroy.window="destroy"
-                                                    class="max-w-[19rem] rounded-2xl border border-[#E5E7EB] bg-white p-3 shadow-sm"
+                                                    class="max-w-[17rem] rounded-xl bg-transparent p-1"
                                                 >
                                                     <div class="flex items-center gap-3">
                                                         <button type="button" x-on:click="toggle" x-bind:class="ready ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]' : 'bg-[#EEF0F3] text-[#9CA3AF]'" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm transition" aria-label="Play voice note">
@@ -504,6 +506,9 @@
                                 </div>
                                 <div x-show="recordError" class="rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 py-2 text-xs font-semibold text-[#DC2626]" x-text="recordError"></div>
                             </div>
+                            <div x-show="mediaFileCount > 0" x-cloak x-transition class="rounded-xl border border-[#E5E7EB] bg-white px-2 py-2 shadow-sm">
+                                <input x-ref="imageInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-images-{{ $selectedConversation->id }}" multiple accept="image/*,video/*">
+                            </div>
                             <div class="flex items-end gap-2">
                                 <div class="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] px-2 sm:gap-2 sm:px-3">
                                     <div class="relative shrink-0" x-on:click.outside="emojiOpen = false">
@@ -527,7 +532,6 @@
                                     </div>
                                     <textarea x-ref="messageInput" x-on:input="updateTyping" name="body" rows="1" class="min-w-[5rem] max-h-28 flex-1 resize-none border-0 bg-transparent py-3 text-sm text-[#111827] placeholder:text-[#6B7280] focus:ring-0" placeholder="Message"></textarea>
                                     <input x-ref="fileInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-attachments-{{ $selectedConversation->id }}" multiple class="hidden">
-                                    <input x-ref="imageInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-images-{{ $selectedConversation->id }}" multiple accept="image/*,video/*" class="hidden">
                                     @unless ($voiceNotesDisabled)
                                         <input x-ref="audioInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-audio-{{ $selectedConversation->id }}" accept="audio/*" class="hidden">
                                     @endunless
@@ -537,13 +541,13 @@
                                                 <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 1 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                                             </svg>
                                         </label>
-                                        <label for="message-images-{{ $selectedConversation->id }}" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Upload media" title="Upload image or video">
+                                        <button type="button" x-on:click="browseMedia" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Upload media" title="Upload image or video">
                                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
                                                 <rect x="3" y="5" width="18" height="14" rx="2.5"></rect>
                                                 <circle cx="8.5" cy="10" r="1.5"></circle>
                                                 <path d="m21 15-4.5-4.5L8 19"></path>
                                             </svg>
-                                        </label>
+                                        </button>
                                         @if ($voiceNotesDisabled)
                                             <span class="relative inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-md text-[#9CA3AF] sm:h-9 sm:w-9" aria-label="Voice notes are disabled for email" title="Voice notes are disabled for email">
                                                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
@@ -595,12 +599,15 @@
                                 </button>
                             </div>
                             <div class="flex flex-wrap items-center gap-2 px-1">
-                                <span x-show="fileCount > 0" x-cloak class="inline-flex items-center gap-2 rounded-full bg-[#EEF0F3] px-3 py-2 text-xs font-semibold text-[#6B7280]">
-                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-                                        <path d="M20 6 9 17l-5-5"></path>
-                                    </svg>
-                                    <span x-text="fileCount === 1 ? '1 file selected' : `${fileCount} files selected`"></span>
-                                </span>
+                                <template x-for="file in genericFiles" :key="file.name">
+                                    <span x-show="genericFiles.length > 0" x-cloak class="inline-flex max-w-full items-center gap-2 rounded-lg bg-[#EEF0F3] px-3 py-2 text-xs font-semibold text-[#6B7280]">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <path d="M14 2v6h6"></path>
+                                        </svg>
+                                        <span class="truncate" x-text="file.name"></span>
+                                    </span>
+                                </template>
                             </div>
                         </form>
                     @endif
