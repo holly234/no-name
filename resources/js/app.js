@@ -60,23 +60,19 @@ window.inboxPage = () => ({
                     return;
                 }
 
-                this.player?.destroy();
-                this.player = new Plyr(this.$refs.mediaVideo, {
-                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'fullscreen'],
-                    ratio: '4:5',
-                });
-                this.player.play().catch(() => {});
+                this.$refs.mediaVideo.currentTime = 0;
+                this.$refs.mediaVideo.play().catch(() => {});
             });
         }
     },
     closeMedia() {
+        this.$refs.mediaVideo?.pause?.();
         this.mediaViewer.open = false;
         this.mediaViewer.type = null;
         this.mediaViewer.src = null;
         this.mediaViewer.alt = '';
         this.dragStartY = null;
         this.dragY = 0;
-        this.player?.destroy();
         this.player = null;
     },
     startMediaDrag(event) {
@@ -99,53 +95,6 @@ window.inboxPage = () => ({
         this.dragStartY = null;
         this.dragY = 0;
     },
-});
-
-window.videoPreview = (sourceUrl) => ({
-    open: false,
-    player: null,
-    dragStartY: null,
-    dragY: 0,
-    openPlayer() {
-        this.open = true;
-
-        this.$nextTick(() => {
-            this.player?.destroy();
-            this.player = new Plyr(this.$refs.modalVideo, {
-                controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'fullscreen'],
-                ratio: '4:5',
-            });
-            this.player.play().catch(() => {});
-        });
-    },
-    closePlayer() {
-        this.open = false;
-        this.dragStartY = null;
-        this.dragY = 0;
-        this.player?.destroy();
-        this.player = null;
-    },
-    startDrag(event) {
-        this.dragStartY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
-    },
-    moveDrag(event) {
-        if (this.dragStartY === null) {
-            return;
-        }
-
-        const y = event.clientY ?? event.touches?.[0]?.clientY ?? this.dragStartY;
-        this.dragY = y - this.dragStartY;
-    },
-    endDrag() {
-        if (Math.abs(this.dragY) > 90) {
-            this.closePlayer();
-            return;
-        }
-
-        this.dragStartY = null;
-        this.dragY = 0;
-    },
-    sourceUrl,
 });
 
 window.swipeReplyMessage = (message) => ({

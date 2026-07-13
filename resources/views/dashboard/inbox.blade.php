@@ -268,7 +268,7 @@
                                 : ($message->attachments->isNotEmpty() ? 'Attachment' : 'Message');
                         @endphp
                         <div
-                            class="relative flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}"
+                            class="relative flex w-full min-w-0 max-w-full overflow-hidden {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}"
                             style="touch-action: pan-y;"
                             x-data="window.swipeReplyMessage({
                                 id: {{ $message->id }},
@@ -286,7 +286,7 @@
                                     <path d="M5 10h10a4 4 0 0 1 4 4v1"></path>
                                 </svg>
                             </div>
-                            <div class="relative z-10 {{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[90%] sm:max-w-[30rem]' : ($mediaOnlyAudio ? 'w-[16.5rem] max-w-[86%]' : 'max-w-[84%] sm:max-w-[68%]')) }} transition-transform duration-150 ease-out" x-bind:style="`transform: translateX(${offsetX}px)`">
+                            <div class="relative z-10 min-w-0 {{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[90%] sm:max-w-[30rem]' : ($mediaOnlyAudio ? 'w-[16.5rem] max-w-[86%]' : 'max-w-[84%] sm:max-w-[68%]')) }} transition-transform duration-150 ease-out" x-bind:style="`transform: translateX(${offsetX}px)`">
                                 <div class="rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 pb-1 pt-1' : ($mediaOnlyAudio ? 'px-2.5 py-2' : 'px-3 py-2') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
                                     @if ($replyContext)
                                         <div class="mb-2 border-l-2 border-[#2563EB] bg-white/60 px-2 py-1.5">
@@ -740,7 +740,7 @@
                     <img x-bind:src="mediaViewer.src" x-bind:alt="mediaViewer.alt" class="max-h-[88dvh] max-w-full rounded-2xl object-contain shadow-2xl">
                 </template>
                 <template x-if="mediaViewer.type === 'video'">
-                    <video x-ref="mediaVideo" x-bind:src="mediaViewer.src" playsinline preload="metadata" class="max-h-[88dvh] w-full max-w-sm rounded-2xl bg-[#111827] shadow-2xl sm:max-w-lg"></video>
+                    <video x-ref="mediaVideo" x-bind:src="mediaViewer.src" controls playsinline preload="metadata" class="h-[82dvh] max-h-[82dvh] w-auto max-w-[96vw] rounded-2xl bg-[#111827] object-contain shadow-2xl sm:h-[84dvh]"></video>
                 </template>
             </div>
         </div>
