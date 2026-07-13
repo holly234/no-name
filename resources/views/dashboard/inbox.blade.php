@@ -8,6 +8,32 @@
             'Telegram' => 'Telegram chat ID',
             default => 'Customer identifier',
         } : 'Customer identifier';
+        $filterQuery = array_filter([
+            'state' => $activeState === 'All' ? null : $activeState,
+            'channel' => $activeChannel === 'All' ? null : $activeChannel,
+            'q' => $search ?: null,
+            'date' => $activeDate === 'all' ? null : $activeDate,
+            'time' => $activeTime === 'all' ? null : $activeTime,
+            'sort' => $activeSort === 'newest' ? null : $activeSort,
+        ]);
+        $dateOptions = [
+            'all' => 'Any day',
+            'today' => 'Today',
+            'yesterday' => 'Yesterday',
+            '7d' => 'Last 7 days',
+            '30d' => 'Last 30 days',
+        ];
+        $timeOptions = [
+            'all' => 'Any time',
+            'morning' => 'Morning',
+            'afternoon' => 'Afternoon',
+            'evening' => 'Evening',
+            'night' => 'Night',
+        ];
+        $sortOptions = [
+            'newest' => 'Newest',
+            'oldest' => 'Oldest',
+        ];
     @endphp
 
     <div x-data="window.inboxPage()" data-inbox-version="{{ $inboxVersion }}" class="grid h-full min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] overflow-hidden bg-[#F5F6F8] text-[#111827] lg:grid-cols-[410px_minmax(0,1fr)] xl:grid-cols-[410px_minmax(0,1fr)_320px]">
@@ -20,6 +46,9 @@
                     <form method="GET" action="{{ route('dashboard.inbox') }}" class="min-w-0 flex-1">
                         <input type="hidden" name="state" value="{{ $activeState }}">
                         <input type="hidden" name="channel" value="{{ $activeChannel }}">
+                        <input type="hidden" name="date" value="{{ $activeDate }}">
+                        <input type="hidden" name="time" value="{{ $activeTime }}">
+                        <input type="hidden" name="sort" value="{{ $activeSort }}">
                         <label class="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] px-3 py-3 text-[#6B7280] transition focus-within:border-[#2563EB] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2563EB]/15 sm:px-4">
                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5 shrink-0">
                                 <path d="m21 21-4.35-4.35"></path>
@@ -28,20 +57,64 @@
                             <span class="sr-only">Search conversations</span>
                             <input name="q" value="{{ $search }}" autocomplete="off" placeholder="Search conversations" class="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-medium text-[#111827] placeholder:text-[#6B7280] focus:ring-0">
                             @if ($search !== '')
-                                <a href="{{ route('dashboard.inbox', array_filter(['state' => $activeState, 'channel' => $activeChannel === 'All' ? null : $activeChannel])) }}" class="shrink-0 rounded-full px-1.5 text-xs font-bold text-[#6B7280] hover:bg-[#EEF0F3] hover:text-[#111827]" aria-label="Clear search">x</a>
+                                <a href="{{ route('dashboard.inbox', array_filter($filterQuery, fn ($value, $key) => $key !== 'q', ARRAY_FILTER_USE_BOTH)) }}" class="shrink-0 rounded-full px-1.5 text-xs font-bold text-[#6B7280] hover:bg-[#EEF0F3] hover:text-[#111827]" aria-label="Clear search">x</a>
                             @endif
                         </label>
                     </form>
                 </div>
+
+                <form method="GET" action="{{ route('dashboard.inbox') }}" class="mt-3 grid grid-cols-3 gap-1 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-1">
+                    <input type="hidden" name="state" value="{{ $activeState }}">
+                    <input type="hidden" name="channel" value="{{ $activeChannel }}">
+                    @if ($search !== '')
+                        <input type="hidden" name="q" value="{{ $search }}">
+                    @endif
+                    <label class="relative min-w-0">
+                        <span class="sr-only">Filter by day</span>
+                        <select name="date" onchange="this.form.submit()" class="h-10 w-full appearance-none truncate rounded-lg border-0 bg-white px-3 pr-7 text-xs font-bold text-[#374151] shadow-sm focus:ring-2 focus:ring-[#2563EB]/20">
+                            @foreach ($dateOptions as $value => $label)
+                                <option value="{{ $value }}" @selected($activeDate === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6B7280]">
+                            <path d="m6 9 6 6 6-6"></path>
+                        </svg>
+                    </label>
+                    <label class="relative min-w-0">
+                        <span class="sr-only">Filter by time</span>
+                        <select name="time" onchange="this.form.submit()" class="h-10 w-full appearance-none truncate rounded-lg border-0 bg-white px-3 pr-7 text-xs font-bold text-[#374151] shadow-sm focus:ring-2 focus:ring-[#2563EB]/20">
+                            @foreach ($timeOptions as $value => $label)
+                                <option value="{{ $value }}" @selected($activeTime === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6B7280]">
+                            <path d="m6 9 6 6 6-6"></path>
+                        </svg>
+                    </label>
+                    <label class="relative min-w-0">
+                        <span class="sr-only">Sort conversations</span>
+                        <select name="sort" onchange="this.form.submit()" class="h-10 w-full appearance-none truncate rounded-lg border-0 bg-white px-3 pr-7 text-xs font-bold text-[#374151] shadow-sm focus:ring-2 focus:ring-[#2563EB]/20">
+                            @foreach ($sortOptions as $value => $label)
+                                <option value="{{ $value }}" @selected($activeSort === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6B7280]">
+                            <path d="m6 9 6 6 6-6"></path>
+                        </svg>
+                    </label>
+                </form>
 
                 <div class="mt-3 grid w-full grid-cols-6 gap-1 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-1">
                     @foreach ($channelMeta as $channel => $meta)
                         @php
                             $isChannelActive = $activeChannel === $channel;
                             $channelUrl = route('dashboard.inbox', array_filter([
-                                'state' => $activeState,
+                                'state' => $activeState === 'All' ? null : $activeState,
                                 'channel' => $channel === 'All' ? null : $channel,
                                 'q' => $search ?: null,
+                                'date' => $activeDate === 'all' ? null : $activeDate,
+                                'time' => $activeTime === 'all' ? null : $activeTime,
+                                'sort' => $activeSort === 'newest' ? null : $activeSort,
                             ]));
                         @endphp
                         <a href="{{ $channelUrl }}" title="{{ $meta['label'] }}" aria-label="{{ $meta['label'] }}" class="group flex h-10 items-center justify-center rounded-lg transition {{ $isChannelActive ? 'bg-white shadow-sm ring-1 ring-[#E5E7EB]' : 'hover:bg-white' }}">
@@ -60,9 +133,12 @@
                             $count = $counts[$state] ?? 0;
                             $isActive = $activeState === $state;
                             $stateUrl = route('dashboard.inbox', array_filter([
-                                'state' => $state,
+                                'state' => $state === 'All' ? null : $state,
                                 'channel' => $activeChannel === 'All' ? null : $activeChannel,
                                 'q' => $search ?: null,
+                                'date' => $activeDate === 'all' ? null : $activeDate,
+                                'time' => $activeTime === 'all' ? null : $activeTime,
+                                'sort' => $activeSort === 'newest' ? null : $activeSort,
                             ]));
                         @endphp
                         <a href="{{ $stateUrl }}" title="{{ $meta['label'] }}" aria-label="{{ $meta['label'] }}" class="group flex h-10 min-w-0 items-center justify-center gap-1 rounded-lg text-xs font-bold transition sm:h-11 {{ $isActive ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#6B7280] hover:bg-white hover:text-[#111827]' }}">
@@ -86,7 +162,7 @@
                         $latestReplyDisabled = (bool) $conversation->getAttribute('reply_disabled');
                         $avatarUrl = $conversation->customer?->avatarUrl();
                     @endphp
-                    <a href="{{ route('dashboard.inbox', array_filter(['state' => $activeState, 'channel' => $activeChannel === 'All' ? null : $activeChannel, 'q' => $search ?: null, 'conversation' => $conversation->id])) }}" class="group block w-full min-w-0 max-w-full overflow-hidden px-4 transition hover:bg-[#F5F6F8] sm:px-5 {{ $selectedConversation?->id === $conversation->id ? 'bg-[#EFF6FF]' : '' }}">
+                    <a href="{{ route('dashboard.inbox', $filterQuery + ['conversation' => $conversation->id]) }}" class="group block w-full min-w-0 max-w-full overflow-hidden px-4 transition hover:bg-[#F5F6F8] sm:px-5 {{ $selectedConversation?->id === $conversation->id ? 'bg-[#EFF6FF]' : '' }}">
                         <div class="flex w-full min-w-0 max-w-full gap-3 overflow-hidden border-b border-[#E5E7EB] py-3.5">
                             <span class="relative mt-1 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-sm sm:h-12 sm:w-12 {{ $avatarUrl ? 'bg-[#EEF0F3]' : $channel['class'] }}" title="{{ $conversation->channel }}" aria-label="{{ $conversation->channel }}">
                                 @if ($avatarUrl)
@@ -181,7 +257,7 @@
                 @endphp
                 <div class="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-[#E5E7EB] bg-white px-3 py-3 sm:px-4">
                     <div class="flex min-w-0 items-center gap-3">
-                        <a href="{{ route('dashboard.inbox', array_filter(['state' => $activeState, 'channel' => $activeChannel === 'All' ? null : $activeChannel, 'q' => $search ?: null])) }}" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#374151] hover:bg-[#F5F6F8] lg:hidden" aria-label="Back to messages">
+                        <a href="{{ route('dashboard.inbox', $filterQuery) }}" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#374151] hover:bg-[#F5F6F8] lg:hidden" aria-label="Back to messages">
                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6">
                                 <path d="M15 18 9 12l6-6"></path>
                             </svg>

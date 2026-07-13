@@ -26,10 +26,28 @@ class InboxController extends Controller
         $activeState = $request->query('state', 'All');
         $search = trim((string) $request->query('q', ''));
         $activeChannel = $request->query('channel', 'All');
+        $activeDate = $request->query('date', 'all');
+        $activeTime = $request->query('time', 'all');
+        $activeSort = $request->query('sort', 'newest');
         $allowedChannels = ['All', 'Instagram', 'WhatsApp', 'Facebook', 'Gmail', 'Telegram'];
+        $allowedDates = ['all', 'today', 'yesterday', '7d', '30d'];
+        $allowedTimes = ['all', 'morning', 'afternoon', 'evening', 'night'];
+        $allowedSorts = ['newest', 'oldest'];
 
         if (! in_array($activeChannel, $allowedChannels, true)) {
             $activeChannel = 'All';
+        }
+
+        if (! in_array($activeDate, $allowedDates, true)) {
+            $activeDate = 'all';
+        }
+
+        if (! in_array($activeTime, $allowedTimes, true)) {
+            $activeTime = 'all';
+        }
+
+        if (! in_array($activeSort, $allowedSorts, true)) {
+            $activeSort = 'newest';
         }
 
         $selectedId = $request->integer('conversation');
@@ -50,8 +68,7 @@ class InboxController extends Controller
             'customer',
             'reads' => fn ($query) => $query->where('user_id', $user->id),
         ])
-            ->where('business_id', $business->id)
-            ->latest('last_message_at');
+            ->where('business_id', $business->id);
 
         if (in_array($activeState, Conversation::STATES, true)) {
             $conversationQuery->where('status', $activeState);
@@ -79,6 +96,30 @@ class InboxController extends Controller
                     });
             });
         }
+
+        match ($activeDate) {
+            'today' => $conversationQuery->whereDate('last_message_at', today()),
+            'yesterday' => $conversationQuery->whereBetween('last_message_at', [
+                today()->subDay()->startOfDay(),
+                today()->subDay()->endOfDay(),
+            ]),
+            '7d' => $conversationQuery->where('last_message_at', '>=', now()->subDays(7)),
+            '30d' => $conversationQuery->where('last_message_at', '>=', now()->subDays(30)),
+            default => null,
+        };
+
+        match ($activeTime) {
+            'morning' => $conversationQuery->whereTime('last_message_at', '>=', '06:00:00')->whereTime('last_message_at', '<', '12:00:00'),
+            'afternoon' => $conversationQuery->whereTime('last_message_at', '>=', '12:00:00')->whereTime('last_message_at', '<', '17:00:00'),
+            'evening' => $conversationQuery->whereTime('last_message_at', '>=', '17:00:00')->whereTime('last_message_at', '<', '21:00:00'),
+            'night' => $conversationQuery->where(function ($query) {
+                $query->whereTime('last_message_at', '>=', '21:00:00')
+                    ->orWhereTime('last_message_at', '<', '06:00:00');
+            }),
+            default => null,
+        };
+
+        $conversationQuery->orderBy('last_message_at', $activeSort === 'oldest' ? 'asc' : 'desc');
 
         $conversations = $conversationQuery
             ->limit(self::CONVERSATION_PAGE_SIZE + 1)
@@ -138,6 +179,9 @@ class InboxController extends Controller
         return view('dashboard.inbox', [
             'activeState' => $activeState,
             'activeChannel' => $activeChannel,
+            'activeDate' => $activeDate,
+            'activeTime' => $activeTime,
+            'activeSort' => $activeSort,
             'counts' => $counts,
             'conversations' => $conversations,
             'selectedConversation' => $selectedConversation,
