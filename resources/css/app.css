@@ -138,7 +138,17 @@
 
     .media-preview-frame {
         position: relative;
+        max-width: 100%;
+    }
+
+    .media-preview-frame--image:not(.media-loaded):not(.media-load-failed) {
+        width: min(76vw, 18rem);
         min-height: 10rem;
+    }
+
+    .media-preview-frame--video:not(.media-loaded):not(.media-load-failed) {
+        width: min(76vw, 18rem);
+        min-height: 14rem;
     }
 
     .media-preview-frame.media-load-failed > * {

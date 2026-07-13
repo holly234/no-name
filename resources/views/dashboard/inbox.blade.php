@@ -286,7 +286,7 @@
                                     <path d="M5 10h10a4 4 0 0 1 4 4v1"></path>
                                 </svg>
                             </div>
-                            <div class="relative z-10 min-w-0 {{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'w-[min(90vw,24rem)] sm:w-[min(30rem,70vw)]' : ($mediaOnlyAudio ? 'w-[16.5rem] max-w-[86%]' : 'max-w-[84%] sm:max-w-[68%]')) }} transition-transform duration-150 ease-out" x-bind:style="`transform: translateX(${offsetX}px)`">
+                            <div class="relative z-10 min-w-0 {{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[76vw] sm:max-w-[22rem]' : ($mediaOnlyAudio ? 'w-[16.5rem] max-w-[86%]' : 'max-w-[84%] sm:max-w-[68%]')) }} transition-transform duration-150 ease-out" x-bind:style="`transform: translateX(${offsetX}px)`">
                                 <div class="rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 pb-1 pt-1' : ($mediaOnlyAudio ? 'px-2.5 py-2' : 'px-3 py-2') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
                                     @if ($replyContext)
                                         <div class="mb-2 border-l-2 border-[#2563EB] bg-white/60 px-2 py-1.5">
@@ -350,14 +350,14 @@
                                             @endphp
                                             @if ($isImage)
                                                 <div>
-                                                    <button type="button" x-on:click.stop="openMedia({ type: 'image', src: @js($inlineUrl), alt: @js($attachment->filename) })" data-media-frame class="media-preview-frame block aspect-[4/3] w-full overflow-hidden rounded-xl bg-[#EEF0F3] text-left transition hover:opacity-95" aria-label="Open image preview">
-                                                        <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" loading="lazy" decoding="async" x-on:error="markMediaFailed($event, 'Image unavailable')" class="h-full w-full rounded-xl object-cover">
+                                                    <button type="button" x-on:click.stop="openMedia({ type: 'image', src: @js($inlineUrl), alt: @js($attachment->filename) })" data-media-frame class="media-preview-frame media-preview-frame--image block overflow-hidden rounded-xl bg-[#EEF0F3] text-left transition hover:opacity-95" aria-label="Open image preview">
+                                                        <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" loading="lazy" decoding="async" x-on:load="$event.target.closest('[data-media-frame]')?.classList.add('media-loaded')" x-on:error="markMediaFailed($event, 'Image unavailable')" class="block max-h-[18rem] max-w-full rounded-xl object-contain">
                                                     </button>
                                                 </div>
                                             @elseif ($isVideo)
-                                                <div data-media-frame class="media-preview-frame overflow-hidden rounded-xl bg-[#111827]">
-                                                    <button type="button" x-on:click.stop="openMedia({ type: 'video', src: @js($inlineUrl), alt: @js($attachment->filename) })" class="group relative block aspect-[4/5] max-h-[30rem] w-full overflow-hidden rounded-xl bg-[#111827] text-white" aria-label="Open video">
-                                                        <video playsinline preload="none" src="{{ $inlineUrl }}" x-on:error="markMediaFailed($event, 'Video unavailable')" class="h-full w-full object-cover"></video>
+                                                <div data-media-frame class="media-preview-frame media-preview-frame--video overflow-hidden rounded-xl bg-[#111827]">
+                                                    <button type="button" x-on:click.stop="openMedia({ type: 'video', src: @js($inlineUrl), alt: @js($attachment->filename) })" class="group relative block aspect-[4/5] max-h-[20rem] w-auto max-w-full overflow-hidden rounded-xl bg-[#111827] text-white" aria-label="Open video">
+                                                        <video playsinline preload="metadata" src="{{ $inlineUrl }}" x-on:loadedmetadata="$event.target.closest('[data-media-frame]')?.classList.add('media-loaded')" x-on:error="markMediaFailed($event, 'Video unavailable')" class="h-full max-h-[20rem] w-auto max-w-full object-contain"></video>
                                                         <span class="absolute inset-0 flex items-center justify-center bg-black/10 transition group-hover:bg-black/20">
                                                             <span class="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-[#111827] shadow-lg">
                                                                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="ml-1 h-7 w-7">
