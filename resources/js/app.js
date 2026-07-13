@@ -42,7 +42,6 @@ window.inboxPage = () => ({
         src: null,
         alt: '',
     },
-    player: null,
     dragStartY: null,
     dragY: 0,
     openMedia(media) {
@@ -73,7 +72,6 @@ window.inboxPage = () => ({
         this.mediaViewer.alt = '';
         this.dragStartY = null;
         this.dragY = 0;
-        this.player = null;
     },
     startMediaDrag(event) {
         this.dragStartY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
@@ -94,6 +92,16 @@ window.inboxPage = () => ({
 
         this.dragStartY = null;
         this.dragY = 0;
+    },
+    markMediaFailed(event, label = 'Media unavailable') {
+        const frame = event.target?.closest?.('[data-media-frame]');
+
+        if (!frame) {
+            return;
+        }
+
+        frame.classList.add('media-load-failed');
+        frame.setAttribute('data-error-label', label);
     },
 });
 

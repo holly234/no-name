@@ -136,6 +136,29 @@
         box-shadow: 0 8px 20px rgba(17, 24, 39, 0.04);
     }
 
+    .media-preview-frame {
+        position: relative;
+        min-height: 10rem;
+    }
+
+    .media-preview-frame.media-load-failed > * {
+        visibility: hidden;
+    }
+
+    .media-preview-frame.media-load-failed::after {
+        content: attr(data-error-label);
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: inherit;
+        background: #eef0f3;
+        color: #6b7280;
+        font-size: 0.8125rem;
+        font-weight: 700;
+    }
+
     .metric-card {
         position: relative;
         overflow: hidden;
