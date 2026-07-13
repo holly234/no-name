@@ -24,7 +24,7 @@ window.videoPlayer = () => ({
     player: null,
     init() {
         this.player = new Plyr(this.$refs.video, {
-            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
+            controls: ['play', 'progress', 'current-time', 'mute', 'fullscreen'],
             ratio: '4:3',
         });
     },
@@ -365,6 +365,10 @@ function hasUnsavedUserInput() {
     const fields = document.querySelectorAll('input, textarea, select');
 
     return Array.from(fields).some((field) => {
+        if (field.closest('.filepond--root') || field.type === 'hidden') {
+            return false;
+        }
+
         if (field instanceof HTMLInputElement && field.type === 'file') {
             return field.files?.length > 0;
         }

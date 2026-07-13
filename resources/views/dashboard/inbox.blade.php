@@ -252,18 +252,19 @@
                             $hasImageAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'image/'));
                             $hasVideoAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'video/'));
                             $hasAudioAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'audio/'));
+                            $attachmentOnlyMessage = $messageBody === '' && $message->attachments->isNotEmpty();
                             $mediaOnlyPlaceholder = match ($messageBody) {
                                 '[Photo]' => $hasImageAttachment,
                                 '[Video]' => $hasVideoAttachment,
                                 '[Voice note]', '[Audio]' => $hasAudioAttachment,
-                                default => false,
+                                default => $attachmentOnlyMessage && ($hasImageAttachment || $hasVideoAttachment || $hasAudioAttachment),
                             };
-                            $mediaOnlyAudio = ! $isGmailMessage && $mediaOnlyPlaceholder && $hasAudioAttachment;
+                            $mediaOnlyAudio = ! $isGmailMessage && $mediaOnlyPlaceholder && $hasAudioAttachment && ! ($hasImageAttachment || $hasVideoAttachment);
                             $mediaOnlyVisual = ! $isGmailMessage && $mediaOnlyPlaceholder && ($hasImageAttachment || $hasVideoAttachment);
                             $mediaOnlyAttachment = $mediaOnlyVisual || $mediaOnlyAudio;
                         @endphp
                         <div class="flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}">
-                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : ($mediaOnlyAudio ? 'max-w-[18rem]' : 'max-w-[86%] sm:max-w-[72%]')) }} rounded-2xl border text-sm shadow-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 py-0.5' : ($mediaOnlyAudio ? 'px-2 py-1.5' : 'px-4 py-3') }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
+                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : ($mediaOnlyAudio ? 'max-w-[17rem]' : 'max-w-[86%] sm:max-w-[72%]')) }} rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 py-0' : ($mediaOnlyAudio ? 'px-2 py-1' : 'px-4 py-3') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
                                 @if ($isGmailMessage)
                                     <div class="mb-3 border-b border-[#E5E7EB] pb-3">
                                         <div class="flex items-center gap-2 text-xs font-bold text-[#6B7280]">
@@ -297,7 +298,7 @@
                                     @endunless
                                 @endif
                                 @if ($message->attachments->isNotEmpty())
-                                    <div class="mt-3 space-y-2">
+                                    <div class="{{ $mediaOnlyAttachment ? 'mt-0' : 'mt-3' }} space-y-2">
                                         @foreach ($message->attachments as $attachment)
                                             @php
                                                 $isPdf = $attachment->mime_type === 'application/pdf';
@@ -344,16 +345,16 @@
                                                 </div>
                                             @elseif ($isVideo)
                                                 <div x-data="window.videoPlayer()" x-on:destroy.window="destroy" class="overflow-hidden rounded-xl bg-[#111827]">
-                                                    <video x-ref="video" playsinline preload="metadata" src="{{ $inlineUrl }}" class="max-h-80 w-full bg-[#111827]"></video>
+                                                    <video x-ref="video" playsinline preload="metadata" src="{{ $inlineUrl }}" class="max-h-72 w-full bg-[#111827]"></video>
                                                 </div>
                                             @elseif ($isAudio)
                                                 <div
                                                     x-data="window.voiceNotePlayer(@js($inlineUrl))"
                                                     x-on:destroy.window="destroy"
-                                                    class="max-w-[17rem] rounded-xl bg-transparent p-1"
+                                                    class="max-w-[16rem] rounded-xl bg-transparent py-0.5"
                                                 >
-                                                    <div class="flex items-center gap-3">
-                                                        <button type="button" x-on:click="toggle" x-bind:class="ready ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]' : 'bg-[#EEF0F3] text-[#9CA3AF]'" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm transition" aria-label="Play voice note">
+                                                    <div class="flex items-center gap-2">
+                                                        <button type="button" x-on:click="toggle" x-bind:class="ready ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]' : 'bg-[#EEF0F3] text-[#9CA3AF]'" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm transition" aria-label="Play voice note">
                                                             <svg x-show="! playing" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
                                                                 <path d="M8 5.8c0-.8.9-1.3 1.6-.9l8.2 5.2c.7.4.7 1.4 0 1.8l-8.2 5.2c-.7.4-1.6-.1-1.6-.9V5.8Z"></path>
                                                             </svg>
@@ -362,12 +363,9 @@
                                                             </svg>
                                                         </button>
                                                         <div class="min-w-0 flex-1">
-                                                            <div class="mb-1 flex items-center justify-between gap-3 text-[11px] font-bold text-[#6B7280]">
-                                                                <span class="truncate">Voice note</span>
-                                                                <span class="shrink-0 tabular-nums"><span x-text="elapsed"></span> / <span x-text="duration"></span></span>
-                                                            </div>
-                                                            <div x-ref="waveform" class="h-8 min-w-[9rem]"></div>
+                                                            <div x-ref="waveform" class="h-7 min-w-[8rem]"></div>
                                                         </div>
+                                                        <span class="shrink-0 text-[11px] font-bold tabular-nums text-[#6B7280]"><span x-text="elapsed"></span> / <span x-text="duration"></span></span>
                                                     </div>
                                                 </div>
                                             @endif

@@ -331,6 +331,7 @@
         --plyr-video-control-color: #ffffff;
         border-radius: 0.75rem;
         font-family: inherit;
+        overflow: hidden;
     }
 
     .plyr--video {
@@ -338,7 +339,16 @@
     }
 
     .plyr--video .plyr__controls {
-        padding: 0.5rem;
+        padding: 0.35rem 0.45rem;
+    }
+
+    .plyr--video .plyr__control {
+        padding: 0.35rem;
+    }
+
+    .plyr__progress input[type="range"],
+    .plyr__volume input[type="range"] {
+        color: #2563eb;
     }
 
     .chat-wallpaper {
