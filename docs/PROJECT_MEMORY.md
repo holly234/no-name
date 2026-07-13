@@ -11,7 +11,7 @@ Current build priority:
 - Keep every business-owned query scoped by `business_id`.
 - Preserve the calm, mature workflow-product tone. Avoid AI hype in public-facing copy.
 - Use fake/demo integrations for Meta channels first. Gmail OAuth/manual sync and Telegram Bot API are now the first real provider connections. Real Meta, n8n, and OpenAI integrations remain later-phase work.
-- Maintain the current dark DM-style inbox UI unless the user explicitly asks for a redesign.
+- Maintain the current mood-board aligned DM-style inbox UI unless the user explicitly asks for a redesign.
 - Keep dashboard surfaces flat and premium. Do not add gradients to dashboard pages, tabs, cards, loading states, or channel badges.
 - Use `docs/INTEGRATION_READY.md` as the handoff checklist when wiring OpenAI, Meta, and n8n.
 - Connected accounts must support multiple accounts per platform per workspace. Disconnect should preserve records internally but hide disconnected accounts from the active Accounts UI.
@@ -19,6 +19,7 @@ Current build priority:
 - Conversations should default to `ai_mode=auto`. `Needs Human` is a queue/status, while `ai_mode=human` is reserved for explicit takeover, manual staff replies, or disabled automation conditions.
 - Staff-facing customer identity should show Instagram/Facebook usernames, WhatsApp phone numbers, Gmail email addresses, or Telegram chat IDs where available. Add a separate stable provider ID later if real provider payloads require both identity matching and friendly display.
 - For polished UI/design interactions, prefer proven focused libraries/components over custom hand-built controls when a library gives better quality, accessibility, or maintainability. Keep all third-party UI aligned with `docs/VISUAL_MOOD_BOARD.md`; do not import a library's default visual style blindly.
+- Do not push to GitHub unless the user explicitly asks for `push`.
 
 ## Product Brief
 
@@ -104,6 +105,8 @@ Dashboard/inbox direction:
 - `/dashboard` defaults to `/dashboard/inbox`.
 - Inbox is full-bleed inside the dashboard shell.
 - Conversation list follows WhatsApp/Instagram DM structure: search, social-channel filters, state filters, full-width list rows, social platform logo badges, unread count, and no framed card around the list.
+- The upper inbox filter area uses a compact search row, brand-colored platform strip, and compact state strip. State icon/count colors should stay consistent between header counts and row badges.
+- Extra inbox filters live in a bottom sheet opened from the filter icon. The bottom sheet contains Date, Time, and Sort by controls only; platform filtering stays in the top platform strip. These filters should apply through the dashboard fetch flow without a full reload.
 - Mobile inbox behaves like normal DM apps: list first, tap chat to open thread, use back button to return.
 - Mobile thread headers let staff tap the customer name to open a compact customer profile bottom sheet.
 - Composer controls support text replies, private file/image/audio/video uploads, in-app voice-note recording, and attachment-only staff replies.
@@ -112,6 +115,8 @@ Dashboard/inbox direction:
 - Voice-note recording and playback should use a polished waveform pattern. Current implementation uses `wavesurfer.js` plus its Record plugin, styled to the project mood board.
 - Image/video selection should use a polished preview tray instead of selected-file text. Current implementation uses `FilePond`, styled to the project mood board.
 - Video playback should not use raw browser-default controls. Current implementation uses `Plyr`, styled to the project mood board.
+- Message timestamps should sit under the text/media frame, not inside the frame. Media frames should stay compact and avoid large empty padding.
+- Swipe-to-reply is supported in the thread UI and stores reply context on the outgoing message metadata.
 
 ## Core Multi-Tenant Requirement
 
@@ -201,6 +206,7 @@ Onboarding:
 Dashboard:
 - `/dashboard`
 - `/dashboard/inbox`
+- `GET /dashboard/inbox/pulse`
 - `/dashboard/accounts`
 - `GET /dashboard/accounts/gmail/redirect`
 - `GET /dashboard/accounts/gmail/callback`
@@ -356,7 +362,7 @@ Current status:
 - `CurrentBusinessService` handles active workspace resolution and switching.
 - `InboxUi` holds inbox presentation metadata for states, social channels, and intent labels.
 - `GmailConnectionService` handles Gmail OAuth redirect URL building, auth-code token exchange, Gmail profile fetch, access-token refresh, recent inbox sync, email parsing, duplicate detection, and local inbox import.
-- `TelegramConnectionService` handles Bot API webhook registration, incoming message/media normalization, customer avatar fetch, text replies, and media replies for bot-backed Telegram conversations.
+- `TelegramConnectionService` handles Bot API webhook registration, incoming message/media normalization, customer profile photo fetch, text replies, and media replies for bot-backed Telegram conversations.
 
 Knowledge base CRUD pass on 2026-07-08:
 - Reworked the Knowledge Base page from read-only demo cards into editable workspace content.
@@ -396,6 +402,23 @@ Inbox media and voice-note pass on 2026-07-13:
 - Image/video upload selection now uses `FilePond` with preview, type validation, 6-file limit, and 10MB-per-file validation.
 - Inline video playback now uses `Plyr` instead of raw browser-default video controls.
 - Latest focused verification after this pass: `npm run build` passes and Telegram feature tests pass with `13 tests, 57 assertions`.
+
+Inbox live-update, filter, and media refinement pass on 2026-07-13:
+- Added inbox pulse polling so new Telegram messages, selected-thread updates, and unread counts can appear without manually refreshing the page.
+- Unread badges now count unread messages, not only unread conversations.
+- Removed the repeated fixed Telegram auto-reply behavior; incoming Telegram messages should not trigger a canned response by default.
+- Added Telegram customer profile photo fetching and display where Telegram exposes an avatar.
+- Added top inbox filters for date, time of day, and sort order while keeping platform filtering in the horizontal channel strip.
+- Replaced default browser select controls in the filter sheet with custom Alpine dropdown controls.
+- Restored the compact platform strip and compact state strip after a heavier header redesign was rejected.
+- Kept the filter bottom sheet focused on Date, Time, and Sort by; no platform selector inside the bottom sheet.
+- Refined image/video/audio message presentation to avoid oversized empty frames and duplicate inline media overlays.
+- Media preview should open one viewer at a time, not allow stacked image/video overlays.
+- Video playback should enlarge in a controlled viewer and close back to the chat without distorting the chat layout.
+- Voice notes should use a compact waveform player similar to modern chat apps, while still following the project mood board colors.
+- Text and media timestamps render under the bubble/frame.
+- Swipe-to-reply is available for selecting a specific message as reply context.
+- Latest focused verification after this pass: `npm run build` passes and `php artisan view:cache` passes.
 
 ## Seed Demo Data To Build Later
 
@@ -576,6 +599,7 @@ Gmail integration pass on 2026-07-07:
 - Added Gmail channel metadata, icon, inbox filter support, Gmail subject preview, and email-address customer identity label.
 - Gmail sync imports latest 20 inbox emails, maps conversations by Gmail thread when possible, stores subject/from/to/internal date in message metadata, and skips duplicate Gmail message IDs.
 - Gmail imported messages default to `Needs Human` and `ai_mode=human`; Gmail auto-reply and sending are intentionally disabled for now.
+- Gmail HTML is cleaned before display, useful links are preserved, no-reply/automated senders are detected, and non-repliable email threads disable the composer.
 - Added feature tests for Gmail auth requirement, callback account creation, foreign-business sync denial, scoped import, duplicate prevention, and token secrecy.
 - Latest verification after this pass: PHPUnit passes with `55 tests, 171 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
 
@@ -588,6 +612,8 @@ Telegram integration pass on 2026-07-09:
 - Incoming Telegram updates are normalized into the unified inbox through `MessageIngestionService`.
 - Staff text replies in Telegram conversations are sent through Telegram `sendMessage`; media replies are sent through the appropriate Telegram Bot API media methods.
 - Added Telegram channel icon/filter support in the inbox and kept all channel filters on one horizontal row.
+- Telegram uses bot-backed customer conversations only. It does not import a user's personal Telegram inbox or private chats.
+- Telegram webhook status can show live while delivery still fails if Telegram cannot validate the site's certificate. Check `getWebhookInfo.last_error_message` when messages do not arrive.
 - Latest verification after this pass: PHPUnit passes with `74 tests, 292 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
 
 Not built yet:

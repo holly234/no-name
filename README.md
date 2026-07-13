@@ -17,11 +17,11 @@ Built and working as a local MVP:
 - Session-backed active workspace resolution
 - Business-scoped dashboard data
 - Dashboard defaults to inbox
-- Dark, flat, WhatsApp/Instagram-inspired inbox UI with no dashboard gradients
+- Mood-board aligned WhatsApp/Instagram-inspired inbox UI with no dashboard gradients
 - Lightweight SPA-style dashboard navigation for internal dashboard links/forms, including pending feedback and double-submit protection
 - Demo connected accounts for Instagram, Facebook, and WhatsApp
-- Real Gmail OAuth connection with encrypted token storage and manual on-demand email sync
-- Real Telegram bot-backed connection with encrypted bot token storage, webhook registration, incoming message/media ingestion, and text/media replies through the Telegram Bot API
+- Real Gmail OAuth connection with encrypted token storage, manual on-demand email sync, cleaned email rendering, clickable links, and no-reply handling
+- Real Telegram bot-backed connection with encrypted bot token storage, webhook registration, incoming message/media ingestion, customer profile photos, and text/media replies through the Telegram Bot API
 - Multiple connected accounts per social platform per workspace
 - Disconnect flow for connected accounts; disconnected records are preserved internally but hidden from the active Accounts UI
 - AI Conversation State Engine demo workflow
@@ -64,17 +64,21 @@ The inbox lets staff see:
 The UI includes:
 
 - social-channel filter row: All, Instagram, WhatsApp, Facebook, Gmail, Telegram
-- state filter row: All, Needs Human, AI Handling, Waiting, Closed
+- compact state filter row with icon counts for inbox, needs reply, AI, scheduled/waiting, and done/closed
+- bottom-sheet filters for date, time of day, and sort order, applied through dashboard fetch navigation instead of a full page reload
 - full-width DM-style conversation list
 - mobile list-to-thread behavior
 - thread view with message composer
 - manual composer supports text, private file/image/audio/video attachments, attachment-only staff replies, and in-app voice-note recording
 - composer image/video selection uses a preview tray instead of generic selected-file text
+- message media supports images, videos, files, and voice notes with a 10MB per-file cap
+- media timestamps sit under the bubble/frame, and swipe-to-reply can attach reply context to an outgoing message
 - customer context panel on wide desktop
 - mobile customer profile bottom sheet opened from the chat header name
 - channel-aware customer identity labels: Instagram username, Facebook username, WhatsApp number, Gmail email address, or Telegram chat ID
 - human takeover switch
 - top-right toast notifications that auto-dismiss after 3 seconds
+- inbox polling keeps open lists and selected threads updated without manual refresh
 - conversations default to `ai_mode=auto`; `Needs Human` is a status, while `human` mode is reserved for explicit takeover or disabled automation conditions
 
 Design reference:
@@ -102,6 +106,7 @@ Dashboard:
 
 - `GET /dashboard` redirects to `/dashboard/inbox`
 - `GET /dashboard/inbox`
+- `GET /dashboard/inbox/pulse`
 - `POST /dashboard/inbox/{conversation}/reply`
 - `POST /dashboard/inbox/{conversation}/take-over`
 - `POST /dashboard/inbox/{conversation}/resume-ai`
@@ -191,7 +196,7 @@ TELEGRAM_API_BASE=https://api.telegram.org/bot
 OPENAI_API_KEY=
 ```
 
-Real Meta/OpenAI integrations are not implemented yet. Gmail is implemented for OAuth connection and manual inbox sync; Gmail sending and Pub/Sub push are not enabled yet. Telegram is implemented through the Bot API, not private-user MTProto sessions. For real-time Telegram messages, `APP_URL` must be a public HTTPS URL so Telegram can reach `/api/webhooks/telegram/{account}`.
+Real Meta/OpenAI integrations are not implemented yet. Gmail is implemented for OAuth connection and manual inbox sync; Gmail sending and Pub/Sub push are not enabled yet. Telegram is implemented through the Bot API, not private-user MTProto sessions. For real-time Telegram messages, `APP_URL` must be a public HTTPS URL with a valid certificate so Telegram can reach `/api/webhooks/telegram/{account}`.
 
 Provider wiring guide: [docs/INTEGRATION_READY.md](docs/INTEGRATION_READY.md).
 
@@ -241,8 +246,9 @@ Connected account behavior:
 - Demo customer identity uses readable Instagram/Facebook usernames or WhatsApp numbers in the staff UI; real Meta integration should preserve a stable provider identifier separately if needed.
 - Gmail accounts use `platform=gmail`, store encrypted access/refresh tokens, and sync recent inbox emails into `Gmail` conversations manually.
 - Imported Gmail messages default to `Needs Human` and `ai_mode=human`; Gmail auto-replies are intentionally disabled until sending is implemented safely.
+- Gmail rendering strips noisy HTML/template markup where possible, keeps useful links clickable, detects no-reply/automated senders, and disables the composer for non-repliable threads.
 - Telegram accounts use `platform=Telegram`, store encrypted bot tokens, register a Bot API webhook when `APP_URL` is public HTTPS, and import customer messages into the unified inbox.
-- Telegram text and media replies are sent through the Bot API to the originating chat ID. Images, videos, files, and voice/audio notes are capped at 10MB in the current UI flow.
+- Telegram text and media replies are sent through the Bot API to the originating chat ID. Telegram customer profile photos are fetched where available. Images, videos, files, and voice/audio notes are capped at 10MB in the current UI flow.
 
 AI settings behavior:
 
@@ -351,6 +357,7 @@ Still not production-complete:
 - Gmail outbound sending from the inbox
 - Telegram private-user inbox import is not supported; Telegram is bot-backed only
 - Telegram media sending is implemented for bot-backed conversations, with a 10MB upload/download cap
+- Telegram profile photos only appear when the bot can fetch them from Telegram
 - advanced workspace settings, billing, and danger-zone controls
 - configurable business-hours schedule UI
 - separate immutable provider customer IDs from display usernames/phone numbers before production if Meta payloads require both

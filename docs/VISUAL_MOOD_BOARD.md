@@ -166,9 +166,13 @@ Breathing Room:
 
 ## Implementation Notes For This Project
 
-- Use this as a visual reference for public pages, onboarding, auth, settings, and non-inbox dashboard surfaces.
-- Keep dashboard inbox pages aligned with the existing dark DM-style product direction unless a redesign is explicitly requested.
+- Use this as the visual reference for public pages, onboarding, auth, settings, knowledge base, accounts, and inbox refinements.
+- The inbox should feel like a mature DM product: compact search, brand-colored platform filters, compact icon/count state filters, full-width rows, clear unread badges, and minimal framing.
 - Prefer calm, organized SaaS layout decisions over AI-heavy or futuristic visuals.
 - Avoid introducing gradients into dashboard pages, tabs, cards, loading states, or channel badges.
+- Use platform colors only where they help recognition, such as Instagram, WhatsApp, Facebook, Gmail, and Telegram icons.
+- Keep status colors consistent across the header counts and row badges: blue for inbox/all, pink/red for needs reply, purple for AI, amber for scheduled/waiting, and gray/slate for done/closed.
+- Filter sheets should be light, soft, and spacious without heavy labels. Platform filtering belongs in the top strip; date, time, and sort controls belong in the bottom sheet.
 - Prefer proven UI/interaction libraries over custom hand-built controls when a library gives a more polished, accessible, or maintainable result. Style those libraries to this mood board instead of accepting their default visual theme.
 - Current approved examples: `wavesurfer.js` for voice-note waveform recording/playback, `FilePond` for media selection previews, and `Plyr` for video playback.
+- Media messages should stay compact. Timestamps sit below text/media frames, and image/video/audio frames should avoid large empty padding or browser-default controls.

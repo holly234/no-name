@@ -117,9 +117,11 @@ window.inboxFilterMenu = (currentValue, options) => ({
         this.value = value;
         this.open = false;
 
-        if (this.$root.closest('form')?.dataset?.filterApply === 'true') {
+        if (this.$root.closest('form')?.dataset?.filterApply !== 'true') {
             return;
         }
+
+        this.$dispatch('close-filters');
 
         this.$nextTick(() => {
             this.$root.closest('form')?.requestSubmit();

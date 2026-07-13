@@ -142,8 +142,9 @@
                 </div>
             </div>
 
-            <div x-cloak x-show="filtersOpen" x-transition.opacity class="fixed inset-0 z-50 bg-[#111827]/10 backdrop-blur-[1px]" x-on:click.self="filtersOpen = false">
-                <div x-show="filtersOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-y-full opacity-80" x-transition:enter-end="translate-y-0 opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-y-0 opacity-100" x-transition:leave-end="translate-y-full opacity-80" class="absolute inset-x-0 bottom-0 rounded-t-[1.4rem] border border-[#E5E7EB] bg-white px-5 pb-6 pt-3 shadow-2xl shadow-[#111827]/10 sm:left-1/2 sm:bottom-6 sm:max-w-[25rem] sm:-translate-x-1/2 sm:rounded-[1.4rem]">
+            <div x-cloak x-show="filtersOpen" class="fixed inset-0 z-50 bg-[#111827]/10" x-on:click.self="filtersOpen = false" x-on:close-filters="filtersOpen = false">
+                <div class="absolute inset-x-0 bottom-0 sm:left-1/2 sm:bottom-6 sm:max-w-[25rem] sm:-translate-x-1/2">
+                <div x-show="filtersOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-y-full opacity-80" x-transition:enter-end="translate-y-0 opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-y-0 opacity-100" x-transition:leave-end="translate-y-full opacity-80" class="rounded-t-[1.4rem] border border-[#E5E7EB] bg-white px-5 pb-6 pt-3 shadow-2xl shadow-[#111827]/10 will-change-transform sm:rounded-[1.4rem]">
                     <div class="mx-auto h-1 w-11 rounded-full bg-[#D1D5DB]"></div>
                     <div class="mt-5 flex items-center justify-between">
                         <div class="flex h-9 w-9 items-center justify-center rounded-full bg-[#F5F6F8] text-[#111827]" aria-label="Filters">
@@ -218,11 +219,11 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-6 flex items-center justify-end gap-4">
-                            <a href="{{ route('dashboard.inbox', array_filter(['state' => $activeState === 'All' ? null : $activeState, 'channel' => $activeChannel === 'All' ? null : $activeChannel, 'q' => $search ?: null])) }}" class="rounded-xl px-4 py-3 text-sm font-bold text-[#6B7280] transition hover:bg-[#F5F6F8] hover:text-[#111827]">Reset</a>
-                            <button type="submit" x-on:click="filtersOpen = false" class="rounded-xl bg-[#111827] px-7 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0F1115]">Apply</button>
+                        <div class="mt-6 flex items-center justify-end">
+                            <a href="{{ route('dashboard.inbox', array_filter(['state' => $activeState === 'All' ? null : $activeState, 'channel' => $activeChannel === 'All' ? null : $activeChannel, 'q' => $search ?: null])) }}" class="rounded-xl bg-[#F5F6F8] px-7 py-3 text-sm font-bold text-[#6B7280] shadow-sm transition hover:bg-[#EEF0F3] hover:text-[#111827]">Reset</a>
                         </div>
                     </form>
+                </div>
                 </div>
             </div>
 
