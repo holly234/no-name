@@ -39,6 +39,7 @@ window.voiceNotePlayer = (sourceUrl) => ({
     playing: false,
     elapsed: '0:00',
     duration: '0:00',
+    displayTime: '0:00',
     ready: false,
     format(seconds) {
         seconds = Number.isFinite(seconds) ? Math.floor(seconds) : 0;
@@ -48,12 +49,12 @@ window.voiceNotePlayer = (sourceUrl) => ({
         this.wave = WaveSurfer.create({
             container: this.$refs.waveform,
             url: sourceUrl,
-            height: 32,
-            barWidth: 2,
+            height: 38,
+            barWidth: 3,
             barGap: 2,
             barRadius: 2,
             cursorWidth: 0,
-            waveColor: '#D1D5DB',
+            waveColor: '#CBD5E1',
             progressColor: '#2563EB',
             normalize: true,
         });
@@ -61,6 +62,7 @@ window.voiceNotePlayer = (sourceUrl) => ({
         this.wave.on('ready', (duration) => {
             this.ready = true;
             this.duration = this.format(duration);
+            this.displayTime = this.duration;
         });
         this.wave.on('play', () => {
             this.playing = true;
@@ -71,10 +73,12 @@ window.voiceNotePlayer = (sourceUrl) => ({
         this.wave.on('finish', () => {
             this.playing = false;
             this.elapsed = '0:00';
+            this.displayTime = this.duration;
             this.wave.seekTo(0);
         });
         this.wave.on('timeupdate', (currentTime) => {
             this.elapsed = this.format(currentTime);
+            this.displayTime = this.elapsed === '0:00' ? this.duration : this.elapsed;
         });
     },
     toggle() {

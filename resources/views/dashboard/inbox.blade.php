@@ -264,7 +264,7 @@
                             $mediaOnlyAttachment = $mediaOnlyVisual || $mediaOnlyAudio;
                         @endphp
                         <div class="flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}">
-                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : ($mediaOnlyAudio ? 'max-w-[17rem]' : 'max-w-[86%] sm:max-w-[72%]')) }} rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 py-0' : ($mediaOnlyAudio ? 'px-2 py-1' : 'px-4 py-3') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
+                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : ($mediaOnlyAudio ? 'w-[19rem] max-w-[88%]' : 'max-w-[86%] sm:max-w-[72%]')) }} rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 pb-1 pt-1.5' : ($mediaOnlyAudio ? 'px-3 py-2' : 'px-4 py-3') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
                                 @if ($isGmailMessage)
                                     <div class="mb-3 border-b border-[#E5E7EB] pb-3">
                                         <div class="flex items-center gap-2 text-xs font-bold text-[#6B7280]">
@@ -351,21 +351,23 @@
                                                 <div
                                                     x-data="window.voiceNotePlayer(@js($inlineUrl))"
                                                     x-on:destroy.window="destroy"
-                                                    class="max-w-[16rem] rounded-xl bg-transparent py-0.5"
+                                                    class="w-full rounded-xl bg-transparent"
                                                 >
-                                                    <div class="flex items-center gap-2">
-                                                        <button type="button" x-on:click="toggle" x-bind:class="ready ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]' : 'bg-[#EEF0F3] text-[#9CA3AF]'" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm transition" aria-label="Play voice note">
-                                                            <svg x-show="! playing" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <button type="button" x-on:click="toggle" x-bind:class="ready ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]' : 'bg-[#EEF0F3] text-[#9CA3AF]'" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm transition" aria-label="Play voice note">
+                                                            <svg x-show="! playing" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
                                                                 <path d="M8 5.8c0-.8.9-1.3 1.6-.9l8.2 5.2c.7.4.7 1.4 0 1.8l-8.2 5.2c-.7.4-1.6-.1-1.6-.9V5.8Z"></path>
                                                             </svg>
-                                                            <svg x-cloak x-show="playing" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+                                                            <svg x-cloak x-show="playing" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
                                                                 <path d="M7 5h3v14H7zM14 5h3v14h-3z"></path>
                                                             </svg>
                                                         </button>
                                                         <div class="min-w-0 flex-1">
-                                                            <div x-ref="waveform" class="h-7 min-w-[8rem]"></div>
+                                                            <div x-ref="waveform" class="h-10 w-full min-w-0"></div>
                                                         </div>
-                                                        <span class="shrink-0 text-[11px] font-bold tabular-nums text-[#6B7280]"><span x-text="elapsed"></span> / <span x-text="duration"></span></span>
+                                                    </div>
+                                                    <div class="mt-0.5 flex justify-end">
+                                                        <span class="text-[11px] font-semibold tabular-nums text-[#6B7280]" x-text="displayTime"></span>
                                                     </div>
                                                 </div>
                                             @endif
