@@ -34,12 +34,28 @@
             'newest' => 'Newest',
             'oldest' => 'Oldest',
         ];
+        $advancedFiltersActive = $activeDate !== 'all' || $activeTime !== 'all' || $activeSort !== 'newest';
+        $compactStateLabels = [
+            'All' => 'Inbox',
+            \App\Models\Conversation::STATE_NEEDS_HUMAN => 'Needs reply',
+            \App\Models\Conversation::STATE_AI_HANDLING => 'AI',
+            \App\Models\Conversation::STATE_WAITING => 'Scheduled',
+            \App\Models\Conversation::STATE_CLOSED => 'Done',
+        ];
+        $channelIconTone = [
+            'All' => 'text-[#111827]',
+            'Instagram' => 'text-[#dd2a7b]',
+            'WhatsApp' => 'text-[#10B981]',
+            'Facebook' => 'text-[#1877f2]',
+            'Gmail' => 'text-[#ea4335]',
+            'Telegram' => 'text-[#229ED9]',
+        ];
     @endphp
 
     <div x-data="window.inboxPage()" data-inbox-version="{{ $inboxVersion }}" class="grid h-full min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] overflow-hidden bg-[#F5F6F8] text-[#111827] lg:grid-cols-[410px_minmax(0,1fr)] xl:grid-cols-[410px_minmax(0,1fr)_320px]">
         <aside class="{{ $conversationIsOpen ? 'hidden' : 'flex' }} h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden border-r border-[#E5E7EB] bg-white lg:flex">
-            <div class="w-full max-w-full shrink-0 overflow-hidden border-b border-[#E5E7EB] bg-white px-4 py-3 sm:px-5 sm:py-4">
-                <div class="flex w-full min-w-0 items-center gap-2">
+            <div class="w-full max-w-full shrink-0 overflow-visible border-b border-[#E5E7EB] bg-white px-4 py-4 sm:px-5">
+                <div class="flex w-full min-w-0 items-center gap-2.5">
                     <button type="button" class="mobile-menu-button lg:hidden" x-on:click="sidebarOpen = true" aria-label="Open navigation">
                         <span class="mobile-menu-mark" aria-hidden="true"></span>
                     </button>
@@ -49,7 +65,7 @@
                         <input type="hidden" name="date" value="{{ $activeDate }}">
                         <input type="hidden" name="time" value="{{ $activeTime }}">
                         <input type="hidden" name="sort" value="{{ $activeSort }}">
-                        <label class="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] px-3 py-3 text-[#6B7280] transition focus-within:border-[#2563EB] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2563EB]/15 sm:px-4">
+                        <label class="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white px-3 py-3 text-[#6B7280] shadow-sm transition focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/15 sm:px-4">
                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5 shrink-0">
                                 <path d="m21 21-4.35-4.35"></path>
                                 <circle cx="11" cy="11" r="7"></circle>
@@ -61,74 +77,17 @@
                             @endif
                         </label>
                     </form>
+                    <button type="button" x-on:click="filtersOpen = true" class="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#111827] shadow-sm transition hover:bg-[#F5F6F8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20" aria-label="Open filters">
+                        @if ($advancedFiltersActive)
+                            <span class="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#2563EB]"></span>
+                        @endif
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                            <path d="M4 5h16l-6.5 7.2V18l-3 1.5v-7.3L4 5Z"></path>
+                        </svg>
+                    </button>
                 </div>
 
-                <form method="GET" action="{{ route('dashboard.inbox') }}" class="mt-3 grid grid-cols-3 gap-1 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-1">
-                    <input type="hidden" name="state" value="{{ $activeState }}">
-                    <input type="hidden" name="channel" value="{{ $activeChannel }}">
-                    @if ($search !== '')
-                        <input type="hidden" name="q" value="{{ $search }}">
-                    @endif
-                    <div x-data="window.inboxFilterMenu(@js($activeDate), @js($dateOptions))" x-on:click.outside="open = false" class="relative min-w-0">
-                        <input type="hidden" name="date" x-bind:value="value">
-                        <button type="button" x-on:click="open = ! open" class="flex h-10 w-full min-w-0 items-center justify-between gap-1 rounded-lg bg-white px-3 text-left text-xs font-bold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20" aria-label="Filter by day">
-                            <span class="truncate" x-text="label"></span>
-                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0 text-[#6B7280] transition" x-bind:class="open ? 'rotate-180' : ''">
-                                <path d="m6 9 6 6 6-6"></path>
-                            </svg>
-                        </button>
-                        <div x-cloak x-show="open" x-transition.origin.top.left class="absolute left-0 top-11 z-40 w-40 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-xl shadow-[#111827]/10">
-                            @foreach ($dateOptions as $value => $label)
-                                <button type="button" x-on:click="choose(@js($value))" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-[#F5F6F8]" x-bind:class="value === @js($value) ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#374151]'">
-                                    <span>{{ $label }}</span>
-                                    <svg x-cloak x-show="value === @js($value)" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
-                                        <path d="m5 12 4 4L19 6"></path>
-                                    </svg>
-                                </button>
-                            @endforeach
-                        </div>
-                    </div>
-                    <div x-data="window.inboxFilterMenu(@js($activeTime), @js($timeOptions))" x-on:click.outside="open = false" class="relative min-w-0">
-                        <input type="hidden" name="time" x-bind:value="value">
-                        <button type="button" x-on:click="open = ! open" class="flex h-10 w-full min-w-0 items-center justify-between gap-1 rounded-lg bg-white px-3 text-left text-xs font-bold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20" aria-label="Filter by time">
-                            <span class="truncate" x-text="label"></span>
-                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0 text-[#6B7280] transition" x-bind:class="open ? 'rotate-180' : ''">
-                                <path d="m6 9 6 6 6-6"></path>
-                            </svg>
-                        </button>
-                        <div x-cloak x-show="open" x-transition.origin.top class="absolute left-1/2 top-11 z-40 w-40 -translate-x-1/2 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-xl shadow-[#111827]/10">
-                            @foreach ($timeOptions as $value => $label)
-                                <button type="button" x-on:click="choose(@js($value))" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-[#F5F6F8]" x-bind:class="value === @js($value) ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#374151]'">
-                                    <span>{{ $label }}</span>
-                                    <svg x-cloak x-show="value === @js($value)" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
-                                        <path d="m5 12 4 4L19 6"></path>
-                                    </svg>
-                                </button>
-                            @endforeach
-                        </div>
-                    </div>
-                    <div x-data="window.inboxFilterMenu(@js($activeSort), @js($sortOptions))" x-on:click.outside="open = false" class="relative min-w-0">
-                        <input type="hidden" name="sort" x-bind:value="value">
-                        <button type="button" x-on:click="open = ! open" class="flex h-10 w-full min-w-0 items-center justify-between gap-1 rounded-lg bg-white px-3 text-left text-xs font-bold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20" aria-label="Sort conversations">
-                            <span class="truncate" x-text="label"></span>
-                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0 text-[#6B7280] transition" x-bind:class="open ? 'rotate-180' : ''">
-                                <path d="m6 9 6 6 6-6"></path>
-                            </svg>
-                        </button>
-                        <div x-cloak x-show="open" x-transition.origin.top.right class="absolute right-0 top-11 z-40 w-36 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-xl shadow-[#111827]/10">
-                            @foreach ($sortOptions as $value => $label)
-                                <button type="button" x-on:click="choose(@js($value))" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-[#F5F6F8]" x-bind:class="value === @js($value) ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#374151]'">
-                                    <span>{{ $label }}</span>
-                                    <svg x-cloak x-show="value === @js($value)" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
-                                        <path d="m5 12 4 4L19 6"></path>
-                                    </svg>
-                                </button>
-                            @endforeach
-                        </div>
-                    </div>
-                </form>
-
-                <div class="mt-3 grid w-full grid-cols-6 gap-1 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-1">
+                <div class="mt-4 grid w-full grid-cols-6 gap-1 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-1">
                     @foreach ($channelMeta as $channel => $meta)
                         @php
                             $isChannelActive = $activeChannel === $channel;
@@ -142,7 +101,7 @@
                             ]));
                         @endphp
                         <a href="{{ $channelUrl }}" title="{{ $meta['label'] }}" aria-label="{{ $meta['label'] }}" class="group flex h-10 items-center justify-center rounded-lg transition {{ $isChannelActive ? 'bg-white shadow-sm ring-1 ring-[#E5E7EB]' : 'hover:bg-white' }}">
-                            <span class="flex h-7 w-7 items-center justify-center rounded-lg shadow-sm {{ $meta['class'] }} {{ $isChannelActive ? 'ring-2 ring-[#2563EB]/20' : 'opacity-80 group-hover:opacity-100' }}">
+                            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-[#E5E7EB] {{ $channelIconTone[$channel] ?? 'text-[#111827]' }} {{ $isChannelActive ? 'ring-2 ring-[#2563EB]/20' : 'opacity-80 group-hover:opacity-100' }}">
                                 <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4">
                                     {!! $meta['icon'] !!}
                                 </svg>
@@ -164,8 +123,15 @@
                                 'time' => $activeTime === 'all' ? null : $activeTime,
                                 'sort' => $activeSort === 'newest' ? null : $activeSort,
                             ]));
+                            $stateTone = match ($state) {
+                                'All' => 'text-[#2563EB]',
+                                \App\Models\Conversation::STATE_NEEDS_HUMAN => 'text-[#BE185D]',
+                                \App\Models\Conversation::STATE_AI_HANDLING => 'text-[#047857]',
+                                \App\Models\Conversation::STATE_WAITING => 'text-[#B45309]',
+                                default => 'text-[#6B7280]',
+                            };
                         @endphp
-                        <a href="{{ $stateUrl }}" title="{{ $meta['label'] }}" aria-label="{{ $meta['label'] }}" class="group flex h-10 min-w-0 items-center justify-center gap-1 rounded-lg text-xs font-bold transition sm:h-11 {{ $isActive ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#6B7280] hover:bg-white hover:text-[#111827]' }}">
+                        <a href="{{ $stateUrl }}" title="{{ $meta['label'] }}" aria-label="{{ $meta['label'] }}" class="group flex h-10 min-w-0 items-center justify-center gap-1 rounded-lg text-xs font-bold transition sm:h-11 {{ $isActive ? 'bg-[#2563EB] text-white shadow-sm' : $stateTone.' hover:bg-white' }}">
                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
                                 {!! $meta['icon'] !!}
                             </svg>
@@ -173,6 +139,90 @@
                             <span>{{ $count }}</span>
                         </a>
                     @endforeach
+                </div>
+            </div>
+
+            <div x-cloak x-show="filtersOpen" x-transition.opacity class="fixed inset-0 z-50 bg-[#111827]/10 backdrop-blur-[1px]" x-on:click.self="filtersOpen = false">
+                <div x-show="filtersOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-y-full opacity-80" x-transition:enter-end="translate-y-0 opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-y-0 opacity-100" x-transition:leave-end="translate-y-full opacity-80" class="absolute inset-x-0 bottom-0 rounded-t-[1.4rem] border border-[#E5E7EB] bg-white px-5 pb-6 pt-3 shadow-2xl shadow-[#111827]/10 sm:left-1/2 sm:bottom-6 sm:max-w-[25rem] sm:-translate-x-1/2 sm:rounded-[1.4rem]">
+                    <div class="mx-auto h-1 w-11 rounded-full bg-[#D1D5DB]"></div>
+                    <div class="mt-5 flex items-center justify-between">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-[#F5F6F8] text-[#111827]" aria-label="Filters">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                <path d="M4 5h16l-6.5 7.2V18l-3 1.5v-7.3L4 5Z"></path>
+                            </svg>
+                        </div>
+                        <button type="button" x-on:click="filtersOpen = false" class="flex h-9 w-9 items-center justify-center rounded-full bg-[#F5F6F8] text-[#6B7280] transition hover:bg-[#EEF0F3] hover:text-[#111827]" aria-label="Close filters">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                <path d="M18 6 6 18"></path>
+                                <path d="m6 6 12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <form method="GET" action="{{ route('dashboard.inbox') }}" class="mt-6" data-filter-apply="true">
+                        <input type="hidden" name="state" value="{{ $activeState }}">
+                        <input type="hidden" name="channel" value="{{ $activeChannel }}">
+                        @if ($search !== '')
+                            <input type="hidden" name="q" value="{{ $search }}">
+                        @endif
+                        <div class="grid gap-4">
+                            <div x-data="window.inboxFilterMenu(@js($activeDate), @js($dateOptions))" x-on:click.outside="open = false" class="relative min-w-0">
+                                <input type="hidden" name="date" x-bind:value="value">
+                                <p class="mb-2 text-xs font-semibold text-[#6B7280]">Date</p>
+                                <button type="button" x-on:click="open = ! open" class="flex h-12 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-left text-sm font-semibold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/15">
+                                    <span class="truncate" x-text="label"></span>
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0 text-[#6B7280]" x-bind:class="open ? 'rotate-180' : ''">
+                                        <path d="m6 9 6 6 6-6"></path>
+                                    </svg>
+                                </button>
+                                <div x-cloak x-show="open" x-transition class="absolute bottom-14 left-0 z-50 w-full overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-xl shadow-[#111827]/10">
+                                    @foreach ($dateOptions as $value => $label)
+                                        <button type="button" x-on:click="choose(@js($value))" class="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition hover:bg-[#F5F6F8]" x-bind:class="value === @js($value) ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#374151]'">
+                                            <span>{{ $label }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <div x-data="window.inboxFilterMenu(@js($activeTime), @js($timeOptions))" x-on:click.outside="open = false" class="relative min-w-0">
+                                <input type="hidden" name="time" x-bind:value="value">
+                                <p class="mb-2 text-xs font-semibold text-[#6B7280]">Time</p>
+                                <button type="button" x-on:click="open = ! open" class="flex h-12 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-left text-sm font-semibold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/15">
+                                    <span class="truncate" x-text="label"></span>
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0 text-[#6B7280]" x-bind:class="open ? 'rotate-180' : ''">
+                                        <path d="m6 9 6 6 6-6"></path>
+                                    </svg>
+                                </button>
+                                <div x-cloak x-show="open" x-transition class="absolute bottom-14 left-0 z-50 w-full overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-xl shadow-[#111827]/10">
+                                    @foreach ($timeOptions as $value => $label)
+                                        <button type="button" x-on:click="choose(@js($value))" class="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition hover:bg-[#F5F6F8]" x-bind:class="value === @js($value) ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#374151]'">
+                                            <span>{{ $label }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <div x-data="window.inboxFilterMenu(@js($activeSort), @js($sortOptions))" x-on:click.outside="open = false" class="relative min-w-0">
+                                <input type="hidden" name="sort" x-bind:value="value">
+                                <p class="mb-2 text-xs font-semibold text-[#6B7280]">Sort by</p>
+                                <button type="button" x-on:click="open = ! open" class="flex h-12 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-left text-sm font-semibold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/15">
+                                    <span class="truncate" x-text="label"></span>
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0 text-[#6B7280]" x-bind:class="open ? 'rotate-180' : ''">
+                                        <path d="m6 9 6 6 6-6"></path>
+                                    </svg>
+                                </button>
+                                <div x-cloak x-show="open" x-transition class="absolute bottom-14 left-0 z-50 w-full overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-xl shadow-[#111827]/10">
+                                    @foreach ($sortOptions as $value => $label)
+                                        <button type="button" x-on:click="choose(@js($value))" class="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition hover:bg-[#F5F6F8]" x-bind:class="value === @js($value) ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#374151]'">
+                                            <span>{{ $label }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex items-center justify-end gap-4">
+                            <a href="{{ route('dashboard.inbox', array_filter(['state' => $activeState === 'All' ? null : $activeState, 'channel' => $activeChannel === 'All' ? null : $activeChannel, 'q' => $search ?: null])) }}" class="rounded-xl px-4 py-3 text-sm font-bold text-[#6B7280] transition hover:bg-[#F5F6F8] hover:text-[#111827]">Reset</a>
+                            <button type="submit" x-on:click="filtersOpen = false" class="rounded-xl bg-[#111827] px-7 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0F1115]">Apply</button>
+                        </div>
+                    </form>
                 </div>
             </div>
 

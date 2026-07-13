@@ -36,6 +36,7 @@ window.videoPlayer = () => ({
 
 window.inboxPage = () => ({
     profileOpen: false,
+    filtersOpen: false,
     mediaViewer: {
         open: false,
         type: null,
@@ -115,6 +116,10 @@ window.inboxFilterMenu = (currentValue, options) => ({
     choose(value) {
         this.value = value;
         this.open = false;
+
+        if (this.$root.closest('form')?.dataset?.filterApply === 'true') {
+            return;
+        }
 
         this.$nextTick(() => {
             this.$root.closest('form')?.requestSubmit();
