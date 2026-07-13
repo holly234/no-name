@@ -105,6 +105,23 @@ window.inboxPage = () => ({
     },
 });
 
+window.inboxFilterMenu = (currentValue, options) => ({
+    open: false,
+    value: currentValue,
+    options,
+    get label() {
+        return this.options[this.value] || this.options.all || 'Filter';
+    },
+    choose(value) {
+        this.value = value;
+        this.open = false;
+
+        this.$nextTick(() => {
+            this.$root.closest('form')?.requestSubmit();
+        });
+    },
+});
+
 window.swipeReplyMessage = (message) => ({
     startX: null,
     startY: null,
