@@ -210,7 +210,7 @@
                     </div>
                 </div>
 
-                <div data-chat-scroll class="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#F5F6F8] p-3 sm:p-5">
+                <div data-chat-scroll class="min-h-0 flex-1 space-y-2.5 overflow-y-auto bg-[#F5F6F8] p-3 sm:p-5">
                     @foreach ($selectedConversation->messages as $message)
                         @php
                             $isGmailMessage = $selectedConversation->channel === 'Gmail' || ($message->metadata['source'] ?? null) === 'gmail';
@@ -247,6 +247,7 @@
                             }
 
                             $messageBody = trim($messageBody);
+                            $replyContext = $message->metadata['reply_to'] ?? null;
                         @endphp
                         @php
                             $hasImageAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'image/'));
@@ -262,10 +263,36 @@
                             $mediaOnlyAudio = ! $isGmailMessage && $mediaOnlyPlaceholder && $hasAudioAttachment && ! ($hasImageAttachment || $hasVideoAttachment);
                             $mediaOnlyVisual = ! $isGmailMessage && $mediaOnlyPlaceholder && ($hasImageAttachment || $hasVideoAttachment);
                             $mediaOnlyAttachment = $mediaOnlyVisual || $mediaOnlyAudio;
+                            $messageSummary = $messageBody !== ''
+                                ? \Illuminate\Support\Str::limit(strip_tags($messageBody), 90)
+                                : ($message->attachments->isNotEmpty() ? 'Attachment' : 'Message');
                         @endphp
-                        <div class="flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}">
-                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : ($mediaOnlyAudio ? 'w-[19rem] max-w-[88%]' : 'max-w-[86%] sm:max-w-[72%]')) }}">
-                                <div class="rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 pb-1 pt-1.5' : ($mediaOnlyAudio ? 'px-3 py-2' : 'px-4 py-3') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
+                        <div
+                            class="relative flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}"
+                            x-data="window.swipeReplyMessage({
+                                id: {{ $message->id }},
+                                sender: @js($senderLabel),
+                                body: @js($messageSummary)
+                            })"
+                            x-on:pointerdown="begin($event)"
+                            x-on:pointermove="move($event)"
+                            x-on:pointerup="end"
+                            x-on:pointercancel="end"
+                        >
+                            <div class="pointer-events-none absolute top-1/2 -translate-y-1/2 {{ $message->direction === 'outgoing' ? 'right-full mr-2' : 'left-full ml-2' }} flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#2563EB] opacity-0 shadow-sm transition" x-bind:class="Math.abs(offsetX) > 24 ? 'opacity-100' : 'opacity-0'">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                    <path d="m9 14-4-4 4-4"></path>
+                                    <path d="M5 10h10a4 4 0 0 1 4 4v1"></path>
+                                </svg>
+                            </div>
+                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[92%] sm:max-w-[30rem]' : ($mediaOnlyAudio ? 'w-[16.5rem] max-w-[86%]' : 'max-w-[84%] sm:max-w-[68%]')) }} transition-transform duration-150 ease-out" x-bind:style="`transform: translateX(${offsetX}px)`">
+                                <div class="rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 pb-1 pt-1' : ($mediaOnlyAudio ? 'px-2.5 py-2' : 'px-3 py-2') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
+                                    @if ($replyContext)
+                                        <div class="mb-2 border-l-2 border-[#2563EB] bg-white/60 px-2 py-1.5">
+                                            <p class="truncate text-xs font-bold text-[#6B7280]">{{ $replyContext['sender'] ?? 'Message' }}</p>
+                                            <p class="truncate text-xs text-[#6B7280]">{{ $replyContext['body'] ?? 'Attachment' }}</p>
+                                        </div>
+                                    @endif
                                     @if ($isGmailMessage)
                                         <div class="mb-3 border-b border-[#E5E7EB] pb-3">
                                         <div class="flex items-center gap-2 text-xs font-bold text-[#6B7280]">
@@ -323,7 +350,7 @@
                                             @if ($isImage)
                                                 <div x-data="{ open: false }">
                                                     <button type="button" x-on:click="open = true" class="block overflow-hidden rounded-xl text-left transition hover:opacity-95" aria-label="Open image preview">
-                                                    <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-80 w-full rounded-xl object-cover">
+                                                    <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-[26rem] w-full rounded-xl object-cover">
                                                     </button>
                                                     <div
                                                         x-cloak
@@ -345,8 +372,44 @@
                                                     </div>
                                                 </div>
                                             @elseif ($isVideo)
-                                                <div x-data="window.videoPlayer()" x-on:destroy.window="destroy" class="overflow-hidden rounded-xl bg-[#111827]">
-                                                    <video x-ref="video" playsinline preload="metadata" src="{{ $inlineUrl }}" class="max-h-72 w-full bg-[#111827]"></video>
+                                                <div x-data="window.videoPreview(@js($inlineUrl))" class="overflow-hidden rounded-xl bg-[#111827]">
+                                                    <button type="button" x-on:click="openPlayer" class="group relative block aspect-[4/5] max-h-[30rem] w-full overflow-hidden rounded-xl bg-[#111827] text-white" aria-label="Open video">
+                                                        <video playsinline preload="metadata" src="{{ $inlineUrl }}" class="h-full w-full object-cover"></video>
+                                                        <span class="absolute inset-0 flex items-center justify-center bg-black/10 transition group-hover:bg-black/20">
+                                                            <span class="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-[#111827] shadow-lg">
+                                                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="ml-1 h-7 w-7">
+                                                                    <path d="M8 5.8c0-.8.9-1.3 1.6-.9l8.2 5.2c.7.4.7 1.4 0 1.8l-8.2 5.2c-.7.4-1.6-.1-1.6-.9V5.8Z"></path>
+                                                                </svg>
+                                                            </span>
+                                                        </span>
+                                                    </button>
+                                                    <div
+                                                        x-cloak
+                                                        x-show="open"
+                                                        x-transition.opacity
+                                                        x-on:keydown.escape.window="closePlayer"
+                                                        x-on:click.self="closePlayer"
+                                                        class="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F1115]/85 p-4"
+                                                        role="dialog"
+                                                        aria-modal="true"
+                                                    >
+                                                        <button type="button" x-on:click="closePlayer" class="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#111827] shadow-lg transition hover:bg-white" aria-label="Close video preview">
+                                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-5 w-5">
+                                                                <path d="M18 6 6 18"></path>
+                                                                <path d="m6 6 12 12"></path>
+                                                            </svg>
+                                                        </button>
+                                                        <div
+                                                            class="w-full max-w-sm sm:max-w-lg"
+                                                            x-on:pointerdown="startDrag($event)"
+                                                            x-on:pointermove="moveDrag($event)"
+                                                            x-on:pointerup="endDrag"
+                                                            x-on:pointercancel="endDrag"
+                                                            x-bind:style="`transform: translateY(${dragY}px)`"
+                                                        >
+                                                            <video x-ref="modalVideo" playsinline preload="metadata" src="{{ $inlineUrl }}" class="max-h-[84dvh] w-full rounded-2xl bg-[#111827] shadow-2xl"></video>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             @elseif ($isAudio)
                                                 <div
@@ -354,8 +417,8 @@
                                                     x-on:destroy.window="destroy"
                                                     class="w-full rounded-xl bg-transparent"
                                                 >
-                                                    <div class="flex items-center gap-3">
-                                                        <button type="button" x-on:click="toggle" x-bind:class="ready ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]' : 'bg-[#EEF0F3] text-[#9CA3AF]'" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm transition" aria-label="Play voice note">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <button type="button" x-on:click="toggle" x-bind:class="ready ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]' : 'bg-[#EEF0F3] text-[#9CA3AF]'" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm transition" aria-label="Play voice note">
                                                             <svg x-show="! playing" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
                                                                 <path d="M8 5.8c0-.8.9-1.3 1.6-.9l8.2 5.2c.7.4.7 1.4 0 1.8l-8.2 5.2c-.7.4-1.6-.1-1.6-.9V5.8Z"></path>
                                                             </svg>
@@ -364,7 +427,7 @@
                                                             </svg>
                                                         </button>
                                                         <div class="min-w-0 flex-1">
-                                                            <div x-ref="waveform" class="h-10 w-full min-w-0"></div>
+                                                            <div x-ref="waveform" class="h-8 w-full min-w-0"></div>
                                                         </div>
                                                     </div>
                                                     <div class="mt-0.5 flex justify-end">
@@ -422,33 +485,18 @@
                                         @endforeach
                                     </div>
                                 @endif
-                                @unless ($mediaOnlyAttachment)
-                                    <div class="mt-1 flex justify-end gap-1 text-[11px] text-[#6B7280]">
-                                        <span>{{ $message->created_at?->format('H:i') }}</span>
-                                        @if ($message->direction === 'outgoing')
-                                            <span class="inline-flex text-[#2563EB]">
-                                                <svg aria-hidden="true" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-5">
-                                                    <path d="M1 5.5 3.8 8 9 1"></path>
-                                                    <path d="M8 7.5 10.2 8 17 1"></path>
-                                                </svg>
-                                            </span>
-                                        @endif
-                                    </div>
-                                @endunless
                             </div>
-                            @if ($mediaOnlyAttachment)
-                                <div class="mt-1 flex justify-end gap-1 pr-1 text-[11px] text-[#6B7280]">
-                                    <span>{{ $message->created_at?->format('H:i') }}</span>
-                                    @if ($message->direction === 'outgoing')
-                                        <span class="inline-flex text-[#2563EB]">
-                                            <svg aria-hidden="true" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-5">
-                                                <path d="M1 5.5 3.8 8 9 1"></path>
-                                                <path d="M8 7.5 10.2 8 17 1"></path>
-                                            </svg>
-                                        </span>
-                                    @endif
-                                </div>
-                            @endif
+                            <div class="mt-1 flex justify-end gap-1 pr-1 text-[11px] text-[#6B7280]">
+                                <span>{{ $message->created_at?->format('H:i') }}</span>
+                                @if ($message->direction === 'outgoing')
+                                    <span class="inline-flex text-[#2563EB]">
+                                        <svg aria-hidden="true" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-5">
+                                            <path d="M1 5.5 3.8 8 9 1"></path>
+                                            <path d="M8 7.5 10.2 8 17 1"></path>
+                                        </svg>
+                                    </span>
+                                @endif
+                            </div>
                             </div>
                         </div>
                     @endforeach
@@ -487,6 +535,27 @@
                         @endphp
                         <form method="POST" action="{{ route('dashboard.inbox.reply', $selectedConversation) }}" enctype="multipart/form-data" class="space-y-2" data-human-on-submit="true" x-data="window.inboxComposer(@js($selectedConversation->ai_mode === 'human'))" x-on:submit="submitAfterRecording($event)">
                             @csrf
+                            <input type="hidden" name="reply_to_message_id" x-bind:value="replyTo?.id || ''">
+                            <div x-show="replyTo" x-cloak x-transition class="rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 shadow-sm">
+                                <div class="flex items-start gap-3">
+                                    <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#2563EB]">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                            <path d="m9 14-4-4 4-4"></path>
+                                            <path d="M5 10h10a4 4 0 0 1 4 4v1"></path>
+                                        </svg>
+                                    </span>
+                                    <div class="min-w-0 flex-1 border-l-2 border-[#2563EB] pl-3">
+                                        <p class="truncate text-xs font-bold text-[#111827]" x-text="replyTo?.sender || 'Message'"></p>
+                                        <p class="truncate text-xs text-[#6B7280]" x-text="replyTo?.body || 'Attachment'"></p>
+                                    </div>
+                                    <button type="button" x-on:click="clearReply" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#6B7280] transition hover:bg-[#F5F6F8] hover:text-[#111827]" aria-label="Cancel reply">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" class="h-4 w-4">
+                                            <path d="M18 6 6 18"></path>
+                                            <path d="m6 6 12 12"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
                             <div x-show="recording || voiceNoteReady || recordError" x-cloak x-transition class="px-1">
                                 <div x-show="recording" class="flex items-center gap-3 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 py-2 shadow-sm">
                                     <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-[#DC2626] shadow-sm">

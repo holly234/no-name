@@ -25,12 +25,102 @@ window.videoPlayer = () => ({
     init() {
         this.player = new Plyr(this.$refs.video, {
             controls: ['play', 'progress', 'current-time', 'mute', 'fullscreen'],
-            ratio: '4:3',
+            ratio: '4:5',
         });
     },
     destroy() {
         this.player?.destroy();
         this.player = null;
+    },
+});
+
+window.videoPreview = (sourceUrl) => ({
+    open: false,
+    player: null,
+    dragStartY: null,
+    dragY: 0,
+    openPlayer() {
+        this.open = true;
+
+        this.$nextTick(() => {
+            this.player?.destroy();
+            this.player = new Plyr(this.$refs.modalVideo, {
+                controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'fullscreen'],
+                ratio: '4:5',
+            });
+            this.player.play().catch(() => {});
+        });
+    },
+    closePlayer() {
+        this.open = false;
+        this.dragStartY = null;
+        this.dragY = 0;
+        this.player?.destroy();
+        this.player = null;
+    },
+    startDrag(event) {
+        this.dragStartY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
+    },
+    moveDrag(event) {
+        if (this.dragStartY === null) {
+            return;
+        }
+
+        const y = event.clientY ?? event.touches?.[0]?.clientY ?? this.dragStartY;
+        this.dragY = y - this.dragStartY;
+    },
+    endDrag() {
+        if (Math.abs(this.dragY) > 90) {
+            this.closePlayer();
+            return;
+        }
+
+        this.dragStartY = null;
+        this.dragY = 0;
+    },
+    sourceUrl,
+});
+
+window.swipeReplyMessage = (message) => ({
+    startX: null,
+    startY: null,
+    offsetX: 0,
+    swiped: false,
+    begin(event) {
+        const point = event.touches?.[0] || event;
+
+        this.startX = point.clientX;
+        this.startY = point.clientY;
+        this.swiped = false;
+    },
+    move(event) {
+        if (this.startX === null || this.startY === null) {
+            return;
+        }
+
+        const point = event.touches?.[0] || event;
+        const deltaX = point.clientX - this.startX;
+        const deltaY = point.clientY - this.startY;
+
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+            return;
+        }
+
+        this.offsetX = Math.max(-72, Math.min(72, deltaX));
+
+        if (Math.abs(this.offsetX) > 44) {
+            this.swiped = true;
+        }
+    },
+    end() {
+        if (this.swiped) {
+            window.dispatchEvent(new CustomEvent('set-reply-message', { detail: message }));
+        }
+
+        this.startX = null;
+        this.startY = null;
+        this.offsetX = 0;
+        this.swiped = false;
     },
 });
 
@@ -49,8 +139,8 @@ window.voiceNotePlayer = (sourceUrl) => ({
         this.wave = WaveSurfer.create({
             container: this.$refs.waveform,
             url: sourceUrl,
-            height: 38,
-            barWidth: 3,
+            height: 30,
+            barWidth: 2,
             barGap: 2,
             barRadius: 2,
             cursorWidth: 0,
@@ -110,10 +200,15 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
     recordElapsed: '0:00',
     recordedVoiceElapsed: '0:00',
     voiceNoteReady: false,
+    replyTo: null,
     recordingStopResolver: null,
     maxVoiceBytes: 10 * 1024 * 1024,
     init() {
         this.setupMediaPond();
+        window.addEventListener('set-reply-message', (event) => {
+            this.replyTo = event.detail || null;
+            this.$refs.messageInput?.focus();
+        });
     },
     setupMediaPond() {
         if (!this.$refs.imageInput || this.mediaPond) {
@@ -315,6 +410,9 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
         this.voiceNoteReady = false;
         this.recordedVoiceElapsed = '0:00';
         this.updateFiles();
+    },
+    clearReply() {
+        this.replyTo = null;
     },
 });
 

@@ -170,16 +170,41 @@ class InboxController extends Controller
 
         $validated = $request->validate([
             'body' => ['nullable', 'required_without:attachments', 'string', 'max:4000'],
+            'reply_to_message_id' => ['nullable', 'integer'],
             'attachments' => ['nullable', 'array', 'max:6'],
             'attachments.*' => ['file', 'max:10240'],
         ]);
 
         $attachments = $request->file('attachments', []);
+        $replyTo = null;
+
+        if (! empty($validated['reply_to_message_id'])) {
+            $replyTo = Message::query()
+                ->where('business_id', $business->id)
+                ->where('conversation_id', $conversation->id)
+                ->where('id', $validated['reply_to_message_id'])
+                ->first();
+        }
+
+        $replyMetadata = [];
+
+        if ($replyTo) {
+            $replyBody = trim((string) $replyTo->body);
+
+            $replyMetadata['reply_to'] = [
+                'id' => $replyTo->id,
+                'sender' => $replyTo->direction === 'incoming'
+                    ? $conversation->customer_name
+                    : ($replyTo->sender_type === 'human' ? ($request->user()?->name ?? 'Team') : ucfirst($replyTo->sender_type)),
+                'body' => $replyBody !== '' ? str($replyBody)->limit(120)->toString() : 'Attachment',
+            ];
+        }
 
         $message = $conversationMessageService->saveOutgoing(
             $conversation,
             trim((string) ($validated['body'] ?? '')),
             'human',
+            metadata: $replyMetadata,
             attachments: $attachments,
         );
         $deliveryMeta = [];
