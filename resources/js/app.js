@@ -34,6 +34,73 @@ window.videoPlayer = () => ({
     },
 });
 
+window.inboxPage = () => ({
+    profileOpen: false,
+    mediaViewer: {
+        open: false,
+        type: null,
+        src: null,
+        alt: '',
+    },
+    player: null,
+    dragStartY: null,
+    dragY: 0,
+    openMedia(media) {
+        this.closeMedia();
+        this.mediaViewer = {
+            open: true,
+            type: media.type,
+            src: media.src,
+            alt: media.alt || '',
+        };
+
+        if (media.type === 'video') {
+            this.$nextTick(() => {
+                if (!this.$refs.mediaVideo) {
+                    return;
+                }
+
+                this.player?.destroy();
+                this.player = new Plyr(this.$refs.mediaVideo, {
+                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'fullscreen'],
+                    ratio: '4:5',
+                });
+                this.player.play().catch(() => {});
+            });
+        }
+    },
+    closeMedia() {
+        this.mediaViewer.open = false;
+        this.mediaViewer.type = null;
+        this.mediaViewer.src = null;
+        this.mediaViewer.alt = '';
+        this.dragStartY = null;
+        this.dragY = 0;
+        this.player?.destroy();
+        this.player = null;
+    },
+    startMediaDrag(event) {
+        this.dragStartY = event.clientY ?? event.touches?.[0]?.clientY ?? null;
+    },
+    moveMediaDrag(event) {
+        if (this.dragStartY === null) {
+            return;
+        }
+
+        const y = event.clientY ?? event.touches?.[0]?.clientY ?? this.dragStartY;
+        this.dragY = y - this.dragStartY;
+    },
+    endMediaDrag() {
+        if (Math.abs(this.dragY) > 90) {
+            this.closeMedia();
+            return;
+        }
+
+        this.dragStartY = null;
+        this.dragY = 0;
+    },
+});
+
 window.videoPreview = (sourceUrl) => ({
     open: false,
     player: null,
@@ -106,9 +173,13 @@ window.swipeReplyMessage = (message) => ({
             return;
         }
 
-        this.offsetX = Math.max(-72, Math.min(72, deltaX));
+        if (Math.abs(deltaX) > 8 && event.cancelable) {
+            event.preventDefault();
+        }
 
-        if (Math.abs(this.offsetX) > 44) {
+        this.offsetX = Math.max(-52, Math.min(52, deltaX));
+
+        if (Math.abs(this.offsetX) > 34) {
             this.swiped = true;
         }
     },

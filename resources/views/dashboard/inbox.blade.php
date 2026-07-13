@@ -10,7 +10,7 @@
         } : 'Customer identifier';
     @endphp
 
-    <div x-data="{ profileOpen: false }" data-inbox-version="{{ $inboxVersion }}" class="grid h-full min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] overflow-hidden bg-[#F5F6F8] text-[#111827] lg:grid-cols-[410px_minmax(0,1fr)] xl:grid-cols-[410px_minmax(0,1fr)_320px]">
+    <div x-data="window.inboxPage()" data-inbox-version="{{ $inboxVersion }}" class="grid h-full min-h-0 w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] overflow-hidden bg-[#F5F6F8] text-[#111827] lg:grid-cols-[410px_minmax(0,1fr)] xl:grid-cols-[410px_minmax(0,1fr)_320px]">
         <aside class="{{ $conversationIsOpen ? 'hidden' : 'flex' }} h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden border-r border-[#E5E7EB] bg-white lg:flex">
             <div class="w-full max-w-full shrink-0 overflow-hidden border-b border-[#E5E7EB] bg-white px-4 py-3 sm:px-5 sm:py-4">
                 <div class="flex w-full min-w-0 items-center gap-2">
@@ -210,7 +210,7 @@
                     </div>
                 </div>
 
-                <div data-chat-scroll class="min-h-0 flex-1 space-y-2.5 overflow-y-auto bg-[#F5F6F8] p-3 sm:p-5">
+                <div data-chat-scroll class="min-h-0 flex-1 space-y-2.5 overflow-x-hidden overflow-y-auto bg-[#F5F6F8] p-3 sm:p-5">
                     @foreach ($selectedConversation->messages as $message)
                         @php
                             $isGmailMessage = $selectedConversation->channel === 'Gmail' || ($message->metadata['source'] ?? null) === 'gmail';
@@ -269,6 +269,7 @@
                         @endphp
                         <div
                             class="relative flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}"
+                            style="touch-action: pan-y;"
                             x-data="window.swipeReplyMessage({
                                 id: {{ $message->id }},
                                 sender: @js($senderLabel),
@@ -279,13 +280,13 @@
                             x-on:pointerup="end"
                             x-on:pointercancel="end"
                         >
-                            <div class="pointer-events-none absolute top-1/2 -translate-y-1/2 {{ $message->direction === 'outgoing' ? 'right-full mr-2' : 'left-full ml-2' }} flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#2563EB] opacity-0 shadow-sm transition" x-bind:class="Math.abs(offsetX) > 24 ? 'opacity-100' : 'opacity-0'">
+                            <div class="pointer-events-none absolute top-1/2 z-0 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#2563EB] opacity-0 shadow-sm transition {{ $message->direction === 'outgoing' ? 'right-2' : 'left-2' }}" x-bind:class="Math.abs(offsetX) > 18 ? 'opacity-100' : 'opacity-0'">
                                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
                                     <path d="m9 14-4-4 4-4"></path>
                                     <path d="M5 10h10a4 4 0 0 1 4 4v1"></path>
                                 </svg>
                             </div>
-                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[92%] sm:max-w-[30rem]' : ($mediaOnlyAudio ? 'w-[16.5rem] max-w-[86%]' : 'max-w-[84%] sm:max-w-[68%]')) }} transition-transform duration-150 ease-out" x-bind:style="`transform: translateX(${offsetX}px)`">
+                            <div class="relative z-10 {{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[90%] sm:max-w-[30rem]' : ($mediaOnlyAudio ? 'w-[16.5rem] max-w-[86%]' : 'max-w-[84%] sm:max-w-[68%]')) }} transition-transform duration-150 ease-out" x-bind:style="`transform: translateX(${offsetX}px)`">
                                 <div class="rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 pb-1 pt-1' : ($mediaOnlyAudio ? 'px-2.5 py-2' : 'px-3 py-2') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
                                     @if ($replyContext)
                                         <div class="mb-2 border-l-2 border-[#2563EB] bg-white/60 px-2 py-1.5">
@@ -348,32 +349,14 @@
                                                 }
                                             @endphp
                                             @if ($isImage)
-                                                <div x-data="{ open: false }">
-                                                    <button type="button" x-on:click="open = true" class="block overflow-hidden rounded-xl text-left transition hover:opacity-95" aria-label="Open image preview">
-                                                    <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-[26rem] w-full rounded-xl object-cover">
+                                                <div>
+                                                    <button type="button" x-on:click.stop="openMedia({ type: 'image', src: @js($inlineUrl), alt: @js($attachment->filename) })" class="block overflow-hidden rounded-xl text-left transition hover:opacity-95" aria-label="Open image preview">
+                                                        <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-[26rem] w-full rounded-xl object-cover">
                                                     </button>
-                                                    <div
-                                                        x-cloak
-                                                        x-show="open"
-                                                        x-transition.opacity
-                                                        x-on:keydown.escape.window="open = false"
-                                                        x-on:click.self="open = false"
-                                                        class="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F1115]/85 p-4"
-                                                        role="dialog"
-                                                        aria-modal="true"
-                                                    >
-                                                        <button type="button" x-on:click="open = false" class="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#111827] shadow-lg transition hover:bg-white" aria-label="Close image preview">
-                                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-5 w-5">
-                                                                <path d="M18 6 6 18"></path>
-                                                                <path d="m6 6 12 12"></path>
-                                                            </svg>
-                                                        </button>
-                                                        <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-[88dvh] max-w-[94vw] rounded-xl object-contain shadow-2xl">
-                                                    </div>
                                                 </div>
                                             @elseif ($isVideo)
-                                                <div x-data="window.videoPreview(@js($inlineUrl))" class="overflow-hidden rounded-xl bg-[#111827]">
-                                                    <button type="button" x-on:click="openPlayer" class="group relative block aspect-[4/5] max-h-[30rem] w-full overflow-hidden rounded-xl bg-[#111827] text-white" aria-label="Open video">
+                                                <div class="overflow-hidden rounded-xl bg-[#111827]">
+                                                    <button type="button" x-on:click.stop="openMedia({ type: 'video', src: @js($inlineUrl), alt: @js($attachment->filename) })" class="group relative block aspect-[4/5] max-h-[30rem] w-full overflow-hidden rounded-xl bg-[#111827] text-white" aria-label="Open video">
                                                         <video playsinline preload="metadata" src="{{ $inlineUrl }}" class="h-full w-full object-cover"></video>
                                                         <span class="absolute inset-0 flex items-center justify-center bg-black/10 transition group-hover:bg-black/20">
                                                             <span class="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-[#111827] shadow-lg">
@@ -383,33 +366,6 @@
                                                             </span>
                                                         </span>
                                                     </button>
-                                                    <div
-                                                        x-cloak
-                                                        x-show="open"
-                                                        x-transition.opacity
-                                                        x-on:keydown.escape.window="closePlayer"
-                                                        x-on:click.self="closePlayer"
-                                                        class="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F1115]/85 p-4"
-                                                        role="dialog"
-                                                        aria-modal="true"
-                                                    >
-                                                        <button type="button" x-on:click="closePlayer" class="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#111827] shadow-lg transition hover:bg-white" aria-label="Close video preview">
-                                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-5 w-5">
-                                                                <path d="M18 6 6 18"></path>
-                                                                <path d="m6 6 12 12"></path>
-                                                            </svg>
-                                                        </button>
-                                                        <div
-                                                            class="w-full max-w-sm sm:max-w-lg"
-                                                            x-on:pointerdown="startDrag($event)"
-                                                            x-on:pointermove="moveDrag($event)"
-                                                            x-on:pointerup="endDrag"
-                                                            x-on:pointercancel="endDrag"
-                                                            x-bind:style="`transform: translateY(${dragY}px)`"
-                                                        >
-                                                            <video x-ref="modalVideo" playsinline preload="metadata" src="{{ $inlineUrl }}" class="max-h-[84dvh] w-full rounded-2xl bg-[#111827] shadow-2xl"></video>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             @elseif ($isAudio)
                                                 <div
@@ -754,6 +710,40 @@
                 </dl>
             @endif
         </aside>
+
+        <div
+            x-cloak
+            x-show="mediaViewer.open"
+            x-transition.opacity
+            x-on:keydown.escape.window="closeMedia"
+            x-on:click.self="closeMedia"
+            class="fixed inset-0 z-[140] flex items-center justify-center bg-[#0F1115]/90 p-3 sm:p-5"
+            role="dialog"
+            aria-modal="true"
+        >
+            <button type="button" x-on:click="closeMedia" class="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#111827] shadow-lg transition hover:bg-white" aria-label="Close media preview">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-5 w-5">
+                    <path d="M18 6 6 18"></path>
+                    <path d="m6 6 12 12"></path>
+                </svg>
+            </button>
+
+            <div
+                class="flex max-h-[88dvh] w-full max-w-[96vw] items-center justify-center sm:max-w-3xl"
+                x-on:pointerdown="startMediaDrag($event)"
+                x-on:pointermove="moveMediaDrag($event)"
+                x-on:pointerup="endMediaDrag"
+                x-on:pointercancel="endMediaDrag"
+                x-bind:style="`transform: translateY(${dragY}px)`"
+            >
+                <template x-if="mediaViewer.type === 'image'">
+                    <img x-bind:src="mediaViewer.src" x-bind:alt="mediaViewer.alt" class="max-h-[88dvh] max-w-full rounded-2xl object-contain shadow-2xl">
+                </template>
+                <template x-if="mediaViewer.type === 'video'">
+                    <video x-ref="mediaVideo" x-bind:src="mediaViewer.src" playsinline preload="metadata" class="max-h-[88dvh] w-full max-w-sm rounded-2xl bg-[#111827] shadow-2xl sm:max-w-lg"></video>
+                </template>
+            </div>
+        </div>
 
         @if ($selectedConversation)
             <div
