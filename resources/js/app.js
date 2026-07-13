@@ -2,6 +2,7 @@ import './bootstrap';
 
 import Alpine from 'alpinejs';
 import WaveSurfer from 'wavesurfer.js';
+import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
 
 window.Alpine = Alpine;
 
@@ -66,19 +67,18 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
     emojiOpen: false,
     automationPaused: initialAutomationPaused,
     recorder: null,
-    recordStream: null,
-    recordChunks: [],
+    recorderWave: null,
     recording: false,
     recordError: '',
-    recordStartedAt: null,
     recordElapsed: '0:00',
-    recordTimer: null,
+    recordedVoiceElapsed: '0:00',
+    voiceNoteReady: false,
     recordingStopResolver: null,
     maxVoiceBytes: 10 * 1024 * 1024,
     updateFiles() {
         this.fileCount = (this.$refs.fileInput?.files?.length || 0) +
-            (this.$refs.imageInput?.files?.length || 0) +
-            (this.$refs.audioInput?.files?.length || 0);
+            (this.$refs.imageInput?.files?.length || 0);
+        this.voiceNoteReady = (this.$refs.audioInput?.files?.length || 0) > 0;
     },
     insertEmoji(emoji) {
         const input = this.$refs.messageInput;
@@ -95,12 +95,7 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
         return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
     },
     tickRecorder() {
-        if (!this.recordStartedAt) {
-            this.recordElapsed = '0:00';
-            return;
-        }
-
-        this.recordElapsed = this.format((Date.now() - this.recordStartedAt) / 1000);
+        return;
     },
     async toggleRecorder() {
         if (this.recording) {
@@ -112,6 +107,7 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
     },
     async startRecorder() {
         this.recordError = '';
+        this.clearVoiceNote();
 
         if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
             this.recordError = 'Voice recording is not supported in this browser.';
@@ -119,46 +115,64 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
         }
 
         try {
-            this.recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                ? 'audio/webm;codecs=opus'
-                : '';
-            this.recorder = new MediaRecorder(this.recordStream, mimeType ? { mimeType } : undefined);
-            this.recordChunks = [];
-
-            this.recorder.addEventListener('dataavailable', (event) => {
-                if (event.data?.size > 0) {
-                    this.recordChunks.push(event.data);
-                }
-            });
-
-            this.recorder.addEventListener('stop', () => this.attachVoiceNote());
-            this.recorder.start();
             this.recording = true;
-            this.recordStartedAt = Date.now();
-            this.tickRecorder();
-            this.recordTimer = window.setInterval(() => this.tickRecorder(), 500);
+            this.recordElapsed = '0:00';
+
+            await this.$nextTick();
+            this.initRecorder();
+            await this.recorder.startRecording();
         } catch (error) {
             this.recordError = 'Microphone access was blocked.';
             this.cleanupRecorder();
         }
     },
+    initRecorder() {
+        this.destroyRecorder();
+
+        this.recorderWave = WaveSurfer.create({
+            container: this.$refs.recordWaveform,
+            height: 30,
+            barWidth: 2,
+            barGap: 2,
+            barRadius: 2,
+            cursorWidth: 0,
+            waveColor: '#CBD5E1',
+            progressColor: '#DC2626',
+            normalize: true,
+            interact: false,
+        });
+
+        this.recorder = this.recorderWave.registerPlugin(RecordPlugin.create({
+            scrollingWaveform: true,
+            scrollingWaveformWindow: 8,
+            renderRecordedAudio: false,
+            audioBitsPerSecond: 128000,
+        }));
+
+        this.recorder.on('record-progress', (duration) => {
+            this.recordElapsed = this.format(duration / 1000);
+        });
+
+        this.recorder.on('record-end', (blob) => {
+            this.attachVoiceNote(blob);
+        });
+    },
     stopRecorder() {
-        if (this.recorder && this.recorder.state !== 'inactive') {
-            this.recorder.stop();
+        if (this.recorder?.isRecording?.()) {
+            this.recorder.stopRecording();
             return;
         }
 
         this.cleanupRecorder();
     },
     finalizeRecording() {
-        if (!this.recording || !this.recorder || this.recorder.state === 'inactive') {
+        if (!this.recording || !this.recorder?.isRecording?.()) {
             return Promise.resolve(true);
         }
 
         return new Promise((resolve) => {
             this.recordingStopResolver = resolve;
-            this.recorder.stop();
+            this.recorder.stopRecording();
         });
     },
     async submitAfterRecording(event) {
@@ -179,10 +193,9 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
 
         requestAnimationFrame(() => form.requestSubmit(submitter));
     },
-    attachVoiceNote() {
+    attachVoiceNote(blob) {
         const audioInput = this.$refs.audioInput;
-        const type = this.recorder?.mimeType || 'audio/webm';
-        const blob = new Blob(this.recordChunks, { type });
+        const type = blob?.type || 'audio/webm';
         const resolveStop = this.recordingStopResolver;
 
         this.recordingStopResolver = null;
@@ -201,6 +214,7 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
 
             transfer.items.add(file);
             audioInput.files = transfer.files;
+            this.recordedVoiceElapsed = this.recordElapsed;
             this.updateFiles();
         }
 
@@ -209,15 +223,25 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
     },
     cleanupRecorder() {
         this.recording = false;
-        this.recordStartedAt = null;
-        window.clearInterval(this.recordTimer);
-        this.recordTimer = null;
         this.recordElapsed = '0:00';
-        this.recordStream?.getTracks?.().forEach((track) => track.stop());
-        this.recordStream = null;
-        this.recorder = null;
-        this.recordChunks = [];
+        this.destroyRecorder();
         this.recordingStopResolver = null;
+    },
+    destroyRecorder() {
+        this.recorderWave?.destroy();
+        this.recorderWave = null;
+        this.recorder = null;
+    },
+    clearVoiceNote() {
+        const audioInput = this.$refs.audioInput;
+
+        if (audioInput) {
+            audioInput.value = '';
+        }
+
+        this.voiceNoteReady = false;
+        this.recordedVoiceElapsed = '0:00';
+        this.updateFiles();
     },
 });
 

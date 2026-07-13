@@ -171,4 +171,4 @@ Breathing Room:
 - Prefer calm, organized SaaS layout decisions over AI-heavy or futuristic visuals.
 - Avoid introducing gradients into dashboard pages, tabs, cards, loading states, or channel badges.
 - Prefer proven UI/interaction libraries over custom hand-built controls when a library gives a more polished, accessible, or maintainable result. Style those libraries to this mood board instead of accepting their default visual theme.
-- Current approved example: `wavesurfer.js` for voice-note waveform playback.
+- Current approved example: `wavesurfer.js` for voice-note waveform recording and playback.

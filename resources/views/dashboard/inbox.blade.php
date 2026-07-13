@@ -467,6 +467,42 @@
                         @endphp
                         <form method="POST" action="{{ route('dashboard.inbox.reply', $selectedConversation) }}" enctype="multipart/form-data" class="space-y-2" data-human-on-submit="true" x-data="window.inboxComposer(@js($selectedConversation->ai_mode === 'human'))" x-on:submit="submitAfterRecording($event)">
                             @csrf
+                            <div x-show="recording || voiceNoteReady || recordError" x-cloak x-transition class="px-1">
+                                <div x-show="recording" class="flex items-center gap-3 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 py-2 shadow-sm">
+                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-[#DC2626] shadow-sm">
+                                        <span class="h-2.5 w-2.5 animate-pulse rounded-full bg-[#DC2626]"></span>
+                                    </span>
+                                    <div x-ref="recordWaveform" class="h-8 min-w-0 flex-1"></div>
+                                    <span class="w-10 shrink-0 text-right text-xs font-bold tabular-nums text-[#DC2626]" x-text="recordElapsed"></span>
+                                    <button type="button" x-on:click="stopRecorder" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-[#DC2626] shadow-sm transition hover:bg-[#FEE2E2]" aria-label="Stop voice note" title="Stop voice note">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-3.5 w-3.5">
+                                            <rect x="7" y="7" width="10" height="10" rx="2"></rect>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div x-show="! recording && voiceNoteReady" class="flex items-center gap-3 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-3 py-2 shadow-sm">
+                                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                                            <path d="M19 11a7 7 0 0 1-14 0"></path>
+                                            <path d="M12 18v3"></path>
+                                        </svg>
+                                    </span>
+                                    <div class="flex min-w-0 flex-1 items-center gap-1.5 text-[#2563EB]" aria-hidden="true">
+                                        @for ($i = 0; $i < 24; $i++)
+                                            <span class="w-0.5 rounded-full bg-current opacity-70" style="height: {{ [8, 12, 16, 10, 20, 14, 24, 12][$i % 8] }}px"></span>
+                                        @endfor
+                                    </div>
+                                    <span class="w-10 shrink-0 text-right text-xs font-bold tabular-nums text-[#2563EB]" x-text="recordedVoiceElapsed"></span>
+                                    <button type="button" x-on:click="clearVoiceNote" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-[#6B7280] shadow-sm transition hover:text-[#DC2626]" aria-label="Discard voice note" title="Discard voice note">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                            <path d="M18 6 6 18"></path>
+                                            <path d="m6 6 12 12"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div x-show="recordError" class="rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 py-2 text-xs font-semibold text-[#DC2626]" x-text="recordError"></div>
+                            </div>
                             <div class="flex items-end gap-2">
                                 <div class="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] px-2 sm:gap-2 sm:px-3">
                                     <div class="relative shrink-0" x-on:click.outside="emojiOpen = false">
@@ -562,11 +598,6 @@
                                     </svg>
                                     <span x-text="fileCount === 1 ? '1 file selected' : `${fileCount} files selected`"></span>
                                 </span>
-                                <span x-show="recording" x-cloak class="inline-flex items-center gap-2 rounded-full bg-[#FEE2E2] px-3 py-2 text-xs font-bold text-[#DC2626]">
-                                    <span class="h-2 w-2 rounded-full bg-[#DC2626]"></span>
-                                    Recording <span x-text="recordElapsed"></span>
-                                </span>
-                                <span x-show="recordError" x-cloak class="inline-flex items-center gap-2 rounded-full bg-[#FEF2F2] px-3 py-2 text-xs font-semibold text-[#DC2626]" x-text="recordError"></span>
                             </div>
                         </form>
                     @endif

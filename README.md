@@ -32,7 +32,7 @@ Built and working as a local MVP:
 - Per-user conversation read tracking
 - Conversation/message query limits and inbox indexes for scale
 - Feature tests covering workspace isolation, inbox filtering/unread, webhooks, connected account lifecycle, and authorization
-- Polished UI interactions may use focused third-party libraries when they provide better quality than hand-rolled controls. Current example: `wavesurfer.js` powers the inbox voice-note waveform player.
+- Polished UI interactions may use focused third-party libraries when they provide better quality than hand-rolled controls. Current example: `wavesurfer.js` powers inbox voice-note waveform recording and playback.
 
 Latest verification:
 

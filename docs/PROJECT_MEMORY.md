@@ -106,11 +106,10 @@ Dashboard/inbox direction:
 - Conversation list follows WhatsApp/Instagram DM structure: search, social-channel filters, state filters, full-width list rows, social platform logo badges, unread count, and no framed card around the list.
 - Mobile inbox behaves like normal DM apps: list first, tap chat to open thread, use back button to return.
 - Mobile thread headers let staff tap the customer name to open a compact customer profile bottom sheet.
-- Composer controls support text replies, private file/image/audio uploads, and attachment-only staff replies.
 - Composer controls support text replies, private file/image/audio/video uploads, in-app voice-note recording, and attachment-only staff replies.
 - Human takeover/pause automation should be a compact icon action in the composer, not a large switch or pill button.
 - Status messages appear as top-right toast notifications that auto-dismiss after 3 seconds.
-- Voice-note playback should use a polished waveform player pattern. Current implementation uses `wavesurfer.js`, styled to the project mood board.
+- Voice-note recording and playback should use a polished waveform pattern. Current implementation uses `wavesurfer.js` plus its Record plugin, styled to the project mood board.
 
 ## Core Multi-Tenant Requirement
 
@@ -389,7 +388,7 @@ Inbox media and voice-note pass on 2026-07-13:
 - Telegram incoming media is downloaded into private storage and rendered in the inbox through authenticated attachment routes.
 - Telegram outgoing media is delivered through the Bot API using `sendPhoto`, `sendVideo`, `sendVoice`, or `sendDocument` as appropriate.
 - Image previews no longer show a duplicate download row and open into a larger in-page preview when clicked.
-- Recorded voice notes are created inside the app with `MediaRecorder`; pressing Send while recording automatically stops, attaches, and sends the note.
+- Recorded voice notes are created inside the app with the `wavesurfer.js` Record plugin; pressing Send while recording automatically stops, attaches, and sends the note.
 - Voice-note playback uses `wavesurfer.js` for a compact waveform player instead of the browser default audio control.
 - Recorded voice-note attachments are explicitly marked as `media_type=voice` so they do not render as video even when the browser stores them as WebM.
 - Latest focused verification after this pass: `npm run build` passes and Telegram feature tests pass with `13 tests, 57 assertions`.
