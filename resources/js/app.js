@@ -118,6 +118,23 @@ function syncInboxVersionFromDom() {
     latestInboxVersion = renderedInboxVersion() || latestInboxVersion;
 }
 
+function scrollActiveChatToBottom() {
+    const chatPane = document.querySelector('[data-chat-scroll]');
+
+    if (!chatPane) {
+        return;
+    }
+
+    const scroll = () => {
+        chatPane.scrollTop = chatPane.scrollHeight;
+    };
+
+    requestAnimationFrame(() => {
+        scroll();
+        requestAnimationFrame(scroll);
+    });
+}
+
 async function pollInbox() {
     if (!isInboxPage() || document.hidden || dashboardIsBusy() || inboxPulseInFlight) {
         return;
@@ -229,7 +246,11 @@ async function visit(url, options = {}) {
             window.history.pushState({}, '', finalUrl);
         }
 
-        window.scrollTo({ top: 0, behavior: 'instant' });
+        if (isInboxPage()) {
+            scrollActiveChatToBottom();
+        } else {
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
         window.Alpine?.initTree(document.querySelector('[data-spa-frame]') || document.querySelector('[data-spa-shell]'));
         window.Alpine?.initTree(document.querySelector('.app-sidebar') || document.querySelector('[data-spa-shell]'));
         syncInboxVersionFromDom();
@@ -393,7 +414,11 @@ async function submitForm(form, submitter = null) {
         currentShell.replaceWith(next.shell);
         document.title = next.title || document.title;
         window.history.replaceState({}, '', response.url || targetUrl.href);
-        window.scrollTo({ top: 0, behavior: 'instant' });
+        if (isInboxPage()) {
+            scrollActiveChatToBottom();
+        } else {
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
         window.Alpine?.initTree(document.querySelector('[data-spa-shell]'));
         syncInboxVersionFromDom();
     } catch (error) {
@@ -450,6 +475,7 @@ if (shouldInitializeSpa) {
     });
 
     syncInboxVersionFromDom();
+    scrollActiveChatToBottom();
     window.setTimeout(pollInbox, 300);
     window.setInterval(pollInbox, inboxPollIntervalMs);
     window.addEventListener('focus', () => {

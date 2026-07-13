@@ -123,12 +123,12 @@
                         </div>
                     </aside>
 
-                    <div class="{{ $isInboxPage ? 'h-screen overflow-hidden' : 'min-h-screen' }} w-full max-w-full lg:pl-72" data-spa-frame>
+                    <div class="{{ $isInboxPage ? 'app-inbox-frame overflow-hidden' : 'min-h-screen' }} w-full max-w-full lg:pl-72" data-spa-frame>
                         <button type="button" class="{{ $isInboxPage ? 'hidden' : 'mobile-menu-button' }} fixed left-4 top-4 z-30 lg:hidden" x-on:click="sidebarOpen = true" aria-label="Open navigation">
                             <span class="mobile-menu-mark" aria-hidden="true"></span>
                         </button>
 
-                        <main class="{{ $isInboxPage ? 'h-screen min-h-0 max-w-full overflow-hidden p-0' : 'mx-auto max-w-7xl px-4 pb-8 pt-20 lg:px-8 lg:pt-8' }}" data-spa-main>
+                        <main class="{{ $isInboxPage ? 'app-inbox-main max-w-full overflow-hidden p-0' : 'mx-auto max-w-7xl px-4 pb-8 pt-20 lg:px-8 lg:pt-8' }}" data-spa-main>
                             {{ $slot }}
                         </main>
                     </div>

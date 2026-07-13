@@ -18,6 +18,13 @@
         background: #f5f6f8;
     }
 
+    .app-inbox-frame,
+    .app-inbox-main {
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+    }
+
     .app-sidebar {
         background: #ffffff;
         color: #111827;
@@ -267,6 +274,11 @@
 
     .chat-wallpaper {
         background-color: #0b1115;
+    }
+
+    .chat-composer {
+        padding: 0.75rem;
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
     }
 
     .spa-loading {

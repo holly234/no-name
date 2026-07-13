@@ -187,7 +187,7 @@
                     </div>
                 </div>
 
-                <div class="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#F5F6F8] p-3 sm:p-5">
+                <div data-chat-scroll class="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#F5F6F8] p-3 sm:p-5">
                     @foreach ($selectedConversation->messages as $message)
                         @php
                             $isGmailMessage = $selectedConversation->channel === 'Gmail' || ($message->metadata['source'] ?? null) === 'gmail';
@@ -196,6 +196,15 @@
                             $gmailTo = $message->metadata['to_email'] ?? null;
                             $gmailReplyDisabled = (bool) (($message->metadata['reply_disabled'] ?? false) || preg_match('/(^|[._+-])(no-?reply|do-?not-?reply|donotreply)([._+-]|@)/i', strtolower((string) $gmailFrom)));
                             $gmailReplyDisabledReason = $message->metadata['reply_disabled_reason'] ?? 'Automated sender';
+                            $senderLabel = match (true) {
+                                $message->direction === 'incoming' => $selectedConversation->customer_name,
+                                $message->sender_type === 'ai' => 'Assistant',
+                                $message->sender_type === 'human' => auth()->user()?->name ?? 'Team',
+                                default => ucfirst($message->sender_type),
+                            };
+                            $gmailSenderLabel = $message->direction === 'incoming'
+                                ? $selectedConversation->customer_name
+                                : $senderLabel;
                             $messageBody = $message->body;
 
                             if ($isGmailMessage && $gmailSubject) {
@@ -220,12 +229,12 @@
                             <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : 'max-w-[86%] sm:max-w-[72%]' }} rounded-2xl border px-4 py-3 text-sm shadow-sm {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
                                 @if ($isGmailMessage)
                                     <div class="mb-3 border-b border-[#E5E7EB] pb-3">
-                                        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]">
+                                        <div class="flex items-center gap-2 text-xs font-bold text-[#6B7280]">
                                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 text-[#ea4335]">
                                                 <path d="M4 6h16v12H4z"></path>
                                                 <path d="m4 7 8 6 8-6"></path>
                                             </svg>
-                                            Email
+                                            {{ $gmailSenderLabel }}
                                             @if ($gmailThreadMessageCount > 1)
                                                 <span class="rounded-full bg-[#EEF0F3] px-2 py-0.5 text-[10px] text-[#6B7280]">Thread {{ $loop->iteration }} of {{ $gmailThreadMessageCount }}</span>
                                             @endif
@@ -245,7 +254,7 @@
                                     </div>
                                     <div class="whitespace-pre-line break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::linkify($messageBody !== '' ? $messageBody : '(empty email)') !!}</div>
                                 @else
-                                    <p class="mb-1 text-xs font-bold uppercase {{ $message->sender_type === 'ai' ? 'text-[#047857]' : 'text-[#6B7280]' }}">{{ ucfirst($message->sender_type) }}</p>
+                                    <p class="mb-1 text-xs font-bold {{ $message->sender_type === 'ai' ? 'text-[#047857]' : 'text-[#6B7280]' }}">{{ $senderLabel }}</p>
                                     <div class="whitespace-pre-line break-words leading-6">{!! \App\Support\MessageText::linkify($messageBody) !!}</div>
                                 @endif
                                 @if ($message->attachments->isNotEmpty())
@@ -316,9 +325,10 @@
                             </div>
                         </div>
                     @endforeach
+                    <div data-chat-bottom class="h-1"></div>
                 </div>
 
-                <div class="shrink-0 border-t border-[#E5E7EB] bg-white p-3">
+                <div class="chat-composer shrink-0 border-t border-[#E5E7EB] bg-white">
                     @if ($replyDisabled)
                         <div class="flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3 sm:flex-row sm:items-center sm:justify-between">
                             <div class="flex min-w-0 items-start gap-3">
