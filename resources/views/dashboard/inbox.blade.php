@@ -250,6 +250,17 @@
                         @endphp
                         <div class="flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}">
                             <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : 'max-w-[86%] sm:max-w-[72%]' }} rounded-2xl border px-4 py-3 text-sm shadow-sm {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
+                                @php
+                                    $hasImageAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'image/'));
+                                    $hasVideoAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'video/'));
+                                    $hasAudioAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'audio/'));
+                                    $mediaOnlyPlaceholder = match ($messageBody) {
+                                        '[Photo]' => $hasImageAttachment,
+                                        '[Video]' => $hasVideoAttachment,
+                                        '[Voice note]', '[Audio]' => $hasAudioAttachment,
+                                        default => false,
+                                    };
+                                @endphp
                                 @if ($isGmailMessage)
                                     <div class="mb-3 border-b border-[#E5E7EB] pb-3">
                                         <div class="flex items-center gap-2 text-xs font-bold text-[#6B7280]">
@@ -277,8 +288,10 @@
                                     </div>
                                     <div class="whitespace-pre-line break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::linkify($messageBody !== '' ? $messageBody : '(empty email)') !!}</div>
                                 @else
-                                    <p class="mb-1 text-xs font-bold {{ $message->sender_type === 'ai' ? 'text-[#047857]' : 'text-[#6B7280]' }}">{{ $senderLabel }}</p>
-                                    <div class="whitespace-pre-line break-words leading-6">{!! \App\Support\MessageText::linkify($messageBody) !!}</div>
+                                    @unless ($mediaOnlyPlaceholder)
+                                        <p class="mb-1 text-xs font-bold {{ $message->sender_type === 'ai' ? 'text-[#047857]' : 'text-[#6B7280]' }}">{{ $senderLabel }}</p>
+                                        <div class="whitespace-pre-line break-words leading-6">{!! \App\Support\MessageText::linkify($messageBody) !!}</div>
+                                    @endunless
                                 @endif
                                 @if ($message->attachments->isNotEmpty())
                                     <div class="mt-3 space-y-2">
@@ -288,6 +301,7 @@
                                                 $isImage = str_starts_with((string) $attachment->mime_type, 'image/');
                                                 $isAudio = str_starts_with((string) $attachment->mime_type, 'audio/');
                                                 $isVideo = str_starts_with((string) $attachment->mime_type, 'video/');
+                                                $hasInlinePreview = $isImage || $isAudio || $isVideo;
                                                 $inlineUrl = route('dashboard.attachments.download', ['attachment' => $attachment, 'inline' => 1]);
                                                 $size = (int) ($attachment->size ?? 0);
                                                 if ($size >= 1048576) {
@@ -301,26 +315,93 @@
                                                 }
                                             @endphp
                                             @if ($isImage)
-                                                <a href="{{ route('dashboard.attachments.download', $attachment) }}" class="block overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] transition hover:opacity-90">
+                                                <div x-data="{ open: false }">
+                                                    <button type="button" x-on:click="open = true" class="block overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] text-left transition hover:opacity-95" aria-label="Open image preview">
                                                     <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-80 w-full object-cover">
-                                                </a>
+                                                    </button>
+                                                    <div
+                                                        x-cloak
+                                                        x-show="open"
+                                                        x-transition.opacity
+                                                        x-on:keydown.escape.window="open = false"
+                                                        x-on:click.self="open = false"
+                                                        class="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F1115]/85 p-4"
+                                                        role="dialog"
+                                                        aria-modal="true"
+                                                    >
+                                                        <button type="button" x-on:click="open = false" class="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#111827] shadow-lg transition hover:bg-white" aria-label="Close image preview">
+                                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-5 w-5">
+                                                                <path d="M18 6 6 18"></path>
+                                                                <path d="m6 6 12 12"></path>
+                                                            </svg>
+                                                        </button>
+                                                        <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-[88dvh] max-w-[94vw] rounded-xl object-contain shadow-2xl">
+                                                    </div>
+                                                </div>
                                             @elseif ($isVideo)
                                                 <div class="overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#111827]">
                                                     <video controls preload="metadata" src="{{ $inlineUrl }}" class="max-h-80 w-full bg-[#111827]"></video>
                                                 </div>
                                             @elseif ($isAudio)
-                                                <div class="rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3">
-                                                    <div class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]">
-                                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-                                                            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
-                                                            <path d="M19 11a7 7 0 0 1-14 0"></path>
-                                                            <path d="M12 18v3"></path>
-                                                        </svg>
-                                                        Voice note
+                                                <div
+                                                    x-data="{
+                                                        playing: false,
+                                                        progress: 0,
+                                                        elapsed: '0:00',
+                                                        duration: '0:00',
+                                                        format(seconds) {
+                                                            seconds = Number.isFinite(seconds) ? Math.floor(seconds) : 0;
+                                                            return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+                                                        },
+                                                        toggle() {
+                                                            const audio = this.$refs.audio;
+                                                            if (audio.paused) {
+                                                                audio.play();
+                                                            } else {
+                                                                audio.pause();
+                                                            }
+                                                        },
+                                                        seek(event) {
+                                                            const audio = this.$refs.audio;
+                                                            if (! audio.duration) return;
+                                                            const rect = event.currentTarget.getBoundingClientRect();
+                                                            audio.currentTime = ((event.clientX - rect.left) / rect.width) * audio.duration;
+                                                        },
+                                                    }"
+                                                    class="rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3"
+                                                >
+                                                    <audio
+                                                        x-ref="audio"
+                                                        preload="metadata"
+                                                        src="{{ $inlineUrl }}"
+                                                        x-on:play="playing = true"
+                                                        x-on:pause="playing = false"
+                                                        x-on:ended="playing = false; progress = 0; elapsed = '0:00'"
+                                                        x-on:loadedmetadata="duration = format($refs.audio.duration)"
+                                                        x-on:timeupdate="progress = $refs.audio.duration ? ($refs.audio.currentTime / $refs.audio.duration) * 100 : 0; elapsed = format($refs.audio.currentTime)"
+                                                    ></audio>
+                                                    <div class="flex items-center gap-3">
+                                                        <button type="button" x-on:click="toggle" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-sm transition hover:bg-[#1d4ed8]" aria-label="Play voice note">
+                                                            <svg x-show="! playing" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+                                                                <path d="M8 5.8c0-.8.9-1.3 1.6-.9l8.2 5.2c.7.4.7 1.4 0 1.8l-8.2 5.2c-.7.4-1.6-.1-1.6-.9V5.8Z"></path>
+                                                            </svg>
+                                                            <svg x-cloak x-show="playing" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+                                                                <path d="M7 5h3v14H7zM14 5h3v14h-3z"></path>
+                                                            </svg>
+                                                        </button>
+                                                        <div class="min-w-0 flex-1">
+                                                            <div class="mb-1 flex items-center justify-between gap-3 text-xs font-bold text-[#6B7280]">
+                                                                <span class="truncate">Voice note</span>
+                                                                <span class="shrink-0 tabular-nums"><span x-text="elapsed"></span> / <span x-text="duration"></span></span>
+                                                            </div>
+                                                            <button type="button" x-on:click="seek" class="relative block h-2 w-full overflow-hidden rounded-full bg-[#E5E7EB]" aria-label="Seek voice note">
+                                                                <span class="absolute inset-y-0 left-0 rounded-full bg-[#2563EB]" x-bind:style="`width: ${progress}%`"></span>
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                    <audio controls preload="metadata" src="{{ $inlineUrl }}" class="w-full"></audio>
                                                 </div>
                                             @endif
+                                            @unless ($hasInlinePreview)
                                             <a href="{{ route('dashboard.attachments.download', $attachment) }}" class="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3 transition hover:bg-[#EEF0F3]">
                                                 <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {{ $isPdf ? 'bg-pink-50 text-[#BE185D]' : ($isImage ? 'bg-[#EFF6FF] text-[#2563EB]' : ($isVideo ? 'bg-[#EEF2FF] text-[#4F46E5]' : ($isAudio ? 'bg-[#ECFDF5] text-[#047857]' : 'bg-[#EEF0F3] text-[#374151]'))) }}">
                                                     @if ($isPdf)
@@ -366,6 +447,7 @@
                                                     </svg>
                                                 </span>
                                             </a>
+                                            @endunless
                                         @endforeach
                                     </div>
                                 @endif
@@ -416,7 +498,7 @@
                         @php
                             $voiceNotesDisabled = $selectedConversation->channel === 'Gmail';
                         @endphp
-                        <form method="POST" action="{{ route('dashboard.inbox.reply', $selectedConversation) }}" enctype="multipart/form-data" class="space-y-2" data-human-on-submit="true" x-data="{ fileCount: 0, emojiOpen: false, automationPaused: @js($selectedConversation->ai_mode === 'human'), updateFiles() { this.fileCount = (this.$refs.fileInput?.files?.length || 0) + (this.$refs.imageInput?.files?.length || 0) + (this.$refs.audioInput?.files?.length || 0) }, insertEmoji(emoji) { const input = this.$refs.messageInput; const start = input.selectionStart ?? input.value.length; const end = input.selectionEnd ?? input.value.length; input.value = input.value.slice(0, start) + emoji + input.value.slice(end); input.focus(); input.selectionStart = input.selectionEnd = start + emoji.length; this.emojiOpen = false } }">
+                        <form method="POST" action="{{ route('dashboard.inbox.reply', $selectedConversation) }}" enctype="multipart/form-data" class="space-y-2" data-human-on-submit="true" x-data="window.inboxComposer(@js($selectedConversation->ai_mode === 'human'))">
                             @csrf
                             <div class="flex items-end gap-2">
                                 <div class="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] px-2 sm:gap-2 sm:px-3">
@@ -467,13 +549,16 @@
                                             <span class="absolute h-px w-6 rotate-45 bg-[#9CA3AF]"></span>
                                         </span>
                                     @else
-                                        <label for="message-audio-{{ $selectedConversation->id }}" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Upload voice note" title="Upload voice note">
-                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                        <button type="button" x-on:click="toggleRecorder" x-bind:class="recording ? 'bg-[#FEE2E2] text-[#DC2626]' : 'text-[#6B7280] hover:bg-white hover:text-[#2563EB]'" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition sm:h-9 sm:w-9" aria-label="Record voice note" title="Record voice note">
+                                            <svg x-show="! recording" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
                                                 <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
                                                 <path d="M19 11a7 7 0 0 1-14 0"></path>
                                                 <path d="M12 18v3"></path>
                                             </svg>
-                                        </label>
+                                            <svg x-cloak x-show="recording" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+                                                <rect x="7" y="7" width="10" height="10" rx="2"></rect>
+                                            </svg>
+                                        </button>
                                     @endif
                                     @if (! $aiSettings->human_takeover_enabled)
                                         <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#9CA3AF] sm:h-9 sm:w-9" aria-label="Pause automation unavailable" title="Pause automation unavailable">
@@ -510,6 +595,11 @@
                                     </svg>
                                     <span x-text="fileCount === 1 ? '1 file selected' : `${fileCount} files selected`"></span>
                                 </span>
+                                <span x-show="recording" x-cloak class="inline-flex items-center gap-2 rounded-full bg-[#FEE2E2] px-3 py-2 text-xs font-bold text-[#DC2626]">
+                                    <span class="h-2 w-2 rounded-full bg-[#DC2626]"></span>
+                                    Recording <span x-text="recordElapsed"></span>
+                                </span>
+                                <span x-show="recordError" x-cloak class="inline-flex items-center gap-2 rounded-full bg-[#FEF2F2] px-3 py-2 text-xs font-semibold text-[#DC2626]" x-text="recordError"></span>
                             </div>
                         </form>
                     @endif
