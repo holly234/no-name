@@ -21,7 +21,7 @@ Built and working as a local MVP:
 - Lightweight SPA-style dashboard navigation for internal dashboard links/forms, including pending feedback and double-submit protection
 - Demo connected accounts for Instagram, Facebook, and WhatsApp
 - Real Gmail OAuth connection with encrypted token storage and manual on-demand email sync
-- Real Telegram bot-backed connection with encrypted bot token storage, webhook registration, incoming message ingestion, and text replies through the Telegram Bot API
+- Real Telegram bot-backed connection with encrypted bot token storage, webhook registration, incoming message/media ingestion, and text/media replies through the Telegram Bot API
 - Multiple connected accounts per social platform per workspace
 - Disconnect flow for connected accounts; disconnected records are preserved internally but hidden from the active Accounts UI
 - AI Conversation State Engine demo workflow
@@ -32,6 +32,7 @@ Built and working as a local MVP:
 - Per-user conversation read tracking
 - Conversation/message query limits and inbox indexes for scale
 - Feature tests covering workspace isolation, inbox filtering/unread, webhooks, connected account lifecycle, and authorization
+- Polished UI interactions may use focused third-party libraries when they provide better quality than hand-rolled controls. Current example: `wavesurfer.js` powers the inbox voice-note waveform player.
 
 Latest verification:
 
@@ -67,7 +68,7 @@ The UI includes:
 - full-width DM-style conversation list
 - mobile list-to-thread behavior
 - thread view with message composer
-- manual composer supports text, private file/image/audio attachments, and attachment-only staff replies
+- manual composer supports text, private file/image/audio/video attachments, attachment-only staff replies, and in-app voice-note recording
 - customer context panel on wide desktop
 - mobile customer profile bottom sheet opened from the chat header name
 - channel-aware customer identity labels: Instagram username, Facebook username, WhatsApp number, Gmail email address, or Telegram chat ID
@@ -223,7 +224,7 @@ Key services/support:
 Key persistence additions:
 
 - `conversation_reads` tracks per-user read state.
-- `message_attachments` stores Gmail-imported attachments and manually uploaded staff reply attachments.
+- `message_attachments` stores Gmail-imported attachments, Telegram media, and manually uploaded staff reply attachments.
 - `saved_replies` stores reusable manual response snippets per workspace.
 - `businesses.webhook_secret` stores per-workspace webhook secrets.
 - `connected_accounts` supports multiple rows for the same platform in the same workspace.
@@ -240,7 +241,7 @@ Connected account behavior:
 - Gmail accounts use `platform=gmail`, store encrypted access/refresh tokens, and sync recent inbox emails into `Gmail` conversations manually.
 - Imported Gmail messages default to `Needs Human` and `ai_mode=human`; Gmail auto-replies are intentionally disabled until sending is implemented safely.
 - Telegram accounts use `platform=Telegram`, store encrypted bot tokens, register a Bot API webhook when `APP_URL` is public HTTPS, and import customer messages into the unified inbox.
-- Telegram text replies are sent through the Bot API to the originating chat ID. Telegram media sending is not implemented yet.
+- Telegram text and media replies are sent through the Bot API to the originating chat ID. Images, videos, files, and voice/audio notes are capped at 10MB in the current UI flow.
 
 AI settings behavior:
 
@@ -348,7 +349,7 @@ Still not production-complete:
 - Gmail Pub/Sub push/watch support
 - Gmail outbound sending from the inbox
 - Telegram private-user inbox import is not supported; Telegram is bot-backed only
-- Telegram media sending is not implemented yet
+- Telegram media sending is implemented for bot-backed conversations, with a 10MB upload/download cap
 - advanced workspace settings, billing, and danger-zone controls
 - configurable business-hours schedule UI
 - separate immutable provider customer IDs from display usernames/phone numbers before production if Meta payloads require both

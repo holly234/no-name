@@ -1,6 +1,6 @@
 # Perpetual Inbox AI Project Memory
 
-Last updated: 2026-07-09
+Last updated: 2026-07-13
 
 ## Current Instruction
 
@@ -18,6 +18,7 @@ Current build priority:
 - AI settings must be behavior-backed, not cosmetic. Auto reply, human takeover, and business-hours settings must affect ingestion and inbox actions.
 - Conversations should default to `ai_mode=auto`. `Needs Human` is a queue/status, while `ai_mode=human` is reserved for explicit takeover, manual staff replies, or disabled automation conditions.
 - Staff-facing customer identity should show Instagram/Facebook usernames, WhatsApp phone numbers, Gmail email addresses, or Telegram chat IDs where available. Add a separate stable provider ID later if real provider payloads require both identity matching and friendly display.
+- For polished UI/design interactions, prefer proven focused libraries/components over custom hand-built controls when a library gives better quality, accessibility, or maintainability. Keep all third-party UI aligned with `docs/VISUAL_MOOD_BOARD.md`; do not import a library's default visual style blindly.
 
 ## Product Brief
 
@@ -106,8 +107,10 @@ Dashboard/inbox direction:
 - Mobile inbox behaves like normal DM apps: list first, tap chat to open thread, use back button to return.
 - Mobile thread headers let staff tap the customer name to open a compact customer profile bottom sheet.
 - Composer controls support text replies, private file/image/audio uploads, and attachment-only staff replies.
+- Composer controls support text replies, private file/image/audio/video uploads, in-app voice-note recording, and attachment-only staff replies.
 - Human takeover/pause automation should be a compact icon action in the composer, not a large switch or pill button.
 - Status messages appear as top-right toast notifications that auto-dismiss after 3 seconds.
+- Voice-note playback should use a polished waveform player pattern. Current implementation uses `wavesurfer.js`, styled to the project mood board.
 
 ## Core Multi-Tenant Requirement
 
@@ -352,6 +355,7 @@ Current status:
 - `CurrentBusinessService` handles active workspace resolution and switching.
 - `InboxUi` holds inbox presentation metadata for states, social channels, and intent labels.
 - `GmailConnectionService` handles Gmail OAuth redirect URL building, auth-code token exchange, Gmail profile fetch, access-token refresh, recent inbox sync, email parsing, duplicate detection, and local inbox import.
+- `TelegramConnectionService` handles Bot API webhook registration, incoming message/media normalization, customer avatar fetch, text replies, and media replies for bot-backed Telegram conversations.
 
 Knowledge base CRUD pass on 2026-07-08:
 - Reworked the Knowledge Base page from read-only demo cards into editable workspace content.
@@ -376,8 +380,19 @@ Knowledge base mobile refinement pass on 2026-07-08:
 Inbox composer media pass on 2026-07-08:
 - Replaced the large human/AI mode switch in the composer with a compact pause-automation icon action.
 - Added manual staff reply uploads for files, images, and audio notes using private `message_attachments` storage.
-- Attachment-only staff replies are allowed; video uploads are rejected in the manual reply flow.
+- Attachment-only staff replies are allowed.
 - Latest verification after this pass: PHPUnit passes with `70 tests, 276 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+
+Inbox media and voice-note pass on 2026-07-13:
+- Added Telegram media receive/send support through the existing `message_attachments` pipeline.
+- Media now covers images, videos, files, audio, and voice notes with a 10MB cap.
+- Telegram incoming media is downloaded into private storage and rendered in the inbox through authenticated attachment routes.
+- Telegram outgoing media is delivered through the Bot API using `sendPhoto`, `sendVideo`, `sendVoice`, or `sendDocument` as appropriate.
+- Image previews no longer show a duplicate download row and open into a larger in-page preview when clicked.
+- Recorded voice notes are created inside the app with `MediaRecorder`; pressing Send while recording automatically stops, attaches, and sends the note.
+- Voice-note playback uses `wavesurfer.js` for a compact waveform player instead of the browser default audio control.
+- Recorded voice-note attachments are explicitly marked as `media_type=voice` so they do not render as video even when the browser stores them as WebM.
+- Latest focused verification after this pass: `npm run build` passes and Telegram feature tests pass with `13 tests, 57 assertions`.
 
 ## Seed Demo Data To Build Later
 
@@ -568,7 +583,7 @@ Telegram integration pass on 2026-07-09:
 - Local `http://127.0.0.1` / non-HTTPS development URLs cannot receive Telegram push events directly; use a public HTTPS URL or tunnel when testing real incoming messages.
 - Added `POST /api/webhooks/telegram/{account}` with `X-Telegram-Bot-Api-Secret-Token` verification.
 - Incoming Telegram updates are normalized into the unified inbox through `MessageIngestionService`.
-- Staff text replies in Telegram conversations are sent through Telegram `sendMessage`; Telegram media sending is not implemented yet.
+- Staff text replies in Telegram conversations are sent through Telegram `sendMessage`; media replies are sent through the appropriate Telegram Bot API media methods.
 - Added Telegram channel icon/filter support in the inbox and kept all channel filters on one horizontal row.
 - Latest verification after this pass: PHPUnit passes with `74 tests, 292 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
 
@@ -584,7 +599,6 @@ Not built yet:
 - Gmail Pub/Sub/watch real-time sync
 - Gmail outbound sending from the inbox
 - Telegram private-user inbox import through MTProto
-- Telegram media sending from the inbox
 - Billing/subscription system
 - True infinite loading for older conversations/messages
 - Production error pages and observability

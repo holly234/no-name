@@ -151,8 +151,12 @@ class TelegramConnectionService
         }
 
         $mimeType = (string) $attachment->mime_type;
+        $isVoiceNote = ($attachment->metadata['media_type'] ?? null) === 'voice'
+            || Str::startsWith($attachment->filename, 'voice-note-');
+
         [$method, $field] = match (true) {
             str_starts_with($mimeType, 'image/') => ['sendPhoto', 'photo'],
+            $isVoiceNote => ['sendVoice', 'voice'],
             str_starts_with($mimeType, 'video/') => ['sendVideo', 'video'],
             str_starts_with($mimeType, 'audio/') => ['sendVoice', 'voice'],
             default => ['sendDocument', 'document'],

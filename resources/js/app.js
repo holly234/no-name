@@ -1,8 +1,65 @@
 import './bootstrap';
 
 import Alpine from 'alpinejs';
+import WaveSurfer from 'wavesurfer.js';
 
 window.Alpine = Alpine;
+
+window.voiceNotePlayer = (sourceUrl) => ({
+    wave: null,
+    playing: false,
+    elapsed: '0:00',
+    duration: '0:00',
+    ready: false,
+    format(seconds) {
+        seconds = Number.isFinite(seconds) ? Math.floor(seconds) : 0;
+        return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    },
+    init() {
+        this.wave = WaveSurfer.create({
+            container: this.$refs.waveform,
+            url: sourceUrl,
+            height: 32,
+            barWidth: 2,
+            barGap: 2,
+            barRadius: 2,
+            cursorWidth: 0,
+            waveColor: '#D1D5DB',
+            progressColor: '#2563EB',
+            normalize: true,
+        });
+
+        this.wave.on('ready', (duration) => {
+            this.ready = true;
+            this.duration = this.format(duration);
+        });
+        this.wave.on('play', () => {
+            this.playing = true;
+        });
+        this.wave.on('pause', () => {
+            this.playing = false;
+        });
+        this.wave.on('finish', () => {
+            this.playing = false;
+            this.elapsed = '0:00';
+            this.wave.seekTo(0);
+        });
+        this.wave.on('timeupdate', (currentTime) => {
+            this.elapsed = this.format(currentTime);
+        });
+    },
+    toggle() {
+        if (!this.ready) {
+            return;
+        }
+
+        this.wave.playPause();
+    },
+    destroy() {
+        this.wave?.destroy();
+        this.wave = null;
+    },
+});
 
 window.inboxComposer = (initialAutomationPaused = false) => ({
     fileCount: 0,
@@ -16,6 +73,7 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
     recordStartedAt: null,
     recordElapsed: '0:00',
     recordTimer: null,
+    recordingStopResolver: null,
     maxVoiceBytes: 10 * 1024 * 1024,
     updateFiles() {
         this.fileCount = (this.$refs.fileInput?.files?.length || 0) +
@@ -93,14 +151,46 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
 
         this.cleanupRecorder();
     },
+    finalizeRecording() {
+        if (!this.recording || !this.recorder || this.recorder.state === 'inactive') {
+            return Promise.resolve(true);
+        }
+
+        return new Promise((resolve) => {
+            this.recordingStopResolver = resolve;
+            this.recorder.stop();
+        });
+    },
+    async submitAfterRecording(event) {
+        if (!this.recording) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const form = event.target;
+        const submitter = event.submitter || null;
+        const attached = await this.finalizeRecording();
+
+        if (!attached) {
+            return;
+        }
+
+        requestAnimationFrame(() => form.requestSubmit(submitter));
+    },
     attachVoiceNote() {
         const audioInput = this.$refs.audioInput;
         const type = this.recorder?.mimeType || 'audio/webm';
         const blob = new Blob(this.recordChunks, { type });
+        const resolveStop = this.recordingStopResolver;
+
+        this.recordingStopResolver = null;
 
         if (blob.size > this.maxVoiceBytes) {
             this.recordError = 'Voice note must be 10MB or smaller.';
             this.cleanupRecorder();
+            resolveStop?.(false);
             return;
         }
 
@@ -115,6 +205,7 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
         }
 
         this.cleanupRecorder();
+        resolveStop?.(true);
     },
     cleanupRecorder() {
         this.recording = false;
@@ -126,6 +217,7 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
         this.recordStream = null;
         this.recorder = null;
         this.recordChunks = [];
+        this.recordingStopResolver = null;
     },
 });
 

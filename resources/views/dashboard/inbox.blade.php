@@ -299,8 +299,9 @@
                                             @php
                                                 $isPdf = $attachment->mime_type === 'application/pdf';
                                                 $isImage = str_starts_with((string) $attachment->mime_type, 'image/');
-                                                $isAudio = str_starts_with((string) $attachment->mime_type, 'audio/');
-                                                $isVideo = str_starts_with((string) $attachment->mime_type, 'video/');
+                                                $isVoiceNote = ($attachment->metadata['media_type'] ?? null) === 'voice' || str_starts_with($attachment->filename, 'voice-note-');
+                                                $isAudio = $isVoiceNote || str_starts_with((string) $attachment->mime_type, 'audio/');
+                                                $isVideo = ! $isVoiceNote && str_starts_with((string) $attachment->mime_type, 'video/');
                                                 $hasInlinePreview = $isImage || $isAudio || $isVideo;
                                                 $inlineUrl = route('dashboard.attachments.download', ['attachment' => $attachment, 'inline' => 1]);
                                                 $size = (int) ($attachment->size ?? 0);
@@ -344,44 +345,12 @@
                                                 </div>
                                             @elseif ($isAudio)
                                                 <div
-                                                    x-data="{
-                                                        playing: false,
-                                                        progress: 0,
-                                                        elapsed: '0:00',
-                                                        duration: '0:00',
-                                                        format(seconds) {
-                                                            seconds = Number.isFinite(seconds) ? Math.floor(seconds) : 0;
-                                                            return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-                                                        },
-                                                        toggle() {
-                                                            const audio = this.$refs.audio;
-                                                            if (audio.paused) {
-                                                                audio.play();
-                                                            } else {
-                                                                audio.pause();
-                                                            }
-                                                        },
-                                                        seek(event) {
-                                                            const audio = this.$refs.audio;
-                                                            if (! audio.duration) return;
-                                                            const rect = event.currentTarget.getBoundingClientRect();
-                                                            audio.currentTime = ((event.clientX - rect.left) / rect.width) * audio.duration;
-                                                        },
-                                                    }"
-                                                    class="rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3"
+                                                    x-data="window.voiceNotePlayer(@js($inlineUrl))"
+                                                    x-on:destroy.window="destroy"
+                                                    class="max-w-[19rem] rounded-2xl border border-[#E5E7EB] bg-white p-3 shadow-sm"
                                                 >
-                                                    <audio
-                                                        x-ref="audio"
-                                                        preload="metadata"
-                                                        src="{{ $inlineUrl }}"
-                                                        x-on:play="playing = true"
-                                                        x-on:pause="playing = false"
-                                                        x-on:ended="playing = false; progress = 0; elapsed = '0:00'"
-                                                        x-on:loadedmetadata="duration = format($refs.audio.duration)"
-                                                        x-on:timeupdate="progress = $refs.audio.duration ? ($refs.audio.currentTime / $refs.audio.duration) * 100 : 0; elapsed = format($refs.audio.currentTime)"
-                                                    ></audio>
                                                     <div class="flex items-center gap-3">
-                                                        <button type="button" x-on:click="toggle" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-sm transition hover:bg-[#1d4ed8]" aria-label="Play voice note">
+                                                        <button type="button" x-on:click="toggle" x-bind:class="ready ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8]' : 'bg-[#EEF0F3] text-[#9CA3AF]'" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm transition" aria-label="Play voice note">
                                                             <svg x-show="! playing" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
                                                                 <path d="M8 5.8c0-.8.9-1.3 1.6-.9l8.2 5.2c.7.4.7 1.4 0 1.8l-8.2 5.2c-.7.4-1.6-.1-1.6-.9V5.8Z"></path>
                                                             </svg>
@@ -390,13 +359,11 @@
                                                             </svg>
                                                         </button>
                                                         <div class="min-w-0 flex-1">
-                                                            <div class="mb-1 flex items-center justify-between gap-3 text-xs font-bold text-[#6B7280]">
+                                                            <div class="mb-1 flex items-center justify-between gap-3 text-[11px] font-bold text-[#6B7280]">
                                                                 <span class="truncate">Voice note</span>
                                                                 <span class="shrink-0 tabular-nums"><span x-text="elapsed"></span> / <span x-text="duration"></span></span>
                                                             </div>
-                                                            <button type="button" x-on:click="seek" class="relative block h-2 w-full overflow-hidden rounded-full bg-[#E5E7EB]" aria-label="Seek voice note">
-                                                                <span class="absolute inset-y-0 left-0 rounded-full bg-[#2563EB]" x-bind:style="`width: ${progress}%`"></span>
-                                                            </button>
+                                                            <div x-ref="waveform" class="h-8 min-w-[9rem]"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -498,7 +465,7 @@
                         @php
                             $voiceNotesDisabled = $selectedConversation->channel === 'Gmail';
                         @endphp
-                        <form method="POST" action="{{ route('dashboard.inbox.reply', $selectedConversation) }}" enctype="multipart/form-data" class="space-y-2" data-human-on-submit="true" x-data="window.inboxComposer(@js($selectedConversation->ai_mode === 'human'))">
+                        <form method="POST" action="{{ route('dashboard.inbox.reply', $selectedConversation) }}" enctype="multipart/form-data" class="space-y-2" data-human-on-submit="true" x-data="window.inboxComposer(@js($selectedConversation->ai_mode === 'human'))" x-on:submit="submitAfterRecording($event)">
                             @csrf
                             <div class="flex items-end gap-2">
                                 <div class="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] px-2 sm:gap-2 sm:px-3">

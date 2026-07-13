@@ -31,19 +31,23 @@ class ConversationMessageService
 
         foreach ($attachments as $attachment) {
             $path = $attachment->store('manual-attachments/'.$conversation->business_id.'/'.$message->id);
+            $originalName = $attachment->getClientOriginalName();
+            $clientMimeType = (string) $attachment->getClientMimeType();
+            $isRecordedVoice = Str::startsWith($originalName, 'voice-note-') && str_starts_with($clientMimeType, 'audio/');
 
             $message->attachments()->create([
                 'business_id' => $conversation->business_id,
                 'provider' => 'manual',
                 'provider_attachment_id' => (string) Str::uuid(),
-                'filename' => $attachment->getClientOriginalName(),
-                'mime_type' => $attachment->getMimeType(),
+                'filename' => $originalName,
+                'mime_type' => $isRecordedVoice ? $clientMimeType : $attachment->getMimeType(),
                 'size' => $attachment->getSize(),
                 'disk' => 'local',
                 'storage_path' => $path,
                 'metadata' => [
                     'uploaded_by' => 'staff',
                     'original_extension' => $attachment->getClientOriginalExtension(),
+                    'media_type' => $isRecordedVoice ? 'voice' : null,
                 ],
             ]);
         }
