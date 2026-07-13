@@ -264,9 +264,10 @@
                             $mediaOnlyAttachment = $mediaOnlyVisual || $mediaOnlyAudio;
                         @endphp
                         <div class="flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}">
-                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : ($mediaOnlyAudio ? 'w-[19rem] max-w-[88%]' : 'max-w-[86%] sm:max-w-[72%]')) }} rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 pb-1 pt-1.5' : ($mediaOnlyAudio ? 'px-3 py-2' : 'px-4 py-3') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
-                                @if ($isGmailMessage)
-                                    <div class="mb-3 border-b border-[#E5E7EB] pb-3">
+                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : ($mediaOnlyAudio ? 'w-[19rem] max-w-[88%]' : 'max-w-[86%] sm:max-w-[72%]')) }}">
+                                <div class="rounded-2xl border text-sm {{ $mediaOnlyVisual ? 'overflow-hidden px-1 pb-1 pt-1.5' : ($mediaOnlyAudio ? 'px-3 py-2' : 'px-4 py-3') }} {{ $mediaOnlyAttachment ? 'shadow-none' : 'shadow-sm' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
+                                    @if ($isGmailMessage)
+                                        <div class="mb-3 border-b border-[#E5E7EB] pb-3">
                                         <div class="flex items-center gap-2 text-xs font-bold text-[#6B7280]">
                                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 text-[#ea4335]">
                                                 <path d="M4 6h16v12H4z"></path>
@@ -421,7 +422,22 @@
                                         @endforeach
                                     </div>
                                 @endif
-                                <div class="mt-1 flex justify-end gap-1 text-[11px] text-[#6B7280]">
+                                @unless ($mediaOnlyAttachment)
+                                    <div class="mt-1 flex justify-end gap-1 text-[11px] text-[#6B7280]">
+                                        <span>{{ $message->created_at?->format('H:i') }}</span>
+                                        @if ($message->direction === 'outgoing')
+                                            <span class="inline-flex text-[#2563EB]">
+                                                <svg aria-hidden="true" viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-5">
+                                                    <path d="M1 5.5 3.8 8 9 1"></path>
+                                                    <path d="M8 7.5 10.2 8 17 1"></path>
+                                                </svg>
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endunless
+                            </div>
+                            @if ($mediaOnlyAttachment)
+                                <div class="mt-1 flex justify-end gap-1 pr-1 text-[11px] text-[#6B7280]">
                                     <span>{{ $message->created_at?->format('H:i') }}</span>
                                     @if ($message->direction === 'outgoing')
                                         <span class="inline-flex text-[#2563EB]">
@@ -432,6 +448,7 @@
                                         </span>
                                     @endif
                                 </div>
+                            @endif
                             </div>
                         </div>
                     @endforeach
