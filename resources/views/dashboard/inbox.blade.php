@@ -248,19 +248,20 @@
 
                             $messageBody = trim($messageBody);
                         @endphp
+                        @php
+                            $hasImageAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'image/'));
+                            $hasVideoAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'video/'));
+                            $hasAudioAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'audio/'));
+                            $mediaOnlyPlaceholder = match ($messageBody) {
+                                '[Photo]' => $hasImageAttachment,
+                                '[Video]' => $hasVideoAttachment,
+                                '[Voice note]', '[Audio]' => $hasAudioAttachment,
+                                default => false,
+                            };
+                            $mediaOnlyVisual = ! $isGmailMessage && $mediaOnlyPlaceholder && ($hasImageAttachment || $hasVideoAttachment);
+                        @endphp
                         <div class="flex {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}">
-                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : 'max-w-[86%] sm:max-w-[72%]' }} rounded-2xl border px-4 py-3 text-sm shadow-sm {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
-                                @php
-                                    $hasImageAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'image/'));
-                                    $hasVideoAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'video/'));
-                                    $hasAudioAttachment = $message->attachments->contains(fn ($attachment) => str_starts_with((string) $attachment->mime_type, 'audio/'));
-                                    $mediaOnlyPlaceholder = match ($messageBody) {
-                                        '[Photo]' => $hasImageAttachment,
-                                        '[Video]' => $hasVideoAttachment,
-                                        '[Voice note]', '[Audio]' => $hasAudioAttachment,
-                                        default => false,
-                                    };
-                                @endphp
+                            <div class="{{ $isGmailMessage ? 'max-w-[94%] sm:max-w-[82%]' : ($mediaOnlyVisual ? 'max-w-[88%] sm:max-w-[24rem]' : 'max-w-[86%] sm:max-w-[72%]') }} rounded-2xl border text-sm shadow-sm {{ $mediaOnlyVisual ? 'overflow-hidden p-1' : 'px-4 py-3' }} {{ $message->direction === 'outgoing' ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#111827]' : 'border-[#E5E7EB] bg-white text-[#111827]' }}">
                                 @if ($isGmailMessage)
                                     <div class="mb-3 border-b border-[#E5E7EB] pb-3">
                                         <div class="flex items-center gap-2 text-xs font-bold text-[#6B7280]">
@@ -317,8 +318,8 @@
                                             @endphp
                                             @if ($isImage)
                                                 <div x-data="{ open: false }">
-                                                    <button type="button" x-on:click="open = true" class="block overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] text-left transition hover:opacity-95" aria-label="Open image preview">
-                                                    <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-80 w-full object-cover">
+                                                    <button type="button" x-on:click="open = true" class="block overflow-hidden rounded-xl text-left transition hover:opacity-95" aria-label="Open image preview">
+                                                    <img src="{{ $inlineUrl }}" alt="{{ $attachment->filename }}" class="max-h-80 w-full rounded-xl object-cover">
                                                     </button>
                                                     <div
                                                         x-cloak
@@ -524,65 +525,67 @@
                                             <button type="button" x-on:click="emojiOpen = false" class="mt-3 w-full rounded-lg border border-[#E5E7EB] bg-[#F5F6F8] px-3 py-2 text-xs font-bold text-[#374151] transition hover:bg-white">Close</button>
                                         </div>
                                     </div>
-                                    <textarea x-ref="messageInput" name="body" rows="1" class="min-w-[5rem] max-h-28 flex-1 resize-none border-0 bg-transparent py-3 text-sm text-[#111827] placeholder:text-[#6B7280] focus:ring-0" placeholder="Message"></textarea>
+                                    <textarea x-ref="messageInput" x-on:input="updateTyping" name="body" rows="1" class="min-w-[5rem] max-h-28 flex-1 resize-none border-0 bg-transparent py-3 text-sm text-[#111827] placeholder:text-[#6B7280] focus:ring-0" placeholder="Message"></textarea>
                                     <input x-ref="fileInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-attachments-{{ $selectedConversation->id }}" multiple class="hidden">
-                                    <input x-ref="imageInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-images-{{ $selectedConversation->id }}" multiple accept="image/*" class="hidden">
+                                    <input x-ref="imageInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-images-{{ $selectedConversation->id }}" multiple accept="image/*,video/*" class="hidden">
                                     @unless ($voiceNotesDisabled)
                                         <input x-ref="audioInput" x-on:change="updateFiles" type="file" name="attachments[]" id="message-audio-{{ $selectedConversation->id }}" accept="audio/*" class="hidden">
                                     @endunless
-                                    <label for="message-attachments-{{ $selectedConversation->id }}" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Attach file" title="Attach file">
-                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
-                                            <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 1 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
-                                        </svg>
-                                    </label>
-                                    <label for="message-images-{{ $selectedConversation->id }}" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Upload image" title="Upload image">
-                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
-                                            <rect x="3" y="5" width="18" height="14" rx="2.5"></rect>
-                                            <circle cx="8.5" cy="10" r="1.5"></circle>
-                                            <path d="m21 15-4.5-4.5L8 19"></path>
-                                        </svg>
-                                    </label>
-                                    @if ($voiceNotesDisabled)
-                                        <span class="relative inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-md text-[#9CA3AF] sm:h-9 sm:w-9" aria-label="Voice notes are disabled for email" title="Voice notes are disabled for email">
+                                    <div x-bind:class="composerHasText ? 'w-0 max-w-0 scale-95 opacity-0 pointer-events-none overflow-hidden' : 'w-auto max-w-[15rem] scale-100 opacity-100'" class="flex shrink-0 items-center gap-1 transition-all duration-200 ease-out sm:gap-2">
+                                        <label for="message-attachments-{{ $selectedConversation->id }}" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Attach file" title="Attach file">
                                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
-                                                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
-                                                <path d="M19 11a7 7 0 0 1-14 0"></path>
-                                                <path d="M12 18v3"></path>
+                                                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 1 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                                             </svg>
-                                            <span class="absolute h-px w-6 rotate-45 bg-[#9CA3AF]"></span>
-                                        </span>
-                                    @else
-                                        <button type="button" x-on:click="toggleRecorder" x-bind:class="recording ? 'bg-[#FEE2E2] text-[#DC2626]' : 'text-[#6B7280] hover:bg-white hover:text-[#2563EB]'" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition sm:h-9 sm:w-9" aria-label="Record voice note" title="Record voice note">
-                                            <svg x-show="! recording" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
-                                                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
-                                                <path d="M19 11a7 7 0 0 1-14 0"></path>
-                                                <path d="M12 18v3"></path>
-                                            </svg>
-                                            <svg x-cloak x-show="recording" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
-                                                <rect x="7" y="7" width="10" height="10" rx="2"></rect>
-                                            </svg>
-                                        </button>
-                                    @endif
-                                    @if (! $aiSettings->human_takeover_enabled)
-                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#9CA3AF] sm:h-9 sm:w-9" aria-label="Pause automation unavailable" title="Pause automation unavailable">
+                                        </label>
+                                        <label for="message-images-{{ $selectedConversation->id }}" class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#6B7280] transition hover:bg-white hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Upload media" title="Upload image or video">
                                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
-                                                <path d="M10 5v14"></path>
-                                                <path d="M14 5v14"></path>
+                                                <rect x="3" y="5" width="18" height="14" rx="2.5"></rect>
+                                                <circle cx="8.5" cy="10" r="1.5"></circle>
+                                                <path d="m21 15-4.5-4.5L8 19"></path>
                                             </svg>
-                                        </span>
-                                    @else
-                                        <button x-show="! automationPaused" x-on:click="automationPaused = true" data-instant-action="true" formaction="{{ route('dashboard.inbox.take-over', $selectedConversation) }}" formnovalidate class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#EFF6FF] text-[#2563EB] transition hover:bg-[#DBEAFE] sm:h-9 sm:w-9" aria-label="Automation active. Pause automation." title="Automation active">
-                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
-                                                <path d="M10 5v14"></path>
-                                                <path d="M14 5v14"></path>
-                                            </svg>
-                                        </button>
-                                        <button x-cloak x-show="automationPaused" x-on:click="automationPaused = false" data-instant-action="true" formaction="{{ route('dashboard.inbox.resume-ai', $selectedConversation) }}" formnovalidate class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#9CA3AF] transition hover:bg-[#EFF6FF] hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Automation paused. Resume automation." title="Automation paused">
-                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
-                                                <path d="M7.5 5.7c0-.9 1-1.4 1.8-.9l8.6 5.3c.7.4.7 1.4 0 1.8l-8.6 5.3c-.8.5-1.8-.1-1.8-.9V5.7Z"></path>
-                                            </svg>
-                                        </button>
-                                    @endif
+                                        </label>
+                                        @if ($voiceNotesDisabled)
+                                            <span class="relative inline-flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-md text-[#9CA3AF] sm:h-9 sm:w-9" aria-label="Voice notes are disabled for email" title="Voice notes are disabled for email">
+                                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                                                    <path d="M19 11a7 7 0 0 1-14 0"></path>
+                                                    <path d="M12 18v3"></path>
+                                                </svg>
+                                                <span class="absolute h-px w-6 rotate-45 bg-[#9CA3AF]"></span>
+                                            </span>
+                                        @else
+                                            <button type="button" x-on:click="toggleRecorder" x-bind:class="recording ? 'bg-[#FEE2E2] text-[#DC2626]' : 'text-[#6B7280] hover:bg-white hover:text-[#2563EB]'" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition sm:h-9 sm:w-9" aria-label="Record voice note" title="Record voice note">
+                                                <svg x-show="! recording" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                                                    <path d="M19 11a7 7 0 0 1-14 0"></path>
+                                                    <path d="M12 18v3"></path>
+                                                </svg>
+                                                <svg x-cloak x-show="recording" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+                                                    <rect x="7" y="7" width="10" height="10" rx="2"></rect>
+                                                </svg>
+                                            </button>
+                                        @endif
+                                        @if (! $aiSettings->human_takeover_enabled)
+                                            <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#9CA3AF] sm:h-9 sm:w-9" aria-label="Pause automation unavailable" title="Pause automation unavailable">
+                                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                    <path d="M10 5v14"></path>
+                                                    <path d="M14 5v14"></path>
+                                                </svg>
+                                            </span>
+                                        @else
+                                            <button x-show="! automationPaused" x-on:click="automationPaused = true" data-instant-action="true" formaction="{{ route('dashboard.inbox.take-over', $selectedConversation) }}" formnovalidate class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#EFF6FF] text-[#2563EB] transition hover:bg-[#DBEAFE] sm:h-9 sm:w-9" aria-label="Automation active. Pause automation." title="Automation active">
+                                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                    <path d="M10 5v14"></path>
+                                                    <path d="M14 5v14"></path>
+                                                </svg>
+                                            </button>
+                                            <button x-cloak x-show="automationPaused" x-on:click="automationPaused = false" data-instant-action="true" formaction="{{ route('dashboard.inbox.resume-ai', $selectedConversation) }}" formnovalidate class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[#9CA3AF] transition hover:bg-[#EFF6FF] hover:text-[#2563EB] sm:h-9 sm:w-9" aria-label="Automation paused. Resume automation." title="Automation paused">
+                                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+                                                    <path d="M7.5 5.7c0-.9 1-1.4 1.8-.9l8.6 5.3c.7.4.7 1.4 0 1.8l-8.6 5.3c-.8.5-1.8-.1-1.8-.9V5.7Z"></path>
+                                                </svg>
+                                            </button>
+                                        @endif
+                                    </div>
                                 </div>
                                 <button class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#2563EB] text-white shadow-sm transition hover:bg-[#1d4ed8]" aria-label="Send message">
                                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">

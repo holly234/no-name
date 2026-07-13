@@ -65,6 +65,7 @@ window.voiceNotePlayer = (sourceUrl) => ({
 window.inboxComposer = (initialAutomationPaused = false) => ({
     fileCount: 0,
     emojiOpen: false,
+    composerHasText: false,
     automationPaused: initialAutomationPaused,
     recorder: null,
     recorderWave: null,
@@ -80,6 +81,9 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
             (this.$refs.imageInput?.files?.length || 0);
         this.voiceNoteReady = (this.$refs.audioInput?.files?.length || 0) > 0;
     },
+    updateTyping() {
+        this.composerHasText = (this.$refs.messageInput?.value || '').trim().length > 0;
+    },
     insertEmoji(emoji) {
         const input = this.$refs.messageInput;
         const start = input.selectionStart ?? input.value.length;
@@ -88,6 +92,7 @@ window.inboxComposer = (initialAutomationPaused = false) => ({
         input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
         input.focus();
         input.selectionStart = input.selectionEnd = start + emoji.length;
+        this.updateTyping();
         this.emojiOpen = false;
     },
     format(seconds) {
