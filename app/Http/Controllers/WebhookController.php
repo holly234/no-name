@@ -9,6 +9,7 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Services\AiReplyService;
 use App\Services\ConversationMessageService;
+use App\Services\GmailConnectionService;
 use App\Services\MessageIngestionService;
 use App\Services\TelegramConnectionService;
 use Illuminate\Http\Request;
@@ -121,6 +122,23 @@ class WebhookController extends Controller
             'conversation_id' => $conversation->id,
             'state' => $conversation->status,
         ]);
+    }
+
+    public function gmailPubSub(Request $request, GmailConnectionService $gmailConnectionService)
+    {
+        $expectedToken = config('services.gmail.pubsub_verification_token');
+        $providedToken = $request->query('token') ?: $request->header('X-GMAIL-PUBSUB-TOKEN');
+
+        abort_unless(
+            is_string($expectedToken)
+            && $expectedToken !== ''
+            && hash_equals($expectedToken, (string) $providedToken),
+            401
+        );
+
+        $result = $gmailConnectionService->syncFromPubSubNotification($request->all());
+
+        return response()->json($result);
     }
 
     public function generateAiReply(Request $request, AiReplyService $aiReplyService)

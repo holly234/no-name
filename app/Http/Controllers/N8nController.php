@@ -12,9 +12,11 @@ class N8nController extends Controller
 {
     private function hasValidSecret(Request $request): bool
     {
-        $expected = env('N8N_WEBHOOK_SECRET') ?: env('APP_WEBHOOK_SECRET');
+        $expected = config('services.n8n.webhook_secret');
 
-        return $expected && hash_equals($expected, (string) $request->header('X-N8N-SECRET'));
+        return is_string($expected)
+            && $expected !== ''
+            && hash_equals($expected, (string) $request->header('X-N8N-SECRET'));
     }
 
     public function incomingMessage(Request $request, MessageIngestionService $messageIngestionService)

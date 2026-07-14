@@ -20,7 +20,7 @@ Built and working as a local MVP:
 - Mood-board aligned WhatsApp/Instagram-inspired inbox UI with no dashboard gradients
 - Lightweight SPA-style dashboard navigation for internal dashboard links/forms, including pending feedback and double-submit protection
 - Demo connected accounts for Instagram, Facebook, and WhatsApp
-- Real Gmail OAuth connection with encrypted token storage, manual on-demand email sync, cleaned email rendering, clickable links, and no-reply handling
+- Real Gmail OAuth connection with encrypted token storage, manual on-demand sync, scheduled inbox polling, cleaned email rendering, clickable links, no-reply handling, and text replies through the Gmail API
 - Real Telegram bot-backed connection with encrypted bot token storage, webhook registration, incoming message/media ingestion, customer profile photos, and text/media replies through the Telegram Bot API
 - Multiple connected accounts per social platform per workspace
 - Disconnect flow for connected accounts; disconnected records are preserved internally but hidden from the active Accounts UI
@@ -42,7 +42,7 @@ npm run build
 php artisan view:cache
 ```
 
-Last known passing test count: `74 tests, 292 assertions`.
+Last known passing test count: `90 tests, 360 assertions`.
 
 ## Core Product
 
@@ -192,11 +192,13 @@ GOOGLE_REDIRECT_URI=
 GMAIL_CLIENT_ID=
 GMAIL_CLIENT_SECRET=
 GMAIL_REDIRECT_URI="${APP_URL}/dashboard/accounts/gmail/callback"
+GMAIL_PUBSUB_TOPIC=
+GMAIL_PUBSUB_VERIFICATION_TOKEN=
 TELEGRAM_API_BASE=https://api.telegram.org/bot
 OPENAI_API_KEY=
 ```
 
-Real Meta/OpenAI integrations are not implemented yet. Gmail is implemented for OAuth connection and manual inbox sync; Gmail sending and Pub/Sub push are not enabled yet. Telegram is implemented through the Bot API, not private-user MTProto sessions. For real-time Telegram messages, `APP_URL` must be a public HTTPS URL with a valid certificate so Telegram can reach `/api/webhooks/telegram/{account}`.
+Real Meta/OpenAI integrations are not implemented yet. Gmail is implemented for OAuth connection, manual sync, scheduled inbox polling, text replies through the Gmail API, and Pub/Sub-triggered inbox sync when `GMAIL_PUBSUB_TOPIC` and `GMAIL_PUBSUB_VERIFICATION_TOKEN` are configured. Telegram is implemented through the Bot API, not private-user MTProto sessions. For real-time Telegram and Gmail webhooks, `APP_URL` must be a public HTTPS URL with a valid certificate.
 
 Provider wiring guide: [docs/INTEGRATION_READY.md](docs/INTEGRATION_READY.md).
 
@@ -244,8 +246,8 @@ Connected account behavior:
 - Inbound messages can resolve the correct account using `platform + external_account_id`, with fallback support for `page_id` and `phone_number_id`.
 - Disconnecting an account clears the encrypted token, sets `status` to `disconnected`, and removes it from the active Accounts page without deleting conversation history.
 - Demo customer identity uses readable Instagram/Facebook usernames or WhatsApp numbers in the staff UI; real Meta integration should preserve a stable provider identifier separately if needed.
-- Gmail accounts use `platform=gmail`, store encrypted access/refresh tokens, and sync recent inbox emails into `Gmail` conversations manually.
-- Imported Gmail messages default to `Needs Human` and `ai_mode=human`; Gmail auto-replies are intentionally disabled until sending is implemented safely.
+- Gmail accounts use `platform=gmail`, store encrypted access/refresh tokens, and sync recent inbox emails into `Gmail` conversations manually or through the scheduled `gmail:sync` command.
+- Imported Gmail messages default to `Needs Human` and `ai_mode=human`; staff text replies are sent through Gmail API, while Gmail file replies remain disabled until attachment sending is implemented safely.
 - Gmail rendering strips noisy HTML/template markup where possible, keeps useful links clickable, detects no-reply/automated senders, and disables the composer for non-repliable threads.
 - Telegram accounts use `platform=Telegram`, store encrypted bot tokens, register a Bot API webhook when `APP_URL` is public HTTPS, and import customer messages into the unified inbox.
 - Telegram text and media replies are sent through the Bot API to the originating chat ID. Telegram customer profile photos are fetched where available. Images, videos, files, and voice/audio notes are capped at 10MB in the current UI flow.
@@ -353,8 +355,8 @@ Still not production-complete:
 - real Meta API integration
 - real OpenAI integration
 - real n8n workflow execution beyond compatible endpoints
-- Gmail Pub/Sub push/watch support
-- Gmail outbound sending from the inbox
+- Gmail Pub/Sub history-diff replay and automatic watch renewal
+- Gmail outbound attachment sending from the inbox
 - Telegram private-user inbox import is not supported; Telegram is bot-backed only
 - Telegram media sending is implemented for bot-backed conversations, with a 10MB upload/download cap
 - Telegram profile photos only appear when the bot can fetch them from Telegram

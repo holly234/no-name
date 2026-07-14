@@ -38,6 +38,8 @@ return [
         'client_id' => env('GMAIL_CLIENT_ID'),
         'client_secret' => env('GMAIL_CLIENT_SECRET'),
         'redirect_uri' => env('GMAIL_REDIRECT_URI'),
+        'pubsub_topic' => env('GMAIL_PUBSUB_TOPIC'),
+        'pubsub_verification_token' => env('GMAIL_PUBSUB_VERIFICATION_TOKEN'),
     ],
 
     'openai' => [

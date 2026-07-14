@@ -1,6 +1,6 @@
 # Integration Readiness
 
-This app is ready to continue wiring real OpenAI, Meta, and n8n integrations. Gmail is now the first real provider connection: OAuth connect and manual inbox sync are implemented, while other provider behavior remains demo/fake or placeholder.
+This app is ready to continue wiring real OpenAI, Meta, and n8n integrations. Gmail and Telegram are now the first real provider connections: Gmail OAuth, manual/scheduled inbox sync, Gmail text replies, Telegram webhooks, and Telegram replies/media are implemented, while Meta and AI behavior remain demo/fake or placeholder.
 
 ## Shared Rules
 
@@ -31,6 +31,8 @@ META_REDIRECT_URI="${APP_URL}/dashboard/accounts/meta/callback"
 GMAIL_CLIENT_ID=
 GMAIL_CLIENT_SECRET=
 GMAIL_REDIRECT_URI="${APP_URL}/dashboard/accounts/gmail/callback"
+GMAIL_PUBSUB_TOPIC=
+GMAIL_PUBSUB_VERIFICATION_TOKEN=
 
 N8N_BASE_URL=
 N8N_WEBHOOK_SECRET=
@@ -81,10 +83,15 @@ Current behavior:
 - Gmail OAuth connect is implemented at `GET /dashboard/accounts/gmail/redirect` and `GET /dashboard/accounts/gmail/callback`.
 - Connected Gmail accounts are stored with `platform=gmail`.
 - Access and refresh tokens are stored encrypted on `connected_accounts`.
+- When `GMAIL_PUBSUB_TOPIC` is configured, Gmail connect attempts to register `users/me/watch` for the account inbox.
+- Google Pub/Sub should push to `POST /api/webhooks/gmail/pubsub?token={GMAIL_PUBSUB_VERIFICATION_TOKEN}`.
+- A valid Pub/Sub notification triggers the existing Gmail inbox sync path for the matching connected account.
 - `POST /dashboard/accounts/gmail/{account}/sync` manually imports the latest 20 inbox emails.
+- `php artisan gmail:sync` can run through the Laravel scheduler to poll connected Gmail inboxes.
 - Imported Gmail messages become `Gmail` channel conversations/messages inside the existing unified inbox.
 - Duplicate Gmail messages are skipped using `metadata.gmail_message_id`.
 - Gmail conversations default to `Needs Human` and `ai_mode=human` so no email is auto-sent accidentally.
+- Staff text replies to Gmail conversations are sent through the Gmail API with reply-thread metadata when available.
 
 Google Cloud setup:
 
@@ -94,14 +101,18 @@ Google Cloud setup:
 4. Create OAuth Client ID for Web Application.
 5. Add redirect URI: `{APP_URL}/dashboard/accounts/gmail/callback`.
 6. Add `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, and `GMAIL_REDIRECT_URI` to `.env`.
+7. For push sync, create a Pub/Sub topic and set `GMAIL_PUBSUB_TOPIC=projects/{project-id}/topics/{topic-name}`.
+8. Grant Gmail publish permission to the topic service account: `gmail-api-push@system.gserviceaccount.com`.
+9. Create a Pub/Sub push subscription pointing to `{APP_URL}/api/webhooks/gmail/pubsub?token={GMAIL_PUBSUB_VERIFICATION_TOKEN}`.
+10. Reconnect Gmail accounts or call Gmail watch registration so Google starts sending push notifications.
 
 Current Gmail limitations:
 
-- No Pub/Sub push notifications yet.
-- No Gmail watch/real-time sync yet.
-- Sync is manual/on-demand.
-- Inbox manual replies to Gmail are saved locally only; they are not sent through Gmail API yet.
-- Gmail sending should require safe reply threading with `In-Reply-To`/`References` headers before production.
+- Pub/Sub push is implemented as push-triggered sync, not direct Gmail history diff replay yet.
+- Gmail `watch` expires and must be renewed periodically before expiration.
+- Scheduler polling should remain enabled as a safety fallback.
+- Gmail attachment sending from the inbox is not implemented yet.
+- High-volume production traffic should move Pub/Sub processing into queued jobs.
 
 ## Meta
 

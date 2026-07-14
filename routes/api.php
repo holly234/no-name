@@ -10,6 +10,7 @@ Route::middleware('throttle:api')->group(function () {
     Route::post('/n8n/log-event', [N8nController::class, 'logEvent']);
 
     Route::post('/webhooks/meta', [WebhookController::class, 'meta']);
+    Route::post('/webhooks/gmail/pubsub', [WebhookController::class, 'gmailPubSub']);
     Route::post('/webhooks/telegram/{account}', [WebhookController::class, 'telegram']);
     Route::post('/incoming-message', [WebhookController::class, 'incomingMessage']);
     Route::post('/generate-ai-reply', [WebhookController::class, 'generateAiReply']);

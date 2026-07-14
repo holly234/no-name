@@ -105,6 +105,21 @@ class GmailConnectionService
             ]
         );
 
+        try {
+            $this->registerWatchIfConfigured($account);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            AutomationLog::create([
+                'business_id' => $business->id,
+                'connected_account_id' => $account->id,
+                'event_type' => 'gmail_watch_failed',
+                'status' => 'failed',
+                'message' => 'Gmail account connected, but Pub/Sub watch registration failed.',
+                'metadata' => ['error' => $exception->getMessage()],
+            ]);
+        }
+
         AutomationLog::create([
             'business_id' => $business->id,
             'connected_account_id' => $account->id,
@@ -114,6 +129,127 @@ class GmailConnectionService
         ]);
 
         return $account;
+    }
+
+    public function registerWatchIfConfigured(ConnectedAccount $account): ?array
+    {
+        $topicName = config('services.gmail.pubsub_topic');
+
+        if (! is_string($topicName) || $topicName === '') {
+            return null;
+        }
+
+        $response = $this->gmail($this->validAccessToken($account))
+            ->post(self::GMAIL_API_BASE.'/users/me/watch', [
+                'topicName' => $topicName,
+                'labelIds' => ['INBOX'],
+                'labelFilterBehavior' => 'include',
+            ])
+            ->throw()
+            ->json();
+
+        $account->forceFill([
+            'provider_meta' => array_merge($account->provider_meta ?? [], [
+                'watch_history_id' => $response['historyId'] ?? null,
+                'watch_expiration' => $response['expiration'] ?? null,
+                'watch_topic' => $topicName,
+                'watch_registered_at' => now()->toIso8601String(),
+            ]),
+        ])->save();
+
+        return $response;
+    }
+
+    public function syncFromPubSubNotification(array $payload): array
+    {
+        $message = $payload['message'] ?? [];
+        $data = $this->decodePubSubData((string) ($message['data'] ?? ''));
+        $email = strtolower((string) ($data['emailAddress'] ?? ''));
+        $historyId = $data['historyId'] ?? null;
+        $messageId = $message['messageId'] ?? $message['message_id'] ?? null;
+
+        if ($email === '') {
+            return [
+                'status' => 'ignored',
+                'message' => 'Gmail Pub/Sub payload did not include an email address.',
+                'imported' => 0,
+                'skipped' => 0,
+                'failed' => 0,
+            ];
+        }
+
+        $accounts = ConnectedAccount::query()
+            ->where('platform', 'gmail')
+            ->where('status', 'connected')
+            ->whereRaw('LOWER(external_account_id) = ?', [$email])
+            ->get();
+
+        if ($accounts->isEmpty()) {
+            return [
+                'status' => 'ignored',
+                'message' => 'No connected Gmail account matches the Pub/Sub email address.',
+                'email' => $email,
+                'imported' => 0,
+                'skipped' => 0,
+                'failed' => 0,
+            ];
+        }
+
+        $imported = 0;
+        $skipped = 0;
+        $failed = 0;
+
+        foreach ($accounts as $account) {
+            try {
+                $result = $this->syncRecentInboxMessages($account, 20, self::MAILBOX_INBOX);
+                $imported += $result['imported'];
+                $skipped += $result['skipped'];
+
+                $this->recordPubSubAttempt($account, [
+                    'last_pubsub_status' => 'success',
+                    'last_pubsub_message_id' => $messageId,
+                    'last_pubsub_history_id' => $historyId,
+                    'last_pubsub_received_at' => now()->toIso8601String(),
+                    'last_pubsub_sync_result' => $result,
+                ]);
+            } catch (\Throwable $exception) {
+                report($exception);
+                $failed++;
+
+                $this->recordPubSubAttempt($account, [
+                    'last_pubsub_status' => 'failed',
+                    'last_pubsub_message_id' => $messageId,
+                    'last_pubsub_history_id' => $historyId,
+                    'last_pubsub_received_at' => now()->toIso8601String(),
+                    'last_pubsub_error' => $exception->getMessage(),
+                ]);
+
+                AutomationLog::create([
+                    'business_id' => $account->business_id,
+                    'connected_account_id' => $account->id,
+                    'event_type' => 'gmail_pubsub_sync_failed',
+                    'status' => 'failed',
+                    'message' => 'Gmail Pub/Sub triggered sync failed.',
+                    'metadata' => [
+                        'email' => $email,
+                        'history_id' => $historyId,
+                        'message_id' => $messageId,
+                        'error' => $exception->getMessage(),
+                    ],
+                ]);
+            }
+        }
+
+        return [
+            'status' => $failed > 0 ? 'partial' : 'processed',
+            'email' => $email,
+            'history_id' => $historyId,
+            'message_id' => $messageId,
+            'accounts' => $accounts->count(),
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'failed' => $failed,
+        ];
     }
 
     public static function mailboxOptions(): array
@@ -602,6 +738,30 @@ class GmailConnectionService
     private function base64UrlEncode(string $value): string
     {
         return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+    }
+
+    private function decodePubSubData(string $data): array
+    {
+        if ($data === '') {
+            return [];
+        }
+
+        $decoded = base64_decode($data, true);
+
+        if (! is_string($decoded)) {
+            return [];
+        }
+
+        $json = json_decode($decoded, true);
+
+        return is_array($json) ? $json : [];
+    }
+
+    private function recordPubSubAttempt(ConnectedAccount $account, array $meta): void
+    {
+        $account->forceFill([
+            'provider_meta' => array_merge($account->provider_meta ?? [], $meta),
+        ])->save();
     }
 
     private function sanitizeEmailBody(string $body): string

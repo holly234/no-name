@@ -75,6 +75,57 @@ class GmailIntegrationTest extends TestCase
         );
     }
 
+    public function test_gmail_callback_registers_watch_when_pubsub_topic_is_configured(): void
+    {
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        config([
+            'services.gmail.client_id' => 'gmail-client-id',
+            'services.gmail.client_secret' => 'gmail-client-secret',
+            'services.gmail.redirect_uri' => 'http://localhost/dashboard/accounts/gmail/callback',
+            'services.gmail.pubsub_topic' => 'projects/perpetual/topics/gmail-inbound',
+        ]);
+
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response([
+                'access_token' => 'gmail-access-token',
+                'refresh_token' => 'gmail-refresh-token',
+                'expires_in' => 3600,
+                'scope' => 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
+            ]),
+            'https://gmail.googleapis.com/gmail/v1/users/me/profile' => Http::response([
+                'emailAddress' => 'support@example.com',
+                'messagesTotal' => 10,
+                'historyId' => 'history-1',
+            ]),
+            'https://gmail.googleapis.com/gmail/v1/users/me/watch' => Http::response([
+                'historyId' => 'history-watch',
+                'expiration' => '1784160000000',
+            ]),
+        ]);
+
+        $this->actingAs($user)
+            ->withSession([
+                'current_business_id' => $business->id,
+                'gmail_oauth_state' => 'state-token',
+                'gmail_oauth_business_id' => $business->id,
+            ])
+            ->get(route('dashboard.accounts.gmail.callback', [
+                'code' => 'auth-code',
+                'state' => 'state-token',
+            ]))
+            ->assertRedirect(route('dashboard.accounts'));
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://gmail.googleapis.com/gmail/v1/users/me/watch'
+            && $request['topicName'] === 'projects/perpetual/topics/gmail-inbound'
+            && $request['labelIds'] === ['INBOX']);
+
+        $account = ConnectedAccount::where('platform', 'gmail')->firstOrFail();
+
+        $this->assertSame('history-watch', $account->provider_meta['watch_history_id']);
+        $this->assertSame('projects/perpetual/topics/gmail-inbound', $account->provider_meta['watch_topic']);
+    }
+
     public function test_gmail_sync_rejects_foreign_business_account(): void
     {
         $user = User::factory()->create();
@@ -422,6 +473,60 @@ class GmailIntegrationTest extends TestCase
             'direction' => 'incoming',
             'body' => 'Please send your pricing.',
         ]);
+    }
+
+    public function test_gmail_pubsub_webhook_requires_verification_token(): void
+    {
+        config(['services.gmail.pubsub_verification_token' => 'pubsub-secret']);
+
+        $this->postJson('/api/webhooks/gmail/pubsub', [
+            'message' => [
+                'data' => base64_encode(json_encode(['emailAddress' => 'support@example.com'])),
+            ],
+        ])->assertUnauthorized();
+    }
+
+    public function test_gmail_pubsub_webhook_triggers_account_sync(): void
+    {
+        config(['services.gmail.pubsub_verification_token' => 'pubsub-secret']);
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $this->createGmailAccount($business);
+        $this->fakeGmailSync('msg-pubsub', 'thread-pubsub', 'Ada Customer <ada@example.com>', 'Need pricing', 'Please send your pricing.');
+
+        $response = $this->postJson('/api/webhooks/gmail/pubsub?token=pubsub-secret', [
+            'message' => [
+                'messageId' => 'pubsub-message-1',
+                'data' => base64_encode(json_encode([
+                    'emailAddress' => 'support@example.com',
+                    'historyId' => 'history-pubsub',
+                ])),
+            ],
+            'subscription' => 'projects/perpetual/subscriptions/gmail-inbound',
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'status' => 'processed',
+                'email' => 'support@example.com',
+                'history_id' => 'history-pubsub',
+                'message_id' => 'pubsub-message-1',
+                'accounts' => 1,
+                'imported' => 1,
+                'failed' => 0,
+            ]);
+
+        $this->assertDatabaseHas('messages', [
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'body' => 'Please send your pricing.',
+        ]);
+
+        $account = ConnectedAccount::where('platform', 'gmail')->firstOrFail();
+
+        $this->assertSame('success', $account->provider_meta['last_pubsub_status']);
+        $this->assertSame('history-pubsub', $account->provider_meta['last_pubsub_history_id']);
     }
 
     public function test_staff_reply_to_gmail_sends_reply_through_gmail_api(): void

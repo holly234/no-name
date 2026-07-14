@@ -1,6 +1,6 @@
 # Perpetual Inbox AI Project Memory
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 ## Current Instruction
 
@@ -10,7 +10,7 @@ Current build priority:
 - Keep the inbox as the default dashboard screen.
 - Keep every business-owned query scoped by `business_id`.
 - Preserve the calm, mature workflow-product tone. Avoid AI hype in public-facing copy.
-- Use fake/demo integrations for Meta channels first. Gmail OAuth/manual sync and Telegram Bot API are now the first real provider connections. Real Meta, n8n, and OpenAI integrations remain later-phase work.
+- Use fake/demo integrations for Meta channels first. Gmail OAuth/scheduled polling/text replies and Telegram Bot API are now the first real provider connections. Real Meta, n8n workflow execution, OpenAI, and Gmail Pub/Sub remain later-phase work.
 - Maintain the current mood-board aligned DM-style inbox UI unless the user explicitly asks for a redesign.
 - Keep dashboard surfaces flat and premium. Do not add gradients to dashboard pages, tabs, cards, loading states, or channel badges.
 - Use `docs/INTEGRATION_READY.md` as the handoff checklist when wiring OpenAI, Meta, and n8n.
@@ -240,6 +240,13 @@ API:
 
 n8n endpoints require `X-N8N-SECRET`, compare it with `N8N_WEBHOOK_SECRET` or `APP_WEBHOOK_SECRET`, return 401 if invalid, are API-rate-limited, and validate request data.
 
+Gmail automatic polling:
+- `php artisan gmail:sync` syncs connected Gmail inbox accounts.
+- Laravel scheduler runs `gmail:sync --mailbox=inbox --limit=20` every minute when the VPS cron calls `php artisan schedule:run`.
+- Gmail Pub/Sub push support exists at `POST /api/webhooks/gmail/pubsub?token={GMAIL_PUBSUB_VERIFICATION_TOKEN}`.
+- When `GMAIL_PUBSUB_TOPIC` is configured, Gmail connect attempts to register `users/me/watch` for inbox changes.
+- Pub/Sub currently triggers the existing recent-inbox sync path for the matching connected account; cron polling should remain as a safety fallback.
+
 Public webhook endpoints require `X-WEBHOOK-SECRET` or `X-META-SECRET`. They prefer the business-specific `businesses.webhook_secret` when a request is tied to a business/conversation, with `APP_WEBHOOK_SECRET`/`META_WEBHOOK_SECRET` as global fallback.
 
 ## Current Page Scope
@@ -260,7 +267,7 @@ Dashboard layout:
 Feature pages:
 - Dashboard home redirects to inbox by default.
 - 3-column inbox with conversation list, thread, media-capable composer, and customer details
-- Connected accounts with fake Meta-channel connection flow, real Gmail OAuth/manual sync, multiple accounts per platform, active-only account list, disconnect support, and no intro/explainer header block
+- Connected accounts with fake Meta-channel connection flow, real Gmail OAuth/manual and scheduled sync, Gmail text replies, multiple accounts per platform, active-only account list, disconnect support, and no intro/explainer header block
 - AI settings with fake preview reply
 - Editable knowledge base sections for FAQs, products/services, business rules, and saved replies. Mobile should show one active section at a time through section tabs, not a long stacked page of every form.
 - Settings with editable business profile and workspace summary. Internal API, billing, and danger-zone placeholders are intentionally hidden from normal workspace users for now.
@@ -311,7 +318,7 @@ Connected account behavior:
 - Demo connect counts only active accounts when naming new demo accounts.
 - Gmail uses `platform=gmail`; synced conversations use channel `Gmail`.
 - Gmail access and refresh tokens are encrypted; `provider_meta` stores non-secret profile/scope metadata.
-- Gmail sync imports recent inbox emails manually, skips duplicate Gmail message IDs, and defaults imported email threads to `Needs Human`/`ai_mode=human`.
+- Gmail sync imports recent inbox emails manually or through the scheduler, skips duplicate Gmail message IDs, and defaults imported email threads to `Needs Human`/`ai_mode=human`.
 
 Knowledge base behavior:
 - FAQs, products/services, business rules, and saved replies can be created, edited, and deleted from the dashboard.
@@ -593,12 +600,13 @@ Gmail integration pass on 2026-07-07:
 - Added Gmail as the first real provider connection while preserving the existing inbox and AI Conversation State Engine architecture.
 - Added `connected_accounts.refresh_token`, `token_expires_at`, and `provider_meta`.
 - Added encrypted casts for Gmail access/refresh token storage.
-- Added `GmailConnectionService` for OAuth URL creation, auth-code exchange, profile fetch, token refresh, manual inbox sync, MIME body parsing, and local import.
-- Added Gmail dashboard routes: redirect, callback, and manual sync.
+- Added `GmailConnectionService` for OAuth URL creation, auth-code exchange, profile fetch, token refresh, manual/scheduled inbox sync, MIME body parsing, local import, and text replies through the Gmail API.
+- Added Gmail dashboard routes: redirect, callback, manual sync, and reply-capable inbox integration.
 - Added Gmail card to Accounts page with Connect Gmail, Sync emails, and Disconnect actions.
 - Added Gmail channel metadata, icon, inbox filter support, Gmail subject preview, and email-address customer identity label.
 - Gmail sync imports latest 20 inbox emails, maps conversations by Gmail thread when possible, stores subject/from/to/internal date in message metadata, and skips duplicate Gmail message IDs.
-- Gmail imported messages default to `Needs Human` and `ai_mode=human`; Gmail auto-reply and sending are intentionally disabled for now.
+- Gmail imported messages default to `Needs Human` and `ai_mode=human`; Gmail auto-reply is intentionally disabled for now.
+- Staff text replies in Gmail conversations are sent through Gmail API with reply-thread metadata when available. Gmail attachment replies remain disabled until implemented safely.
 - Gmail HTML is cleaned before display, useful links are preserved, no-reply/automated senders are detected, and non-repliable email threads disable the composer.
 - Added feature tests for Gmail auth requirement, callback account creation, foreign-business sync denial, scoped import, duplicate prevention, and token secrecy.
 - Latest verification after this pass: PHPUnit passes with `55 tests, 171 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
@@ -614,7 +622,7 @@ Telegram integration pass on 2026-07-09:
 - Added Telegram channel icon/filter support in the inbox and kept all channel filters on one horizontal row.
 - Telegram uses bot-backed customer conversations only. It does not import a user's personal Telegram inbox or private chats.
 - Telegram webhook status can show live while delivery still fails if Telegram cannot validate the site's certificate. Check `getWebhookInfo.last_error_message` when messages do not arrive.
-- Latest verification after this pass: PHPUnit passes with `74 tests, 292 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+- Latest verification after the current Gmail Pub/Sub pass: PHPUnit passes with `90 tests, 360 assertions`, `php artisan route:list --except-vendor` passes, and `npm run build` passes.
 
 Not built yet:
 - Authorization policies/roles beyond current business-ownership checks
@@ -625,8 +633,8 @@ Not built yet:
 - Real Meta API integration
 - Real OpenAI integration
 - Real n8n workflow integration beyond placeholder-compatible endpoints
-- Gmail Pub/Sub/watch real-time sync
-- Gmail outbound sending from the inbox
+- Gmail Pub/Sub history-diff replay and automatic watch renewal
+- Gmail outbound attachment sending from the inbox
 - Telegram private-user inbox import through MTProto
 - Billing/subscription system
 - True infinite loading for older conversations/messages
