@@ -98,7 +98,7 @@ class GmailIntegrationTest extends TestCase
         $this->actingAs($user)
             ->post(route('dashboard.accounts.gmail.sync', $account))
             ->assertRedirect()
-            ->assertSessionHas('status', 'Gmail sync complete: 1 imported, 0 skipped.');
+            ->assertSessionHas('status', 'Inbox sync complete: 1 imported, 0 skipped.');
 
         $conversation = Conversation::where('business_id', $business->id)
             ->where('channel', 'Gmail')
@@ -404,6 +404,95 @@ class GmailIntegrationTest extends TestCase
         $this->actingAs($foreignUser)
             ->get(route('dashboard.attachments.download', $attachment))
             ->assertForbidden();
+    }
+
+    public function test_gmail_auto_sync_command_imports_connected_account_messages(): void
+    {
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $this->createGmailAccount($business);
+        $this->fakeGmailSync('msg-auto', 'thread-auto', 'Ada Customer <ada@example.com>', 'Need pricing', 'Please send your pricing.');
+
+        $this->artisan('gmail:sync')
+            ->expectsOutputToContain('support@example.com: 1 imported, 0 skipped.')
+            ->assertExitCode(0);
+
+        $this->assertDatabaseHas('messages', [
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'body' => 'Please send your pricing.',
+        ]);
+    }
+
+    public function test_staff_reply_to_gmail_sends_reply_through_gmail_api(): void
+    {
+        Http::fake([
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send' => Http::response([
+                'id' => 'sent-gmail-1',
+                'threadId' => 'thread-reply',
+                'labelIds' => ['SENT'],
+            ]),
+        ]);
+
+        $user = User::factory()->create(['name' => 'Demo Owner']);
+        $business = $this->createBusiness($user);
+        $account = $this->createGmailAccount($business);
+        $conversation = Conversation::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_name' => 'Ada Customer',
+            'customer_external_id' => 'ada@example.com',
+            'channel' => 'Gmail',
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+            'last_message_at' => now(),
+        ]);
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => 'Can you send pricing?',
+            'metadata' => [
+                'source' => 'gmail',
+                'gmail_message_id' => 'msg-reply',
+                'gmail_thread_id' => 'thread-reply',
+                'subject' => 'Pricing',
+                'from_email' => 'ada@example.com',
+                'to_email' => 'support@example.com',
+                'rfc_message_id' => '<msg-reply@example.com>',
+                'references' => '<root@example.com>',
+            ],
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('dashboard.inbox.reply', $conversation), ['body' => 'Pricing starts from NGN 55,000.'])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Reply sent.');
+
+        Http::assertSent(function ($request) {
+            if ($request->url() !== 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send') {
+                return false;
+            }
+
+            $encodedRaw = strtr($request['raw'], '-_', '+/');
+            $encodedRaw .= str_repeat('=', (4 - strlen($encodedRaw) % 4) % 4);
+            $raw = base64_decode($encodedRaw, true);
+
+            return $request['threadId'] === 'thread-reply'
+                && str_contains($raw, 'To: ada@example.com')
+                && str_contains($raw, 'Subject: Re: Pricing')
+                && str_contains($raw, 'In-Reply-To: <msg-reply@example.com>')
+                && str_contains($raw, 'Pricing starts from NGN 55,000.');
+        });
+
+        $this->assertDatabaseHas('automation_logs', [
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'event_type' => 'manual_reply_saved',
+            'status' => 'success',
+        ]);
     }
 
     public function test_account_ui_does_not_expose_gmail_tokens(): void

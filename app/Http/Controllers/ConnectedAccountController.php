@@ -134,8 +134,13 @@ class ConnectedAccountController extends Controller
         abort_unless($account->business_id === $business->id, 403);
         abort_unless($account->platform === 'gmail', 404);
 
+        $validated = $request->validate([
+            'mailbox' => ['nullable', 'string', Rule::in(GmailConnectionService::MAILBOXES)],
+        ]);
+        $mailbox = $validated['mailbox'] ?? GmailConnectionService::MAILBOX_INBOX;
+
         try {
-            $result = $gmailConnectionService->syncRecentInboxMessages($account);
+            $result = $gmailConnectionService->syncRecentInboxMessages($account, mailbox: $mailbox);
         } catch (ConnectionException $exception) {
             report($exception);
 
@@ -162,7 +167,9 @@ class ConnectedAccountController extends Controller
             return back()->with('error', 'Gmail sync failed. Please reconnect Gmail and try again.');
         }
 
-        return back()->with('status', "Gmail sync complete: {$result['imported']} imported, {$result['skipped']} skipped.");
+        $mailboxLabel = GmailConnectionService::mailboxOptions()[$mailbox] ?? 'Gmail';
+
+        return back()->with('status', "{$mailboxLabel} sync complete: {$result['imported']} imported, {$result['skipped']} skipped.");
     }
 
     public function connectTelegram(Request $request, TelegramConnectionService $telegramConnectionService)

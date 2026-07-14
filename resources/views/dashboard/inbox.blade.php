@@ -65,19 +65,19 @@
                         <input type="hidden" name="date" value="{{ $activeDate }}">
                         <input type="hidden" name="time" value="{{ $activeTime }}">
                         <input type="hidden" name="sort" value="{{ $activeSort }}">
-                        <label class="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white px-3 py-3 text-[#6B7280] shadow-sm transition focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/15 sm:px-4">
+                        <label class="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white px-3 py-3 text-[#6B7280] shadow-sm transition sm:px-4">
                             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5 shrink-0">
                                 <path d="m21 21-4.35-4.35"></path>
                                 <circle cx="11" cy="11" r="7"></circle>
                             </svg>
                             <span class="sr-only">Search conversations</span>
-                            <input name="q" value="{{ $search }}" autocomplete="off" placeholder="Search conversations" class="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-medium text-[#111827] placeholder:text-[#6B7280] focus:ring-0">
+                            <input name="q" value="{{ $search }}" autocomplete="off" placeholder="Search conversations" class="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-medium text-[#111827] placeholder:text-[#6B7280] focus:border-transparent focus:outline-none focus:ring-0 focus:shadow-none">
                             @if ($search !== '')
                                 <a href="{{ route('dashboard.inbox', array_filter($filterQuery, fn ($value, $key) => $key !== 'q', ARRAY_FILTER_USE_BOTH)) }}" class="shrink-0 rounded-full px-1.5 text-xs font-bold text-[#6B7280] hover:bg-[#EEF0F3] hover:text-[#111827]" aria-label="Clear search">x</a>
                             @endif
                         </label>
                     </form>
-                    <button type="button" x-on:click="filtersOpen = true" class="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#111827] shadow-sm transition hover:bg-[#F5F6F8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20" aria-label="Open filters">
+                    <button type="button" x-on:click="filtersOpen = true" class="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#111827] shadow-sm transition hover:bg-[#F5F6F8]" aria-label="Open filters">
                         @if ($advancedFiltersActive)
                             <span class="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#2563EB]"></span>
                         @endif

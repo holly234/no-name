@@ -7,6 +7,7 @@ use App\Models\AiSetting;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Services\ConversationMessageService;
+use App\Services\GmailConnectionService;
 use App\Services\TelegramConnectionService;
 use App\Support\InboxUi;
 use Illuminate\Http\Client\ConnectionException;
@@ -201,6 +202,7 @@ class InboxController extends Controller
         Request $request,
         Conversation $conversation,
         ConversationMessageService $conversationMessageService,
+        GmailConnectionService $gmailConnectionService,
         TelegramConnectionService $telegramConnectionService
     )
     {
@@ -221,6 +223,10 @@ class InboxController extends Controller
 
         $attachments = $request->file('attachments', []);
         $replyTo = null;
+
+        if ($conversation->channel === 'Gmail' && count($attachments) > 0) {
+            return back()->with('error', 'Gmail file replies are not enabled yet. Send a text reply for this email thread.');
+        }
 
         if (! empty($validated['reply_to_message_id'])) {
             $replyTo = Message::query()
@@ -301,6 +307,48 @@ class InboxController extends Controller
                 ]);
 
                 return back()->with('error', 'Reply saved locally, but Telegram did not confirm delivery: '.$exception->getMessage());
+            }
+        }
+
+        if ($conversation->channel === 'Gmail' && $message->body !== '') {
+            try {
+                $gmailConversation = $conversation->fresh('connectedAccount');
+                $gmailResponse = $gmailConnectionService->sendReply($gmailConversation, $message);
+
+                $deliveryMeta = [
+                    'gmail_response' => $gmailResponse,
+                    'gmail_message_id' => $gmailResponse['id'] ?? null,
+                    'gmail_thread_id' => $gmailResponse['threadId'] ?? null,
+                    'gmail_label_ids' => $gmailResponse['labelIds'] ?? null,
+                ];
+            } catch (ConnectionException $exception) {
+                report($exception);
+
+                $this->logReplyFailure($business->id, $conversation, 'Gmail connection failed while sending reply.', [
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return back()->with('error', 'Reply saved locally, but Gmail could not be reached from this machine.');
+            } catch (RequestException $exception) {
+                report($exception);
+
+                $response = $exception->response?->json();
+                $gmailReason = $response['error']['message'] ?? $exception->getMessage();
+
+                $this->logReplyFailure($business->id, $conversation, 'Gmail rejected the reply.', [
+                    'gmail_response' => $response,
+                    'http_status' => $exception->response?->status(),
+                ]);
+
+                return back()->with('error', 'Reply saved locally, but Gmail rejected it: '.$gmailReason);
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                $this->logReplyFailure($business->id, $conversation, 'Gmail reply failed unexpectedly.', [
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return back()->with('error', 'Reply saved locally, but Gmail did not confirm delivery: '.$exception->getMessage());
             }
         }
 

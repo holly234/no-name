@@ -23,6 +23,23 @@ class GmailConnectionService
     private const GMAIL_API_BASE = 'https://gmail.googleapis.com/gmail/v1';
     private const HTTP_TIMEOUT_SECONDS = 12;
     private const HTTP_CONNECT_TIMEOUT_SECONDS = 5;
+    public const MAILBOX_ALL = 'all';
+    public const MAILBOX_INBOX = 'inbox';
+    public const MAILBOX_SPAM = 'spam';
+    public const MAILBOX_PROMOTIONS = 'promotions';
+    public const MAILBOX_SOCIAL = 'social';
+    public const MAILBOX_UPDATES = 'updates';
+    public const MAILBOX_FORUMS = 'forums';
+
+    public const MAILBOXES = [
+        self::MAILBOX_ALL,
+        self::MAILBOX_INBOX,
+        self::MAILBOX_SPAM,
+        self::MAILBOX_PROMOTIONS,
+        self::MAILBOX_SOCIAL,
+        self::MAILBOX_UPDATES,
+        self::MAILBOX_FORUMS,
+    ];
 
     public function buildRedirectUrl(string $state): string
     {
@@ -99,13 +116,27 @@ class GmailConnectionService
         return $account;
     }
 
-    public function syncRecentInboxMessages(ConnectedAccount $account, int $limit = 20): array
+    public static function mailboxOptions(): array
     {
+        return [
+            self::MAILBOX_ALL => 'All Gmail',
+            self::MAILBOX_INBOX => 'Inbox',
+            self::MAILBOX_SPAM => 'Spam',
+            self::MAILBOX_PROMOTIONS => 'Promotions',
+            self::MAILBOX_SOCIAL => 'Social',
+            self::MAILBOX_UPDATES => 'Updates',
+            self::MAILBOX_FORUMS => 'Forums',
+        ];
+    }
+
+    public function syncRecentInboxMessages(ConnectedAccount $account, int $limit = 20, string $mailbox = self::MAILBOX_INBOX): array
+    {
+        $mailbox = in_array($mailbox, self::MAILBOXES, true) ? $mailbox : self::MAILBOX_INBOX;
         $token = $this->validAccessToken($account);
         $messageSummaries = $this->gmail($token)
             ->get(self::GMAIL_API_BASE.'/users/me/messages', [
                 'maxResults' => $limit,
-                'q' => 'in:inbox',
+                'q' => $this->mailboxQuery($mailbox),
             ])
             ->throw()
             ->json('messages', []);
@@ -137,15 +168,67 @@ class GmailConnectionService
             'event_type' => 'gmail_sync',
             'status' => 'success',
             'message' => "Gmail sync imported {$imported} messages and skipped {$skipped}.",
-            'metadata' => ['imported' => $imported, 'skipped' => $skipped],
+            'metadata' => ['imported' => $imported, 'skipped' => $skipped, 'mailbox' => $mailbox],
         ]);
 
         return ['imported' => $imported, 'skipped' => $skipped];
     }
 
-    public function sendEmailPlaceholder(): void
+    public function sendReply(Conversation $conversation, Message $message): array
     {
-        throw new RuntimeException('Gmail sending is intentionally not enabled yet.');
+        $account = $conversation->connectedAccount;
+
+        if (! $account || $account->platform !== 'gmail') {
+            throw new RuntimeException('This conversation is not linked to a connected Gmail account.');
+        }
+
+        if ($message->attachments()->exists()) {
+            throw new RuntimeException('Gmail attachment sending is not enabled yet.');
+        }
+
+        $latestGmailMessage = $conversation->messages()
+            ->where('metadata->source', 'gmail')
+            ->latest()
+            ->first();
+
+        $metadata = $latestGmailMessage?->metadata ?? [];
+        $to = $metadata['from_email'] ?? $conversation->customer_external_id;
+        $from = $account->provider_meta['email'] ?? $account->account_name;
+        $subject = (string) ($metadata['subject'] ?? '(no subject)');
+        $threadId = $metadata['gmail_thread_id'] ?? null;
+        $replyToMessageId = $metadata['rfc_message_id'] ?? null;
+        $references = trim((string) ($metadata['references'] ?? ''));
+
+        if (! str_starts_with(strtolower($subject), 're:')) {
+            $subject = 'Re: '.$subject;
+        }
+
+        $headers = [
+            'From: '.$from,
+            'To: '.$to,
+            'Subject: '.$subject,
+            'MIME-Version: 1.0',
+            'Content-Type: text/plain; charset=UTF-8',
+        ];
+
+        if ($replyToMessageId) {
+            $headers[] = 'In-Reply-To: '.$replyToMessageId;
+            $headers[] = 'References: '.trim($references.' '.$replyToMessageId);
+        }
+
+        $raw = implode("\r\n", $headers)."\r\n\r\n".$message->body;
+        $payload = [
+            'raw' => $this->base64UrlEncode($raw),
+        ];
+
+        if ($threadId) {
+            $payload['threadId'] = $threadId;
+        }
+
+        return $this->gmail($this->validAccessToken($account))
+            ->post(self::GMAIL_API_BASE.'/users/me/messages/send', $payload)
+            ->throw()
+            ->json();
     }
 
     private function importGmailMessage(ConnectedAccount $account, array $gmailMessage): bool
@@ -158,6 +241,7 @@ class GmailConnectionService
         }
 
         $headers = $this->headers($gmailMessage['payload']['headers'] ?? []);
+        $labelIds = $gmailMessage['labelIds'] ?? [];
         [$fromName, $fromEmail] = $this->parseAddress($headers['from'] ?? 'Unknown Sender');
         [, $toEmail] = $this->parseAddress($headers['to'] ?? ($account->provider_meta['email'] ?? $account->account_name));
         $subject = $headers['subject'] ?? '(no subject)';
@@ -214,6 +298,10 @@ class GmailConnectionService
                 'from_email' => $fromEmail,
                 'to_email' => $toEmail,
                 'internal_date' => $gmailMessage['internalDate'] ?? null,
+                'label_ids' => $labelIds,
+                'gmail_mailbox' => $this->mailboxFromLabels($labelIds),
+                'rfc_message_id' => $headers['message-id'] ?? null,
+                'references' => $headers['references'] ?? null,
                 'reply_disabled' => $replyDisabled['disabled'],
                 'reply_disabled_reason' => $replyDisabled['reason'],
             ],
@@ -339,6 +427,33 @@ class GmailConnectionService
         $mimeType = strtolower((string) $mimeType);
 
         return str_starts_with($mimeType, 'audio/') || str_starts_with($mimeType, 'video/');
+    }
+
+    private function mailboxQuery(string $mailbox): string
+    {
+        return match ($mailbox) {
+            self::MAILBOX_ALL => 'newer_than:30d -in:sent -in:drafts -in:chats',
+            self::MAILBOX_SPAM => 'in:spam',
+            self::MAILBOX_PROMOTIONS => 'category:promotions',
+            self::MAILBOX_SOCIAL => 'category:social',
+            self::MAILBOX_UPDATES => 'category:updates',
+            self::MAILBOX_FORUMS => 'category:forums',
+            default => 'in:inbox',
+        };
+    }
+
+    private function mailboxFromLabels(array $labelIds): string
+    {
+        $labels = array_map(static fn ($label): string => strtoupper((string) $label), $labelIds);
+
+        return match (true) {
+            in_array('SPAM', $labels, true) => self::MAILBOX_SPAM,
+            in_array('CATEGORY_PROMOTIONS', $labels, true) => self::MAILBOX_PROMOTIONS,
+            in_array('CATEGORY_SOCIAL', $labels, true) => self::MAILBOX_SOCIAL,
+            in_array('CATEGORY_UPDATES', $labels, true) => self::MAILBOX_UPDATES,
+            in_array('CATEGORY_FORUMS', $labels, true) => self::MAILBOX_FORUMS,
+            default => self::MAILBOX_INBOX,
+        };
     }
 
     private function fetchProfile(string $accessToken): array
@@ -482,6 +597,11 @@ class GmailConnectionService
         $body .= str_repeat('=', (4 - strlen($body) % 4) % 4);
 
         return (string) base64_decode($body, true);
+    }
+
+    private function base64UrlEncode(string $value): string
+    {
+        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
     }
 
     private function sanitizeEmailBody(string $body): string
