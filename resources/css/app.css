@@ -77,8 +77,8 @@
     }
 
     .app-nav-link-active {
-        background: #ecfdf5;
-        color: #047857;
+        background: #2563eb;
+        color: #ffffff;
         box-shadow: none;
     }
 
@@ -95,7 +95,7 @@
     }
 
     .app-nav-link-active .nav-icon {
-        background: #d1fae5;
+        background: rgba(255, 255, 255, 0.15);
     }
 
     .mobile-menu-button {
