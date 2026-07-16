@@ -8,6 +8,68 @@ use Illuminate\Support\Facades\Http;
 
 class MetaConnectionService
 {
+    public function connectDevelopmentAccount(
+        int $businessId,
+        string $platform,
+        string $accessToken,
+        string $assetId,
+        ?string $businessAccountId = null,
+        ?string $accountName = null,
+        bool $subscribe = true,
+    ): ConnectedAccount {
+        $profileFields = match ($platform) {
+            'WhatsApp' => 'display_phone_number,verified_name',
+            'Instagram' => 'id,username,name',
+            default => 'id,name',
+        };
+        $apiHost = $platform === 'Instagram' ? 'graph.instagram.com' : 'graph.facebook.com';
+        $profile = $this->request($accessToken, $assetId.'?fields='.$profileFields, 'get', [], $apiHost);
+
+        if ($subscribe) {
+            $subscriptionAssetId = $platform === 'WhatsApp' ? $businessAccountId : $assetId;
+            if (! $subscriptionAssetId) {
+                throw new \RuntimeException('A WhatsApp Business Account ID is required to subscribe this test account.');
+            }
+
+            $payload = match ($platform) {
+                'WhatsApp' => [],
+                'Instagram' => ['subscribed_fields' => 'messages,messaging_postbacks'],
+                default => ['subscribed_fields' => 'messages,messaging_postbacks,messaging_optins,message_deliveries,message_reads'],
+            };
+            $this->request($accessToken, $subscriptionAssetId.'/subscribed_apps', 'post', $payload, $apiHost);
+        }
+
+        $resolvedName = $accountName ?: match ($platform) {
+            'WhatsApp' => $profile['verified_name'] ?? $profile['display_phone_number'] ?? 'WhatsApp Test Number',
+            'Instagram' => isset($profile['username']) ? '@'.$profile['username'] : ($profile['name'] ?? 'Instagram Test Account'),
+            default => $profile['name'] ?? 'Facebook Test Page',
+        };
+
+        return ConnectedAccount::updateOrCreate(
+            [
+                'business_id' => $businessId,
+                'platform' => $platform,
+                'external_account_id' => $assetId,
+            ],
+            [
+                'account_name' => $resolvedName,
+                'page_id' => in_array($platform, ['Facebook', 'Instagram'], true) ? $assetId : null,
+                'phone_number_id' => $platform === 'WhatsApp' ? $assetId : null,
+                'access_token' => $accessToken,
+                'status' => 'connected',
+                'connected_at' => now(),
+                'provider_meta' => [
+                    'provider' => 'meta_development',
+                    'connection_mode' => 'development_manual',
+                    'business_account_id' => $businessAccountId,
+                    'profile' => collect($profile)->except(['access_token'])->all(),
+                    'subscribed_at' => $subscribe ? now()->toIso8601String() : null,
+                    'webhook_url' => $this->webhookUrl(),
+                ],
+            ],
+        );
+    }
+
     public function connectEmbeddedSignup(
         int $businessId,
         string $code,
@@ -81,9 +143,35 @@ class MetaConnectionService
         ]);
     }
 
-    private function request(string $accessToken, string $path, string $method, array $payload = []): array
+    public function sendMessengerText(Conversation $conversation, string $body): array
     {
-        $url = 'https://graph.facebook.com/'.config('services.meta.graph_version', 'v23.0').'/'.$path;
+        $account = $conversation->connectedAccount;
+        if (! $account || ! in_array($account->platform, ['Facebook', 'Instagram'], true) || ! $account->access_token) {
+            throw new \RuntimeException('This conversation is not linked to a connected Meta messaging account.');
+        }
+
+        $assetId = $account->page_id ?: $account->external_account_id;
+
+        $payload = [
+            'recipient' => ['id' => $conversation->customer_external_id],
+            'message' => ['text' => $body],
+        ];
+        if ($account->platform === 'Facebook') {
+            $payload['messaging_type'] = 'RESPONSE';
+        }
+
+        return $this->request(
+            $account->access_token,
+            $assetId.'/messages',
+            'post',
+            $payload,
+            $account->platform === 'Instagram' ? 'graph.instagram.com' : 'graph.facebook.com',
+        );
+    }
+
+    private function request(string $accessToken, string $path, string $method, array $payload = [], string $host = 'graph.facebook.com'): array
+    {
+        $url = 'https://'.$host.'/'.config('services.meta.graph_version', 'v25.0').'/'.$path;
         $request = Http::timeout(15)->withToken($accessToken)->acceptJson();
         $response = $method === 'get' ? $request->get($url) : $request->post($url, $payload);
 

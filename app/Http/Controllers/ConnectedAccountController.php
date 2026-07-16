@@ -31,6 +31,7 @@ class ConnectedAccountController extends Controller
             'metaAppId' => config('services.meta.app_id'),
             'metaConfigId' => config('services.meta.embedded_signup_config_id'),
             'metaGraphVersion' => config('services.meta.graph_version', 'v25.0'),
+            'metaDevelopmentConnectEnabled' => (bool) config('services.meta.development_connect_enabled'),
         ]);
     }
 
@@ -289,6 +290,61 @@ class ConnectedAccountController extends Controller
         ]);
 
         return back()->with('status', $account->account_name.' connected.');
+    }
+
+    public function connectMetaDevelopment(Request $request, MetaConnectionService $metaConnectionService)
+    {
+        abort_unless((bool) config('services.meta.development_connect_enabled'), 404);
+
+        $business = $request->attributes->get('currentBusiness');
+        $membership = $business->users()->whereKey($request->user()->id)->first();
+        abort_unless(
+            (int) $business->owner_id === (int) $request->user()->id
+            || in_array(strtolower((string) $membership?->pivot?->role), ['owner', 'admin'], true),
+            403,
+        );
+        $validated = $request->validate([
+            'platform' => ['required', 'string', Rule::in(['WhatsApp', 'Facebook', 'Instagram'])],
+            'account_name' => ['nullable', 'string', 'max:80'],
+            'asset_id' => ['required', 'string', 'max:100'],
+            'business_account_id' => ['nullable', 'string', 'max:100'],
+            'access_token' => ['required', 'string', 'max:4096'],
+            'subscribe_webhooks' => ['nullable', 'boolean'],
+        ]);
+
+        if ($validated['platform'] === 'WhatsApp' && empty($validated['business_account_id'])) {
+            return back()->withErrors([
+                'business_account_id' => 'The WABA ID is required for a WhatsApp development connection.',
+            ])->withInput($request->except('access_token'));
+        }
+
+        try {
+            $account = $metaConnectionService->connectDevelopmentAccount(
+                businessId: $business->id,
+                platform: $validated['platform'],
+                accessToken: $validated['access_token'],
+                assetId: $validated['asset_id'],
+                businessAccountId: $validated['business_account_id'] ?? null,
+                accountName: $validated['account_name'] ?? null,
+                subscribe: (bool) ($validated['subscribe_webhooks'] ?? true),
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->with('error', 'Meta rejected the development connection: '.$exception->getMessage())
+                ->withInput($request->except('access_token'));
+        }
+
+        AutomationLog::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'event_type' => 'account_connected',
+            'status' => 'success',
+            'message' => $account->platform.' development account connected.',
+            'metadata' => ['connection_mode' => 'development_manual'],
+        ]);
+
+        return back()->with('status', $account->account_name.' connected for development testing.');
     }
 
     public function disconnect(Request $request, ConnectedAccount $account, TelegramConnectionService $telegramConnectionService)

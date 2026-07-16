@@ -50,6 +50,7 @@ Route::middleware(['auth', 'verified', 'current.business'])
         Route::post('/accounts/gmail/{account}/sync', [ConnectedAccountController::class, 'syncGmailAccount'])->name('dashboard.accounts.gmail.sync');
         Route::post('/accounts/telegram/connect', [ConnectedAccountController::class, 'connectTelegram'])->name('dashboard.accounts.telegram.connect');
         Route::post('/accounts/whatsapp/embedded-signup', [ConnectedAccountController::class, 'completeWhatsAppEmbeddedSignup'])->name('dashboard.accounts.whatsapp.embedded-signup');
+        Route::post('/accounts/meta/development-connect', [ConnectedAccountController::class, 'connectMetaDevelopment'])->name('dashboard.accounts.meta.development-connect');
         Route::patch('/accounts/{account}/disconnect', [ConnectedAccountController::class, 'disconnect'])->name('dashboard.accounts.disconnect');
         Route::get('/ai-settings', [AiSettingsController::class, 'index'])->name('dashboard.ai-settings');
         Route::patch('/ai-settings', [AiSettingsController::class, 'update'])->name('dashboard.ai-settings.update');

@@ -26,8 +26,9 @@ META_APP_SECRET=
 META_VERIFY_TOKEN=
 META_WEBHOOK_SECRET=
 META_WEBHOOK_VERIFY_TOKEN=
-META_GRAPH_VERSION=v23.0
+META_GRAPH_VERSION=v25.0
 META_EMBEDDED_SIGNUP_CONFIG_ID=
+META_DEVELOPMENT_CONNECT_ENABLED=false
 LEGAL_CONTACT_EMAIL=perpetualdev2@gmail.com
 META_REDIRECT_URI="${APP_URL}/dashboard/accounts/meta/callback"
 
@@ -139,6 +140,12 @@ Current seam:
 Current behavior:
 
 - Account connection is fake/demo through `dashboard.accounts.fake-connect`.
+- WhatsApp production/customer onboarding uses Meta Embedded Signup and stores the returned token encrypted per workspace.
+- With `META_DEVELOPMENT_CONNECT_ENABLED=true`, an owner/admin-only form validates and connects test WhatsApp phone numbers, Facebook Pages, and Instagram professional accounts owned by app-role users.
+- Development tokens are encrypted, never rendered back, and may subscribe their provider asset to the shared signed Meta webhook.
+- Signed WhatsApp, Facebook Messenger, and Instagram message webhooks route by provider asset ID to the correct workspace.
+- Staff text replies use WhatsApp Cloud API, Messenger Send API, or Instagram Send API according to the conversation channel.
+- Keep the development connector disabled during normal production use after public OAuth approval.
 - Demo connection creates a new connected account row; it does not overwrite existing accounts for the same platform.
 - Connected accounts can be disconnected. Disconnect clears the token and hides the account from the active Accounts UI while preserving the row for audit/history.
 - Incoming Meta-compatible messages can enter through `POST /api/webhooks/meta`.
@@ -160,7 +167,7 @@ Useful connected account columns:
 
 Next implementation steps:
 
-1. Implement Meta OAuth/connect flow in `MetaConnectionService`.
+1. Implement public Facebook and Instagram OAuth/connect flows in `MetaConnectionService` after Meta grants the required advanced permissions.
 2. Store page/account identifiers in `page_id`, `phone_number_id`, and `external_account_id`.
 3. Store page/account access token in encrypted `access_token`.
 4. Implement Meta webhook verification using `META_VERIFY_TOKEN`.

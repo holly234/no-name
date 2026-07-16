@@ -20,6 +20,7 @@ Current build priority:
 - Staff-facing customer identity should show Instagram/Facebook usernames, WhatsApp phone numbers, Gmail email addresses, or Telegram chat IDs where available. Add a separate stable provider ID later if real provider payloads require both identity matching and friendly display.
 - For polished UI/design interactions, prefer proven focused libraries/components over custom hand-built controls when a library gives better quality, accessibility, or maintainability. Keep all third-party UI aligned with `docs/VISUAL_MOOD_BOARD.md`; do not import a library's default visual style blindly.
 - Do not push to GitHub unless the user explicitly asks for `push`.
+- Preserve two Meta connection lanes: production/customer WhatsApp Embedded Signup and an explicitly enabled owner/admin-only development connector for test WhatsApp, Facebook Page, and Instagram professional assets. `META_DEVELOPMENT_CONNECT_ENABLED` defaults to false.
 
 ## Product Brief
 
@@ -633,7 +634,7 @@ Not built yet:
 - Configurable business-hours schedule UI
 - Separate immutable provider customer IDs from display usernames/phone numbers before production if real Meta payloads require both
 - Real Google OAuth login/linking behavior
-- Real Meta API integration
+- Public Facebook/Instagram OAuth onboarding and production approval; development-token connections, signed webhooks, and text replies are implemented for test assets
 - Real OpenAI integration
 - Real n8n workflow integration beyond placeholder-compatible endpoints
 - Gmail Pub/Sub history-diff replay

@@ -49,6 +49,58 @@ class WebhookController extends Controller
 
         $payload = $request->all();
 
+        if (in_array($payload['object'] ?? null, ['page', 'instagram'], true)) {
+            $platform = ($payload['object'] ?? null) === 'instagram' ? 'Instagram' : 'Facebook';
+
+            foreach ($payload['entry'] ?? [] as $entry) {
+                foreach ($entry['messaging'] ?? [] as $event) {
+                    $message = $event['message'] ?? [];
+                    if (($message['is_echo'] ?? false) || empty($message['text']) || empty($event['sender']['id'])) {
+                        continue;
+                    }
+
+                    $assetId = (string) ($event['recipient']['id'] ?? $entry['id'] ?? '');
+                    $account = ConnectedAccount::where('platform', $platform)
+                        ->where('status', 'connected')
+                        ->where(function ($query) use ($assetId) {
+                            $query->where('page_id', $assetId)->orWhere('external_account_id', $assetId);
+                        })
+                        ->first();
+
+                    if (! $account) {
+                        continue;
+                    }
+
+                    $senderId = (string) $event['sender']['id'];
+                    $conversation = $messageIngestionService->ingest([
+                        'business_id' => $account->business_id,
+                        'channel' => $platform,
+                        'connected_account_id' => $account->id,
+                        'external_account_id' => $account->external_account_id,
+                        'customer_name' => $platform.' customer',
+                        'customer_external_id' => $senderId,
+                        'body' => (string) $message['text'],
+                        'metadata' => [
+                            'source' => $platform === 'Instagram' ? 'meta_instagram' : 'meta_messenger',
+                            'meta_message_id' => $message['mid'] ?? null,
+                            'meta_timestamp' => $event['timestamp'] ?? null,
+                        ],
+                    ]);
+
+                    AutomationLog::create([
+                        'business_id' => $account->business_id,
+                        'connected_account_id' => $account->id,
+                        'event_type' => 'meta_webhook',
+                        'status' => 'success',
+                        'message' => $platform.' message processed.',
+                        'metadata' => ['conversation_id' => $conversation->id, 'message_id' => $message['mid'] ?? null],
+                    ]);
+                }
+            }
+
+            return response()->json(['message' => 'Meta webhook processed.']);
+        }
+
         foreach ($payload['entry'] ?? [] as $entry) {
             foreach ($entry['changes'] ?? [] as $change) {
                 if (($change['field'] ?? null) !== 'messages') {

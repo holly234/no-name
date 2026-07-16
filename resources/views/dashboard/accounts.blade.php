@@ -1,8 +1,8 @@
 <x-app-layout>
     @php
         $platforms = [
-            ['key' => 'Instagram', 'label' => 'Instagram', 'demo' => true],
-            ['key' => 'Facebook', 'label' => 'Facebook', 'demo' => true],
+            ['key' => 'Instagram', 'label' => 'Instagram', 'demo' => false],
+            ['key' => 'Facebook', 'label' => 'Facebook', 'demo' => false],
             ['key' => 'WhatsApp', 'label' => 'WhatsApp', 'demo' => false],
             ['key' => 'gmail', 'label' => 'Gmail', 'demo' => false],
             ['key' => 'Telegram', 'label' => 'Telegram', 'demo' => false],
@@ -193,6 +193,60 @@
                 </div>
             @endforeach
         </section>
+
+        @if ($metaDevelopmentConnectEnabled)
+            <section class="content-card overflow-hidden" x-data="{ platform: @js(old('platform', 'WhatsApp')) }">
+                <div class="border-b border-[#E5E7EB] px-4 py-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="text-base font-bold text-[#111827]">Meta development connection</h3>
+                        <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Testing only</span>
+                    </div>
+                    <p class="mt-1 max-w-3xl text-sm leading-6 text-[#6B7280]">Connect assets owned by Meta app administrators, developers, or testers while public OAuth approval is pending. Tokens are encrypted and never shown again.</p>
+                </div>
+
+                <form method="POST" action="{{ route('dashboard.accounts.meta.development-connect') }}" class="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
+                    @csrf
+                    <label class="block">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]">Channel</span>
+                        <select name="platform" x-model="platform" class="w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm font-semibold text-[#111827] focus:border-[#2563EB] focus:ring-[#2563EB]/20">
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Facebook">Facebook Messenger</option>
+                            <option value="Instagram">Instagram</option>
+                        </select>
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]">Display name</span>
+                        <input type="text" name="account_name" value="{{ old('account_name') }}" maxlength="80" placeholder="Optional internal label" class="w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm text-[#111827] focus:border-[#2563EB] focus:ring-[#2563EB]/20">
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]" x-text="platform === 'WhatsApp' ? 'Phone Number ID' : (platform === 'Facebook' ? 'Facebook Page ID' : 'Instagram Professional Account ID')"></span>
+                        <input type="text" name="asset_id" value="{{ old('asset_id') }}" maxlength="100" placeholder="Numeric Meta asset ID" required class="w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm text-[#111827] focus:border-[#2563EB] focus:ring-[#2563EB]/20">
+                    </label>
+
+                    <label class="block" x-show="platform === 'WhatsApp'" x-cloak>
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]">WhatsApp Business Account ID</span>
+                        <input type="text" name="business_account_id" value="{{ old('business_account_id') }}" maxlength="100" placeholder="WABA ID" x-bind:required="platform === 'WhatsApp'" class="w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm text-[#111827] focus:border-[#2563EB] focus:ring-[#2563EB]/20">
+                    </label>
+
+                    <label class="block md:col-span-2">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]">Access token</span>
+                        <input type="password" name="access_token" maxlength="4096" autocomplete="off" placeholder="Temporary or system-user/Page token" required class="w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm text-[#111827] focus:border-[#2563EB] focus:ring-[#2563EB]/20">
+                    </label>
+
+                    <label class="flex items-center gap-3 rounded-lg bg-[#F5F6F8] px-3 py-2.5 text-sm font-semibold text-[#111827]">
+                        <input type="hidden" name="subscribe_webhooks" value="0">
+                        <input type="checkbox" name="subscribe_webhooks" value="1" checked class="rounded border-[#D1D5DB] text-[#2563EB] focus:ring-[#2563EB]/30">
+                        Subscribe this asset to the webhook
+                    </label>
+
+                    <div class="flex items-end md:col-span-2 xl:col-span-3">
+                        <button class="inline-flex w-full items-center justify-center rounded-lg bg-[#111827] px-4 py-3 text-sm font-bold text-white transition hover:bg-black sm:w-auto">Validate and connect test asset</button>
+                    </div>
+                </form>
+            </section>
+        @endif
 
         <section class="content-card overflow-hidden">
             <div class="flex flex-col gap-2 border-b border-[#E5E7EB] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">

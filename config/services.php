@@ -56,6 +56,7 @@ return [
         'redirect_uri' => env('META_REDIRECT_URI'),
         'webhook_verify_token' => env('META_WEBHOOK_VERIFY_TOKEN'),
         'embedded_signup_config_id' => env('META_EMBEDDED_SIGNUP_CONFIG_ID'),
+        'development_connect_enabled' => env('META_DEVELOPMENT_CONNECT_ENABLED', false),
     ],
 
     'telegram' => [

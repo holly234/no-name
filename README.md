@@ -186,6 +186,7 @@ APP_NAME="Perpetual Inbox AI"
 APP_WEBHOOK_SECRET=
 META_WEBHOOK_SECRET=
 META_WEBHOOK_VERIFY_TOKEN=use-a-long-random-value
+META_DEVELOPMENT_CONNECT_ENABLED=false
 N8N_WEBHOOK_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
@@ -199,7 +200,7 @@ TELEGRAM_API_BASE=https://api.telegram.org/bot
 OPENAI_API_KEY=
 ```
 
-WhatsApp Cloud API is implemented through Meta Embedded Signup on the Accounts page. The browser receives a one-time signup code; Laravel exchanges it server-side, subscribes the selected WhatsApp Business Account, encrypts the access token, and stores the account scoped to the current workspace. No Meta access token is pasted into the UI. Its verified webhook is `${APP_URL}/api/webhooks/meta`; GET verification uses `META_WEBHOOK_VERIFY_TOKEN`, and POST requests require the Meta `X-Hub-Signature-256` signature calculated with `META_APP_SECRET`. Text replies are sent through the WhatsApp Cloud API. Set `META_APP_ID`, `META_APP_SECRET`, and `META_EMBEDDED_SIGNUP_CONFIG_ID` in the server `.env`. The public `/privacy`, `/terms`, and `/data-deletion` pages are included for provider review; set `LEGAL_CONTACT_EMAIL=perpetualdev2@gmail.com`. Instagram and Messenger still require their provider-specific connection and permissions. Gmail is implemented for OAuth connection, manual sync, scheduled inbox polling, text replies through the Gmail API, and Pub/Sub-triggered inbox sync when `GMAIL_PUBSUB_TOPIC` and `GMAIL_PUBSUB_VERIFICATION_TOKEN` are configured. Telegram is implemented through the Bot API, not private-user MTProto sessions. For real-time provider webhooks, `APP_URL` must be a public HTTPS URL with a valid certificate.
+WhatsApp Cloud API is implemented through Meta Embedded Signup on the Accounts page. The browser receives a one-time signup code; Laravel exchanges it server-side, subscribes the selected WhatsApp Business Account, encrypts the access token, and stores the account scoped to the current workspace. No Meta access token is pasted into the production UI. Its verified webhook is `${APP_URL}/api/webhooks/meta`; GET verification uses `META_WEBHOOK_VERIFY_TOKEN`, and POST requests require the Meta `X-Hub-Signature-256` signature calculated with `META_APP_SECRET`. Text replies are sent through the WhatsApp Cloud API. While Meta approval is pending, an owner/admin-only development connector can be explicitly enabled with `META_DEVELOPMENT_CONNECT_ENABLED=true` to validate and encrypt test WhatsApp, Facebook Page, and Instagram professional-account tokens. Signed Meta webhooks and staff text replies are supported for those test assets; public Facebook/Instagram OAuth onboarding still requires provider approval. The public `/privacy`, `/terms`, and `/data-deletion` pages are included for provider review; set `LEGAL_CONTACT_EMAIL=perpetualdev2@gmail.com`. Gmail is implemented for OAuth connection, manual sync, scheduled inbox polling, text replies through the Gmail API, and Pub/Sub-triggered inbox sync when `GMAIL_PUBSUB_TOPIC` and `GMAIL_PUBSUB_VERIFICATION_TOKEN` are configured. Telegram is implemented through the Bot API, not private-user MTProto sessions. For real-time provider webhooks, `APP_URL` must be a public HTTPS URL with a valid certificate.
 
 Provider wiring guide: [docs/INTEGRATION_READY.md](docs/INTEGRATION_READY.md).
 
@@ -354,7 +355,7 @@ password
 
 Still not production-complete:
 
-- Instagram and Messenger Meta API connections
+- Public Instagram and Messenger OAuth onboarding (development test assets can be connected manually when explicitly enabled)
 - real OpenAI integration
 - real n8n workflow execution beyond compatible endpoints
 - Gmail Pub/Sub history-diff replay

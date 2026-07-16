@@ -369,6 +369,24 @@ class InboxController extends Controller
             }
         }
 
+        $metaAccount = $conversation->connectedAccount;
+        $isRealMetaAccount = str_starts_with((string) ($metaAccount?->provider_meta['provider'] ?? ''), 'meta_');
+        if (in_array($conversation->channel, ['Facebook', 'Instagram'], true) && $message->body !== '' && $isRealMetaAccount) {
+            try {
+                $metaResponse = $metaConnectionService->sendMessengerText($conversation->fresh('connectedAccount'), $message->body);
+                $deliveryMeta = [
+                    'meta_response' => $metaResponse,
+                    'meta_message_id' => $metaResponse['message_id'] ?? null,
+                    'meta_recipient_id' => $metaResponse['recipient_id'] ?? null,
+                ];
+            } catch (\Throwable $exception) {
+                report($exception);
+                $this->logReplyFailure($business->id, $conversation, 'Meta rejected the '.$conversation->channel.' reply.', ['error' => $exception->getMessage()]);
+
+                return back()->with('error', 'Reply saved locally, but Meta did not confirm '.$conversation->channel.' delivery.');
+            }
+        }
+
         AutomationLog::create([
             'business_id' => $business->id,
             'connected_account_id' => $conversation->connected_account_id,
