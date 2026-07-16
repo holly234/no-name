@@ -105,8 +105,9 @@
                         </form>
                     @elseif ($platformKey === 'WhatsApp')
                         <div class="mt-4" x-data="metaEmbeddedSignup(@js($metaAppId), @js($metaConfigId), @js($metaGraphVersion), @js(route('dashboard.accounts.whatsapp.embedded-signup')), @js(csrf_token()), @js($metaSignupNonce))">
-                            <button type="button" x-on:click="connect" x-bind:disabled="loading || !{{ $metaAppId ? 'true' : 'false' }} || !{{ $metaConfigId ? 'true' : 'false' }}" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60">
-                                <span x-show="!loading">Connect WhatsApp</span>
+                            <button type="button" x-on:click="connect" x-bind:disabled="loading || !sdkReady || !{{ $metaAppId ? 'true' : 'false' }} || !{{ $metaConfigId ? 'true' : 'false' }}" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60">
+                                <span x-show="!loading && sdkReady">Connect WhatsApp</span>
+                                <span x-show="!loading && !sdkReady" x-cloak>Preparing Meta...</span>
                                 <span x-show="loading" x-cloak>Opening Meta setup...</span>
                             </button>
                             <p x-show="message" x-text="message" class="mt-2 text-xs font-semibold text-[#6B7280]"></p>

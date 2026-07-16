@@ -17,6 +17,7 @@ window.Alpine = Alpine;
 let metaSdkPromise;
 window.metaEmbeddedSignup = (appId, configId, graphVersion, endpoint, csrf, nonce) => ({
     loading: false,
+    sdkReady: false,
     message: '',
     wabaId: null,
     phoneNumberId: null,
@@ -35,6 +36,11 @@ window.metaEmbeddedSignup = (appId, configId, graphVersion, endpoint, csrf, nonc
             }
         };
         window.addEventListener('message', this.onMetaMessage);
+        if (appId && configId) {
+            this.loadSdk()
+                .then(() => { this.sdkReady = true; })
+                .catch(() => { this.message = 'Meta setup could not be prepared. Refresh the page and try again.'; });
+        }
     },
     destroy() {
         if (this.onMetaMessage) window.removeEventListener('message', this.onMetaMessage);
@@ -58,13 +64,11 @@ window.metaEmbeddedSignup = (appId, configId, graphVersion, endpoint, csrf, nonc
         });
         return metaSdkPromise;
     },
-    async connect() {
-        if (this.loading || !appId || !configId) return;
+    connect() {
+        if (this.loading || !this.sdkReady || !appId || !configId || !window.FB) return;
         this.loading = true;
         this.message = 'Opening Meta setup...';
-        try {
-            await this.loadSdk();
-            window.FB.login((response) => {
+        window.FB.login((response) => {
                 const auth = response?.authResponse;
                 if (!auth?.code) {
                     this.loading = false;
@@ -84,10 +88,6 @@ window.metaEmbeddedSignup = (appId, configId, graphVersion, endpoint, csrf, nonc
                     sessionInfoVersion: '3',
                 },
             });
-        } catch (error) {
-            this.loading = false;
-            this.message = 'Meta setup could not be opened. Check the app configuration.';
-        }
     },
     finishIfReady() {
         if (this.pendingCode && this.wabaId && this.phoneNumberId) {
