@@ -1,19 +1,27 @@
 # Perpetual Inbox AI Project Memory
 
-Last updated: 2026-07-14
+Last updated: 2026-07-16
 
 ## Current Instruction
 
-The Laravel/Blade MVP is now an active working demo. Continue tightening the product around the unified inbox, customer communication workflow, business isolation, and the AI Conversation State Engine.
+The Laravel/Blade MVP is now an active working demo for a Nigeria-first SaaS launching under the **Perpetual Devs** brand. "Perpetual Inbox AI" is a working project name, not necessarily the final product name. Continue tightening the product around the free unified inbox, customer communication workflow, business isolation, team access, and the paid AI Conversation State Engine.
 
 Current build priority:
+- Pause active Meta test-case work and public Embedded Signup testing until Perpetual Devs can complete Meta business verification and App Review. Preserve all existing Meta code and both connection lanes.
+- Authentication foundation comes first: remove email/password as the public sign-up/login method; implement Google sign-in plus secure passwordless email magic links.
+- Configure Resend for transactional mail and use queued Laravel notifications/mailables.
+- Complete workspace team invitations and enforce Owner/Admin/Agent permissions with policies and middleware.
+- Continue the separate private Filament platform-owner dashboard for Perpetual Devs; its secure foundation, global statistics, directories, and workspace suspension controls are implemented, while credit/revenue/health modules remain pending.
+- Implement prepaid AI credits and an immutable usage ledger. The unified inbox/manual workflow is free; customers pay only for AI-agent usage. There is no fixed recurring SaaS fee in the current direction.
+- Scrap n8n as the planned automation bridge. Laravel is the complete application and automation brain using services, jobs, queues, events, tools, and scheduled commands. Existing n8n-compatible endpoints may remain for backward compatibility until deliberately removed.
+- Build a provider-neutral Laravel AI layer. Gemini 2.5 Flash-Lite is the current cost-first default candidate for routine DM replies; Gemini Flash and OpenAI may be configurable quality/fallback providers. Do not hard-wire business logic to one provider.
 - Keep the inbox as the default dashboard screen.
 - Keep every business-owned query scoped by `business_id`.
 - Preserve the calm, mature workflow-product tone. Avoid AI hype in public-facing copy.
-- Use fake/demo integrations for Meta channels first. Gmail OAuth, scheduled polling, Pub/Sub push sync, text replies, and Telegram Bot API are now the first real provider connections. Real Meta, n8n workflow execution, and OpenAI remain later-phase work.
+- Gmail OAuth, scheduled polling, Pub/Sub push sync, text replies, and Telegram Bot API remain the first real provider connections. Production Meta onboarding is paused pending verification, not discarded.
 - Maintain the current mood-board aligned DM-style inbox UI unless the user explicitly asks for a redesign.
 - Keep dashboard surfaces flat and premium. Do not add gradients to dashboard pages, tabs, cards, loading states, or channel badges.
-- Use `docs/INTEGRATION_READY.md` as the handoff checklist when wiring OpenAI, Meta, and n8n.
+- Use `docs/INTEGRATION_READY.md` as supporting integration history, but prefer this memory when it conflicts with the new Laravel-only direction.
 - Connected accounts must support multiple accounts per platform per workspace. Disconnect should preserve records internally but hide disconnected accounts from the active Accounts UI.
 - AI settings must be behavior-backed, not cosmetic. Auto reply, human takeover, and business-hours settings must affect ingestion and inbox actions.
 - Conversations should default to `ai_mode=auto`. `Needs Human` is a queue/status, while `ai_mode=human` is reserved for explicit takeover, manual staff replies, or disabled automation conditions.
@@ -26,11 +34,26 @@ Current build priority:
 
 Build a complete MVP SaaS web app called "Perpetual Inbox AI".
 
-It is a unified customer communication inbox for businesses. Businesses sign up, create a workspace, connect Instagram/Facebook/WhatsApp/Gmail/Telegram accounts, add FAQs/business rules, and manage customer conversations from one dashboard. AI/smart assistance should feel like background workflow support, not the core marketing headline. n8n will be used as the automation bridge later, but Laravel is the main brain/source of truth.
+It is a unified customer communication inbox for businesses. Businesses sign up, create a workspace, connect Instagram/Facebook/WhatsApp/Gmail/Telegram accounts, add FAQs/business rules, invite staff, and manage customer conversations from one dashboard. AI assistance should feel like background workflow support, not the core marketing headline. Laravel is the only application brain and source of truth; n8n is no longer part of the planned production architecture.
 
 Channel scope: private inbox messages only. Do not ingest comments, posts, public feed activity, or story replies unless product scope changes later.
 
-For the MVP, do not implement real Meta API or real OpenAI yet. Build the full working Laravel app, UI, database, fake/demo integrations, placeholder API endpoints, and clean architecture so real Meta, n8n, and OpenAI can be added later.
+The free product includes the unified inbox and manual team workflow. Monetization is through prepaid AI credits consumed by AI-agent actions. Provider costs and customer charges must be recorded independently so pricing can change without corrupting usage history.
+
+## Commercial Model and AI Credits
+
+- Market: Nigeria first; prices and payment UX should be presented in naira while provider costs are also recorded in their original currency and normalized for reporting.
+- No fixed subscription fee in the current direction.
+- Unified inbox, connected accounts, manual replies, and normal team workflow are free, subject to reasonable abuse and infrastructure limits.
+- AI automation requires a positive prepaid credit balance.
+- Customers see understandable AI credits and usage estimates, not raw provider tokens as the primary unit.
+- Internally record provider, model, input tokens, cached tokens, output/reasoning tokens, provider-reported usage, original provider cost, exchange-rate snapshot, customer credit charge, and margin.
+- Use an immutable ledger for purchases, promotional grants, reservations, usage deductions, reversals, refunds, and manual adjustments.
+- Check/reserve sufficient credits before an AI job, then settle against actual provider-reported usage. Failed provider calls must not permanently consume credits.
+- When credits are exhausted, AI pauses safely and routes work to humans; the free inbox must continue functioning.
+- Routine classification and reply generation should be combined into one structured AI call where practical to reduce cost.
+- Limit history, retrieve only relevant knowledge, cap output, and avoid unnecessary tool loops.
+- Gemini 2.5 Flash-Lite is the current default candidate because of its low text-token cost. The provider layer must allow later switching, fallback, and per-workspace model policy.
 
 ## AI Conversation State Engine
 
@@ -80,8 +103,10 @@ The state engine should make the inbox operationally focused: staff should immed
 - Tailwind CSS
 - Alpine.js
 - SQLite for now
-- Laravel Breeze/Fortify-style authentication
+- Laravel Breeze components/session guard where still useful, without public password authentication
 - Laravel Socialite for Google OAuth
+- Resend through Laravel's mail transport
+- Passwordless one-time signed magic links as the non-Google fallback
 - Vite
 - No React
 - No Vue
@@ -135,14 +160,14 @@ Example isolation:
 
 ## Auth Requirements
 
-Implemented/available:
-- Email/password registration
-- Email/password login
-- Password reset
-- Email verification
-- Logout
-- Remember me
-- Google OAuth login/sign-up using Laravel Socialite
+Target public authentication:
+- Google OAuth login/sign-up using Laravel Socialite is the primary method.
+- Secure one-time email magic link is the passwordless fallback.
+- Do not expose public email/password registration, login, forgot-password, or reset-password flows after the migration is complete.
+- Keep logout, secure session regeneration/invalidation, rate limiting, and login audit events.
+- Microsoft sign-in may be added later if customer demand justifies the extra provider.
+- Resend delivers magic links, workspace invitations, welcome/onboarding messages, credit/payment notices, low-credit warnings, important connection failures, and security notifications.
+- Magic links and invitations must be hashed at rest where applicable, single-use, short-lived, rate-limited, and invalidated after use.
 
 Google routes:
 - `GET /auth/google/redirect`
@@ -154,6 +179,8 @@ Google behavior:
 - Store `google_id`.
 - Store `avatar` if available.
 - Never store Google access token unless needed.
+- Treat the provider-verified Google email as verified.
+- Record last login time/IP and security/audit events.
 
 User columns:
 - `google_id` nullable
@@ -162,10 +189,36 @@ User columns:
 - `last_login_at`
 - `last_login_ip`
 
+Known auth gaps as of 2026-07-16:
+- `GoogleAuthController` is still a 501 placeholder even though Socialite is installed.
+- The `User` model does not currently implement `MustVerifyEmail`; the existing `verified` middleware therefore does not enforce the intended email verification behavior.
+- Existing Breeze email/password screens/controllers still exist and must be retired from the public flow after passwordless auth is tested.
+- Team invitation acceptance and consistent role enforcement are not complete.
+
+## Platform Owner Dashboard
+
+Build a separate private Perpetual Devs operator panel, not a customer workspace page. It should cover:
+- users, businesses, team membership, suspensions, and support lookup;
+- AI credit balances, purchases, adjustments, usage, provider costs, revenue, and gross margin;
+- provider health, failed jobs/webhooks, connected-account failures, queues, and email delivery status;
+- plans/limits only if later required, without forcing a recurring subscription model;
+- audit/security events and safe workspace inspection without bypassing tenant isolation accidentally.
+
+Use a proven Laravel admin-panel library such as Filament if its installed version is compatible with this Laravel/PHP stack. Keep it private and visually separate from the custom customer-facing dashboard.
+
+## Team Roles and Invitations
+
+- Workspace creator becomes Owner.
+- Owner has full workspace, team, credits/payment, integrations, and danger-zone control.
+- Admin manages inbox, knowledge, team, settings, and integrations except ownership transfer and owner-only financial/danger actions.
+- Agent accesses inbox/customer work only and must not access connected-account credentials, AI configuration, credits/payment administration, or workspace danger controls.
+- Invitations are emailed through Resend, expire, are single-use, and can be accepted after Google or magic-link authentication.
+- Enforce roles through policies/middleware and business-scoped queries, not only hidden navigation.
+
 ## Security Requirements
 
 Implement seriously:
-- Laravel password hashing
+- No public passwords in the target flow; preserve secure handling for any temporary legacy/demo credentials until removed
 - CSRF protection on all forms
 - Validation on every request
 - Authorization checks/policies for business-owned resources
@@ -174,7 +227,7 @@ Implement seriously:
 - Prevent URL ID manipulation from exposing another business's data
 - Encrypt connected account `access_token`
 - Never expose `access_token` in Blade or API responses
-- Rate limit login, register, password reset, AI generation, and webhook endpoints
+- Rate limit OAuth initiation/callback handling, magic-link requests/redemptions, invitations, AI generation, and webhook endpoints
 - Webhook secret verification for n8n/API endpoints
 - Per-business webhook secrets with global secret fallback
 - Per-user conversation read tracking
@@ -198,8 +251,8 @@ Audit/automation logs should be created for login, logout, account connected, ac
 Public and auth:
 - `/`
 - `/login`
-- `/register`
-- `/forgot-password`
+- `/register` (legacy; remove from the public flow after passwordless auth is complete)
+- `/forgot-password` (legacy; remove with public passwords)
 - `/auth/google/redirect`
 - `/auth/google/callback`
 
@@ -630,16 +683,45 @@ Telegram integration pass on 2026-07-09:
 
 Not built yet:
 - Authorization policies/roles beyond current business-ownership checks
-- Advanced workspace settings, billing, and danger-zone controls
+- Passwordless Google/magic-link authentication and Resend delivery
+- Team invitation acceptance and complete Owner/Admin/Agent enforcement
+- Real credit wallet/payment ledger, email-delivery history, and production alert delivery behind the designed Filament owner modules
+- Advanced workspace settings and danger-zone controls
 - Configurable business-hours schedule UI
 - Separate immutable provider customer IDs from display usernames/phone numbers before production if real Meta payloads require both
 - Real Google OAuth login/linking behavior
 - Public Facebook/Instagram OAuth onboarding and production approval; development-token connections, signed webhooks, and text replies are implemented for test assets
-- Real OpenAI integration
-- Real n8n workflow integration beyond placeholder-compatible endpoints
+- Provider-neutral Laravel AI agent integration with usage reporting
+- Prepaid AI-credit wallet, immutable ledger, purchases, deductions, reversals, and low-balance handling
+- Payment gateway integration suitable for Nigerian customers
+- Removal or deliberate deprecation of legacy n8n-compatible endpoints after Laravel replacements exist
 - Gmail Pub/Sub history-diff replay
 - Gmail outbound attachment sending from the inbox
 - Telegram private-user inbox import through MTProto
-- Billing/subscription system
 - True infinite loading for older conversations/messages
 - Production error pages and observability
+
+Direction update on 2026-07-16:
+- Confirmed Nigeria-first launch under Perpetual Devs; current product name may change.
+- Paused Meta test-case work pending business verification/App Review while preserving completed integration code.
+- Changed monetization from a fixed subscription to a free unified inbox with prepaid paid AI usage.
+- Chose Google plus email magic links as the target passwordless authentication flow.
+- Added Resend, workspace roles/invitations, a private platform-owner panel, and the AI-credit ledger as the next foundation phases.
+- Removed n8n from the planned production architecture; Laravel will own agent orchestration.
+- Selected Gemini 2.5 Flash-Lite as the current cost-first default candidate, behind a provider-neutral interface.
+- Installed Filament 4.11 for the private Perpetual Devs owner panel and enabled the required PHP `intl` extension locally.
+- Added `/owner` with owner-only access, global user/workspace/conversation/connection statistics, read-only user and connection directories, workspace monitoring, and explicit suspend/reactivate actions.
+- Added `users.is_platform_owner` plus `platform:owner {email}` and `platform:owner {email} --revoke` commands so access is granted explicitly instead of inferred from a customer workspace role.
+- Added workspace suspension fields and enforcement in `EnsureCurrentBusiness`; suspended workspaces receive HTTP 403 while the platform-owner panel remains separate.
+- Added owner-panel authorization and suspension tests. Full verification passes with `100 tests, 385 assertions`.
+- Enabled Filament SPA navigation for the private owner panel.
+- Expanded `/owner` into grouped operational areas for platform management, customer operations, AI operations, commercial controls, and system health.
+- Added real read-only owner views for conversations, customers, AI-agent settings, and automation/error logs, including filters and record detail screens.
+- Added seven-day message/conversation activity analytics and daily message/AI-enabled workspace statistics to the owner dashboard.
+- Added a data-backed system-health screen for queued jobs, failed jobs, recent automation errors, expired connections, and the latest recorded failure.
+- Added a pre-launch Revenue & AI Credits control screen documenting the intended NGN package, immutable wallet ledger, usage-metering, verified-payment, margin, and low-balance flow. Its monetary figures intentionally remain zero until the wallet/payment schema is implemented.
+- Expanded owner-panel tests to render every new dashboard section successfully.
+- Latest full verification after the owner-dashboard expansion: `100 tests, 391 assertions` pass.
+- Refined the shared customer-facing dashboard shell with Filament-inspired information architecture while keeping the inbox custom: grouped sidebar navigation, workspace context, signed-in user card, sticky page header, quick inbox access, emerald active/status styling, softer cards, and consistent spacing now apply across customer pages.
+- Redesigned the customer overview with a compact live-workspace welcome header, connect/inbox quick actions, operational metric tiles, recent conversations, and a visible pre-launch AI-agent credit/configuration card.
+- Customer-dashboard refinement verification: production Vite build and Blade view cache pass; focused dashboard, inbox authorization, connected-account, and AI-settings tests pass with `15 tests, 56 assertions`.

@@ -10,9 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCurrentBusiness
 {
-    public function __construct(private readonly CurrentBusinessService $currentBusinessService)
-    {
-    }
+    public function __construct(private readonly CurrentBusinessService $currentBusinessService) {}
 
     /**
      * Handle an incoming request.
@@ -26,6 +24,12 @@ class EnsureCurrentBusiness
         if (! $business) {
             return redirect()->route('onboarding.workspace');
         }
+
+        abort_if(
+            $business->is_suspended,
+            403,
+            'This workspace has been suspended. Contact support if you believe this is a mistake.'
+        );
 
         $request->attributes->set('currentBusiness', $business);
         View::share('currentBusiness', $business);

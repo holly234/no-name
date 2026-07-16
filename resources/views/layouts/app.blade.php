@@ -23,6 +23,7 @@
                     ['label' => 'Knowledge Base', 'route' => 'dashboard.knowledge-base', 'icon' => 'book'],
                     ['label' => 'Settings', 'route' => 'dashboard.settings', 'icon' => 'settings'],
                 ];
+                $pageTitle = data_get(collect($navItems)->first(fn ($item) => request()->routeIs($item['route'])), 'label', 'Overview');
             @endphp
 
             @php
@@ -88,7 +89,7 @@
                     >
                         <div class="px-5 py-5">
                             <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2563EB] text-sm font-black text-white shadow-sm">PI</span>
+                                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#10B981] text-sm font-black text-white shadow-sm">PI</span>
                                 <span>
                                     <span class="block text-base font-bold text-[#111827]">Perpetual Inbox</span>
                                     <span class="block text-xs font-semibold uppercase text-[#6B7280]">Customer operations</span>
@@ -101,6 +102,7 @@
                             <p class="mt-1 truncate text-xs text-[#6B7280]">{{ $currentBusiness->category ?? 'Customer operations' }}</p>
                         </div>
                         <nav class="mt-5 min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-4">
+                            <p class="px-3 pb-2 text-[0.68rem] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">Workspace</p>
                             @foreach ($navItems as $item)
                                 <a href="{{ route($item['route']) }}" x-on:click="sidebarOpen = false" class="app-nav-link whitespace-nowrap {{ request()->routeIs($item['route']) ? 'app-nav-link-active' : '' }}">
                                     <span class="nav-icon">{!! $navIcon($item['icon']) !!}</span>
@@ -109,6 +111,14 @@
                             @endforeach
                         </nav>
                         <div class="mt-auto border-t border-[#E5E7EB] p-4">
+                            <a href="{{ route('dashboard.settings') }}" class="mb-3 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-[#F5F6F8]">
+                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-sm font-bold text-[#047857]">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate text-sm font-bold text-[#111827]">{{ auth()->user()->name }}</span>
+                                    <span class="block truncate text-xs text-[#6B7280]">{{ auth()->user()->email }}</span>
+                                </span>
+                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4 text-[#9CA3AF]"><path d="m9 18 6-6-6-6"/></svg>
+                            </a>
                             <form method="POST" action="{{ route('logout') }}" data-spa="false">
                                 @csrf
                                 <button class="flex w-full items-center justify-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 py-3 text-sm font-bold text-[#111827] shadow-sm transition hover:bg-[#F5F6F8]" aria-label="Logout">
@@ -128,7 +138,26 @@
                             <span class="mobile-menu-mark" aria-hidden="true"></span>
                         </button>
 
-                        <main class="{{ $isInboxPage ? 'app-inbox-main max-w-full overflow-hidden p-0' : 'mx-auto max-w-7xl px-4 pb-8 pt-20 lg:px-8 lg:pt-8' }}" data-spa-main>
+                        @unless ($isInboxPage)
+                            <header class="app-topbar sticky top-0 z-20 border-b border-[#E5E7EB] bg-white/95 backdrop-blur">
+                                <div class="mx-auto flex h-[4.5rem] max-w-7xl items-center gap-3 px-4 pl-20 lg:px-8">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">{{ $currentBusiness->name }}</p>
+                                        <h1 class="truncate text-lg font-bold text-[#111827]">{{ $pageTitle }}</h1>
+                                    </div>
+                                    <a href="{{ route('dashboard.ai-settings') }}" class="hidden items-center gap-2 rounded-full border border-[#D1FAE5] bg-[#ECFDF5] px-3 py-2 text-xs font-bold text-[#047857] sm:inline-flex">
+                                        <span class="h-2 w-2 rounded-full bg-[#10B981]"></span>
+                                        AI agent
+                                    </a>
+                                    <a href="{{ route('dashboard.inbox') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#111827] px-3.5 text-sm font-bold text-white transition hover:bg-black">
+                                        {!! $navIcon('inbox') !!}
+                                        <span class="hidden sm:inline">Open inbox</span>
+                                    </a>
+                                </div>
+                            </header>
+                        @endunless
+
+                        <main class="{{ $isInboxPage ? 'app-inbox-main max-w-full overflow-hidden p-0' : 'mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8' }}" data-spa-main>
                             {{ $slot }}
                         </main>
                     </div>

@@ -16,7 +16,18 @@ class Business extends Model
         'website',
         'description',
         'webhook_secret',
+        'is_suspended',
+        'suspended_at',
+        'suspension_reason',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_suspended' => 'boolean',
+            'suspended_at' => 'datetime',
+        ];
+    }
 
     public function users()
     {

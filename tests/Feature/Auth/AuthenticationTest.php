@@ -30,6 +30,22 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
+    public function test_customer_login_never_redirects_into_the_owner_panel(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->withSession(['url.intended' => '/owner'])
+            ->post('/login', [
+                'email' => $user->email,
+                'password' => 'password',
+            ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertNull(session('url.intended'));
+    }
+
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();

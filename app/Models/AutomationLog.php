@@ -22,4 +22,14 @@ class AutomationLog extends Model
             'metadata' => 'array',
         ];
     }
+
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function connectedAccount()
+    {
+        return $this->belongsTo(ConnectedAccount::class);
+    }
 }

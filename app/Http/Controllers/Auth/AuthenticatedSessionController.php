@@ -28,7 +28,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Customer authentication and the private Filament owner panel are
+        // separate entry points. Never reuse an intended /owner URL here.
+        $request->session()->forget('url.intended');
+
+        return redirect(route('dashboard', absolute: false));
     }
 
     /**

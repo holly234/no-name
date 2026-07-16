@@ -35,4 +35,14 @@ class Customer extends Model
 
         return $this->avatar_url;
     }
+
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function conversations()
+    {
+        return $this->hasMany(Conversation::class);
+    }
 }

@@ -27,4 +27,9 @@ class AiSetting extends Model
             'business_hours_enabled' => 'boolean',
         ];
     }
+
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
 }

@@ -1,18 +1,35 @@
 # Perpetual Inbox AI
 
-Perpetual Inbox AI is a Laravel/Blade SaaS MVP for managing Instagram, Facebook, WhatsApp, Gmail, and Telegram-style customer conversations from one organized inbox.
+Perpetual Inbox AI is the current working name for a Nigeria-first Laravel/Blade SaaS product launching under the **Perpetual Devs** brand. The final product name may change. It gives businesses one organized inbox for Instagram, Facebook, WhatsApp, Gmail, and Telegram-style customer conversations.
 
 The channel scope is private inbox messages only. Comments, posts, public feed activity, and story replies are intentionally out of scope for now.
 
-The current product direction is calm customer communication and workflow management, not AI hype. AI/smart assistance exists in the background through the conversation state engine, while the main product value is unified inbox, human takeover, team visibility, customer history, and faster replies.
+The unified inbox and manual team workflow are free. Revenue comes from prepaid AI credits: businesses buy credits when they want the Laravel-native AI agent to classify conversations, answer customers, and automate routine work. There is no fixed SaaS subscription in the current commercial direction.
+
+The current product direction is calm customer communication and workflow management, not AI hype. AI assistance works in the background through the conversation state engine, while the main product value remains the unified inbox, human takeover, team visibility, customer history, and faster replies.
+
+## Current Build Direction
+
+Provider testing is temporarily paused, especially public Meta Embedded Signup, while the business completes Meta verification and App Review requirements. Existing Meta integration code must be preserved.
+
+Development now proceeds in this order:
+
+1. Replace public email/password authentication with Google sign-in and passwordless email magic links.
+2. Configure Resend and build transactional email delivery.
+3. Complete workspace onboarding, invitations, and enforced Owner/Admin/Agent permissions.
+4. Build a separate private platform-owner dashboard for Perpetual Devs.
+5. Build the prepaid AI-credit wallet, immutable usage ledger, purchases, deductions, reversals, and low-balance controls.
+6. Replace n8n as the planned automation brain with Laravel-native agents, queues, jobs, tools, and conversation orchestration.
+7. Integrate an AI provider behind a provider-neutral Laravel interface. Gemini 2.5 Flash-Lite is the current default candidate for routine replies; Gemini Flash and OpenAI may be quality/fallback options.
+8. Resume production provider onboarding and Meta approval work after the product foundation is stable.
 
 ## Current Status
 
 Built and working as a local MVP:
 
 - Laravel 12, Blade, Tailwind CSS, Alpine.js, Vite
-- Email/password auth via Laravel Breeze scaffold
-- Google OAuth routes/config placeholders via Socialite
+- Existing Breeze email/password scaffold, scheduled to be replaced as the public auth flow
+- Google OAuth routes/config placeholders via Socialite, scheduled for full implementation
 - Multi-tenant business/workspace model
 - Session-backed active workspace resolution
 - Business-scoped dashboard data
@@ -42,7 +59,7 @@ npm run build
 php artisan view:cache
 ```
 
-Last known passing test count: `90 tests, 360 assertions`.
+Last known passing test count: `100 tests, 385 assertions`.
 
 ## Core Product
 
@@ -87,7 +104,7 @@ Design reference:
 
 ## Main Routes
 
-Public/auth:
+Public/auth (current routes; password routes are legacy and scheduled for replacement):
 
 - `GET /`
 - `GET /login`
@@ -356,8 +373,8 @@ password
 Still not production-complete:
 
 - Public Instagram and Messenger OAuth onboarding (development test assets can be connected manually when explicitly enabled)
-- real OpenAI integration
-- real n8n workflow execution beyond compatible endpoints
+- real Laravel-native AI agent/provider integration
+- n8n endpoints remain for compatibility but n8n is no longer the planned automation engine
 - Gmail Pub/Sub history-diff replay
 - Gmail outbound attachment sending from the inbox
 - Telegram private-user inbox import is not supported; Telegram is bot-backed only
@@ -366,8 +383,10 @@ Still not production-complete:
 - advanced workspace settings, billing, and danger-zone controls
 - configurable business-hours schedule UI
 - separate immutable provider customer IDs from display usernames/phone numbers before production if Meta payloads require both
-- role-based authorization policies
-- billing/subscription system
+- role-based authorization policies and team invitation flow
+- prepaid AI-credit wallet, purchases, usage ledger, and payment integration
+- private Perpetual Devs platform-owner dashboard at `/owner` with SPA navigation, platform/workspace directories, conversations, customers, AI-agent settings, connection monitoring, activity/error logs, system health, activity analytics, and a pre-launch revenue/AI-credit control screen
+- Resend transactional email integration
 - true infinite loading for older conversations/messages
 - production error pages and observability
 

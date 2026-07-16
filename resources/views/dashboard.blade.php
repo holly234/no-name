@@ -1,38 +1,42 @@
 <x-app-layout>
     <div class="space-y-6">
-        <section class="content-card p-6 lg:p-7">
+        <section class="content-card overflow-hidden">
+            <div class="border-b border-[#E5E7EB] bg-white px-5 py-5 lg:px-7">
             <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#2563EB]">Workspace overview</p>
-                    <h2 class="mt-3 max-w-2xl text-3xl font-bold tracking-normal text-[#111827] lg:text-4xl">Customer conversations at a glance</h2>
-                    <p class="mt-3 max-w-2xl text-sm leading-6 text-[#6B7280]">
-                        Monitor open conversations, staff attention, automated handling, and customer response queues from one organized workspace.
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-2 rounded-full bg-[#ECFDF5] px-2.5 py-1 text-xs font-bold text-[#047857]"><span class="h-2 w-2 rounded-full bg-[#10B981]"></span>Workspace live</span>
+                    </div>
+                    <h2 class="mt-3 max-w-2xl text-2xl font-bold tracking-tight text-[#111827] lg:text-3xl">Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 17 ? 'afternoon' : 'evening') }}, {{ Illuminate\Support\Str::before(auth()->user()->name, ' ') }}</h2>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-[#6B7280]">
+                        Here is what is happening across your customer conversations today.
                     </p>
                 </div>
 
-                <a href="{{ route('dashboard.inbox') }}" class="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1d4ed8]">
-                    Open inbox
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-                        <path d="M5 12h14"></path>
-                        <path d="m13 6 6 6-6 6"></path>
-                    </svg>
-                </a>
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('dashboard.accounts') }}" class="inline-flex items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 py-2.5 text-sm font-bold text-[#374151] transition hover:bg-[#F5F6F8]">Connect channel</a>
+                    <a href="{{ route('dashboard.inbox') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#10B981] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#059669]">
+                        Open inbox
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+                    </a>
+                </div>
+            </div>
             </div>
 
-            <div class="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="grid gap-px bg-[#E5E7EB] sm:grid-cols-2 xl:grid-cols-4">
                 @foreach ([
-                    ['label' => 'All conversations', 'value' => $counts['conversations'], 'color' => '#6B7280', 'copy' => 'Total inbox history'],
-                    ['label' => 'Needs Human', 'value' => $counts['needsHuman'], 'color' => '#EC4899', 'copy' => 'Staff should review'],
-                    ['label' => 'Smart handling', 'value' => $counts['aiHandling'], 'color' => '#10B981', 'copy' => 'Routed automatically'],
-                    ['label' => 'Waiting', 'value' => $counts['waiting'], 'color' => '#F59E0B', 'copy' => 'Customer response pending'],
+                    ['label' => 'All conversations', 'value' => $counts['conversations'], 'color' => '#6B7280', 'copy' => 'Total inbox history', 'arrow' => '→'],
+                    ['label' => 'Needs human', 'value' => $counts['needsHuman'], 'color' => '#EC4899', 'copy' => 'Staff should review', 'arrow' => '!'],
+                    ['label' => 'AI handling', 'value' => $counts['aiHandling'], 'color' => '#10B981', 'copy' => 'Routed automatically', 'arrow' => '✦'],
+                    ['label' => 'Waiting', 'value' => $counts['waiting'], 'color' => '#F59E0B', 'copy' => 'Customer response pending', 'arrow' => '○'],
                 ] as $summary)
-                    <div class="rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-4">
+                    <div class="bg-white p-5">
                         <div class="flex items-center justify-between gap-3">
-                            <span class="h-2.5 w-2.5 rounded-full" style="background: {{ $summary['color'] }}"></span>
-                            <span class="text-xs font-semibold uppercase tracking-[0.12em] text-[#6B7280]">{{ $summary['copy'] }}</span>
+                            <span class="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black" style="background: color-mix(in srgb, {{ $summary['color'] }} 12%, white); color: {{ $summary['color'] }}">{{ $summary['arrow'] }}</span>
+                            <span class="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-[#9CA3AF]">{{ $summary['copy'] }}</span>
                         </div>
-                        <p class="mt-4 text-sm font-semibold text-[#6B7280]">{{ $summary['label'] }}</p>
-                        <p class="mt-1 text-4xl font-bold text-[#111827]">{{ $summary['value'] }}</p>
+                        <p class="mt-4 text-3xl font-bold text-[#111827]">{{ $summary['value'] }}</p>
+                        <p class="mt-1 text-sm font-semibold text-[#6B7280]">{{ $summary['label'] }}</p>
                     </div>
                 @endforeach
             </div>
@@ -77,6 +81,25 @@
             </section>
 
             <div class="space-y-6">
+                <section class="content-card overflow-hidden">
+                    <div class="border-b border-[#E5E7EB] px-5 py-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <h3 class="font-bold text-[#111827]">AI agent</h3>
+                                <p class="mt-1 text-sm text-[#6B7280]">Automation readiness</p>
+                            </div>
+                            <span class="rounded-full bg-[#FFFBEB] px-2.5 py-1 text-xs font-bold text-[#B45309]">Setup</span>
+                        </div>
+                    </div>
+                    <div class="p-5">
+                        <div class="flex items-end justify-between gap-3">
+                            <div><p class="text-3xl font-bold text-[#111827]">0</p><p class="text-xs font-semibold text-[#6B7280]">AI credits available</p></div>
+                            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#ECFDF5] text-xl text-[#047857]">✦</span>
+                        </div>
+                        <a href="{{ route('dashboard.ai-settings') }}" class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-black">Configure AI agent</a>
+                    </div>
+                </section>
+
                 <section class="content-card p-5">
                     <h3 class="font-bold text-[#111827]">Workflow health</h3>
                     <div class="mt-4 space-y-3 text-sm">

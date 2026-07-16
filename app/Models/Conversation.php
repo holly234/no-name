@@ -7,8 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class Conversation extends Model
 {
     public const STATE_AI_HANDLING = 'AI Handling';
+
     public const STATE_WAITING = 'Waiting';
+
     public const STATE_NEEDS_HUMAN = 'Needs Human';
+
     public const STATE_CLOSED = 'Closed';
 
     public const STATES = [

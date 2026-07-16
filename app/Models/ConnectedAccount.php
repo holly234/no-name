@@ -31,4 +31,9 @@ class ConnectedAccount extends Model
             'connected_at' => 'datetime',
         ];
     }
+
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
 }
