@@ -7,6 +7,7 @@ use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\KnowledgeBaseController;
 use App\Http\Controllers\LandingController;
+use App\Http\Controllers\LegalController;
 use App\Http\Controllers\MessageAttachmentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
@@ -14,6 +15,9 @@ use App\Http\Controllers\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', LandingController::class)->name('landing');
+Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
+Route::get('/data-deletion', [LegalController::class, 'dataDeletion'])->name('legal.data-deletion');
 
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
@@ -45,6 +49,7 @@ Route::middleware(['auth', 'verified', 'current.business'])
         Route::get('/accounts/gmail/callback', [ConnectedAccountController::class, 'handleGmailCallback'])->name('dashboard.accounts.gmail.callback');
         Route::post('/accounts/gmail/{account}/sync', [ConnectedAccountController::class, 'syncGmailAccount'])->name('dashboard.accounts.gmail.sync');
         Route::post('/accounts/telegram/connect', [ConnectedAccountController::class, 'connectTelegram'])->name('dashboard.accounts.telegram.connect');
+        Route::post('/accounts/whatsapp/embedded-signup', [ConnectedAccountController::class, 'completeWhatsAppEmbeddedSignup'])->name('dashboard.accounts.whatsapp.embedded-signup');
         Route::patch('/accounts/{account}/disconnect', [ConnectedAccountController::class, 'disconnect'])->name('dashboard.accounts.disconnect');
         Route::get('/ai-settings', [AiSettingsController::class, 'index'])->name('dashboard.ai-settings');
         Route::patch('/ai-settings', [AiSettingsController::class, 'update'])->name('dashboard.ai-settings.update');

@@ -468,5 +468,11 @@
                 </div>
             </section>
         </main>
+        <footer class="border-t border-[#E5E7EB] bg-white">
+            <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-sm text-[#667085] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+                <span>&copy; {{ date('Y') }} Perpetual Inbox</span>
+                <nav class="flex gap-5"><a class="hover:text-[#2563EB]" href="{{ route('legal.privacy') }}">Privacy</a><a class="hover:text-[#2563EB]" href="{{ route('legal.terms') }}">Terms</a><a class="hover:text-[#2563EB]" href="{{ route('legal.data-deletion') }}">Data deletion</a></nav>
+            </div>
+        </footer>
     </body>
 </html>

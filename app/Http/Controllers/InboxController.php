@@ -9,6 +9,7 @@ use App\Models\Message;
 use App\Services\ConversationMessageService;
 use App\Services\GmailConnectionService;
 use App\Services\TelegramConnectionService;
+use App\Services\MetaConnectionService;
 use App\Support\InboxUi;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -204,6 +205,7 @@ class InboxController extends Controller
         ConversationMessageService $conversationMessageService,
         GmailConnectionService $gmailConnectionService,
         TelegramConnectionService $telegramConnectionService
+        , MetaConnectionService $metaConnectionService
     )
     {
         $business = $request->attributes->get('currentBusiness');
@@ -349,6 +351,21 @@ class InboxController extends Controller
                 ]);
 
                 return back()->with('error', 'Reply saved locally, but Gmail did not confirm delivery: '.$exception->getMessage());
+            }
+        }
+
+        if ($conversation->channel === 'WhatsApp' && $message->body !== '') {
+            try {
+                $metaResponse = $metaConnectionService->sendWhatsAppText($conversation->fresh('connectedAccount'), $message->body);
+                $deliveryMeta = [
+                    'meta_response' => $metaResponse,
+                    'whatsapp_message_id' => $metaResponse['messages'][0]['id'] ?? null,
+                ];
+            } catch (\Throwable $exception) {
+                report($exception);
+                $this->logReplyFailure($business->id, $conversation, 'Meta rejected the WhatsApp reply.', ['error' => $exception->getMessage()]);
+
+                return back()->with('error', 'Reply saved locally, but Meta did not confirm WhatsApp delivery.');
             }
         }
 

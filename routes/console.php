@@ -4,6 +4,7 @@ use App\Models\AutomationLog;
 use App\Models\ConnectedAccount;
 use App\Services\GmailConnectionService;
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
@@ -66,6 +67,80 @@ Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=
     return $failed > 0 ? self::FAILURE : self::SUCCESS;
 })->purpose('Sync recent Gmail inbox messages for every connected Gmail account');
 
+Artisan::command('gmail:renew-watch {--force : Renew every connected Gmail watch even if it is not close to expiring}', function (GmailConnectionService $gmailConnectionService) {
+    if (! config('services.gmail.pubsub_topic')) {
+        $this->components->warn('GMAIL_PUBSUB_TOPIC is not configured; skipping Gmail watch renewal.');
+
+        return self::SUCCESS;
+    }
+
+    $force = (bool) $this->option('force');
+    $accounts = ConnectedAccount::query()
+        ->where('platform', 'gmail')
+        ->where('status', 'connected')
+        ->get();
+
+    if ($accounts->isEmpty()) {
+        $this->components->info('No connected Gmail accounts found.');
+
+        return self::SUCCESS;
+    }
+
+    $renewed = 0;
+    $skipped = 0;
+    $failed = 0;
+
+    foreach ($accounts as $account) {
+        $expiration = (int) ($account->provider_meta['watch_expiration'] ?? 0);
+        $expiresAt = $expiration > 0 ? Carbon::createFromTimestampMs($expiration) : null;
+        $shouldRenew = $force || ! $expiresAt || $expiresAt->lte(now()->addDay());
+
+        if (! $shouldRenew) {
+            $skipped++;
+            $this->line("{$account->account_name}: watch still valid until {$expiresAt->toDateTimeString()}.");
+            continue;
+        }
+
+        try {
+            $response = $gmailConnectionService->registerWatchIfConfigured($account);
+            $renewed++;
+
+            AutomationLog::create([
+                'business_id' => $account->business_id,
+                'connected_account_id' => $account->id,
+                'event_type' => 'gmail_watch_renewed',
+                'status' => 'success',
+                'message' => 'Gmail Pub/Sub watch renewed.',
+                'metadata' => ['response' => $response],
+            ]);
+
+            $this->line("{$account->account_name}: watch renewed.");
+        } catch (\Throwable $exception) {
+            report($exception);
+            $failed++;
+
+            AutomationLog::create([
+                'business_id' => $account->business_id,
+                'connected_account_id' => $account->id,
+                'event_type' => 'gmail_watch_renew_failed',
+                'status' => 'failed',
+                'message' => 'Gmail Pub/Sub watch renewal failed.',
+                'metadata' => ['error' => $exception->getMessage()],
+            ]);
+
+            $this->components->warn("{$account->account_name}: watch renewal failed.");
+        }
+    }
+
+    $this->components->info("Gmail watch renewal complete: {$renewed} renewed, {$skipped} skipped, {$failed} failed.");
+
+    return $failed > 0 ? self::FAILURE : self::SUCCESS;
+})->purpose('Renew Gmail Pub/Sub watches before they expire');
+
 Schedule::command('gmail:sync --mailbox=inbox --limit=20')
     ->everyMinute()
+    ->withoutOverlapping();
+
+Schedule::command('gmail:renew-watch')
+    ->dailyAt('02:15')
     ->withoutOverlapping();

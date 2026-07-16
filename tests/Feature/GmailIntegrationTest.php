@@ -529,6 +529,66 @@ class GmailIntegrationTest extends TestCase
         $this->assertSame('history-pubsub', $account->provider_meta['last_pubsub_history_id']);
     }
 
+    public function test_gmail_renew_watch_command_renews_expiring_watches(): void
+    {
+        config(['services.gmail.pubsub_topic' => 'projects/perpetual/topics/gmail-inbound']);
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $this->createGmailAccount($business, [
+            'provider_meta' => [
+                'email' => 'support@example.com',
+                'watch_expiration' => (string) now()->addHours(6)->valueOf(),
+            ],
+        ]);
+
+        Http::fake([
+            'https://gmail.googleapis.com/gmail/v1/users/me/watch' => Http::response([
+                'historyId' => 'history-renewed',
+                'expiration' => (string) now()->addDays(7)->valueOf(),
+            ]),
+        ]);
+
+        $this->artisan('gmail:renew-watch')
+            ->expectsOutputToContain('support@example.com: watch renewed.')
+            ->assertExitCode(0);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://gmail.googleapis.com/gmail/v1/users/me/watch'
+            && $request['topicName'] === 'projects/perpetual/topics/gmail-inbound');
+
+        $account = ConnectedAccount::where('platform', 'gmail')->firstOrFail();
+
+        $this->assertSame('history-renewed', $account->provider_meta['watch_history_id']);
+        $this->assertDatabaseHas('automation_logs', [
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'event_type' => 'gmail_watch_renewed',
+            'status' => 'success',
+        ]);
+    }
+
+    public function test_gmail_renew_watch_command_skips_watches_that_are_still_valid(): void
+    {
+        config(['services.gmail.pubsub_topic' => 'projects/perpetual/topics/gmail-inbound']);
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $this->createGmailAccount($business, [
+            'provider_meta' => [
+                'email' => 'support@example.com',
+                'watch_expiration' => (string) now()->addDays(3)->valueOf(),
+            ],
+        ]);
+
+        Http::fake();
+
+        $this->artisan('gmail:renew-watch')
+            ->expectsOutputToContain('support@example.com: watch still valid until')
+            ->assertExitCode(0);
+
+        Http::assertNothingSent();
+    }
+
     public function test_staff_reply_to_gmail_sends_reply_through_gmail_api(): void
     {
         Http::fake([

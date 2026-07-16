@@ -14,6 +14,98 @@ import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
 
 window.Alpine = Alpine;
 
+let metaSdkPromise;
+window.metaEmbeddedSignup = (appId, configId, endpoint, csrf, nonce) => ({
+    loading: false,
+    message: '',
+    wabaId: null,
+    phoneNumberId: null,
+    pendingCode: null,
+    onMetaMessage: null,
+    init() {
+        this.message = !appId || !configId ? 'Meta Embedded Signup is not configured yet.' : '';
+        this.onMetaMessage = (event) => {
+            if (!['https://www.facebook.com', 'https://web.facebook.com'].includes(event.origin)) return;
+            const payload = event.data?.data || event.data;
+            if (event.data?.type !== 'WA_EMBEDDED_SIGNUP' && payload?.type !== 'WA_EMBEDDED_SIGNUP') return;
+            if (payload?.event === 'FINISH' || payload?.event === 'FINISH_ONLY_WABA') {
+                this.wabaId = payload.waba_id || payload.wabaId || null;
+                this.phoneNumberId = payload.phone_number_id || payload.phoneNumberId || null;
+                this.finishIfReady();
+            }
+        };
+        window.addEventListener('message', this.onMetaMessage);
+    },
+    destroy() {
+        if (this.onMetaMessage) window.removeEventListener('message', this.onMetaMessage);
+    },
+    loadSdk() {
+        if (window.FB) return Promise.resolve(window.FB);
+        if (metaSdkPromise) return metaSdkPromise;
+        metaSdkPromise = new Promise((resolve, reject) => {
+            window.fbAsyncInit = () => {
+                window.FB.init({ appId, cookie: true, xfbml: false, version: 'v23.0' });
+                resolve(window.FB);
+            };
+            const script = document.createElement('script');
+            script.id = 'facebook-jssdk';
+            script.async = true;
+            script.defer = true;
+            script.crossOrigin = 'anonymous';
+            script.src = 'https://connect.facebook.net/en_US/sdk.js';
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+        return metaSdkPromise;
+    },
+    async connect() {
+        if (this.loading || !appId || !configId) return;
+        this.loading = true;
+        this.message = 'Opening Meta setup...';
+        try {
+            await this.loadSdk();
+            window.FB.login((response) => {
+                const auth = response?.authResponse;
+                if (!auth?.code) {
+                    this.loading = false;
+                    this.message = 'Meta setup was cancelled or did not return a code.';
+                    return;
+                }
+                    this.pendingCode = auth.code;
+                    this.finishIfReady();
+            }, {
+                config_id: configId,
+                response_type: 'code',
+                override_default_response_type: true,
+                extras: { setup: {} },
+            });
+        } catch (error) {
+            this.loading = false;
+            this.message = 'Meta setup could not be opened. Check the app configuration.';
+        }
+    },
+    finishIfReady() {
+        if (this.pendingCode && this.wabaId && this.phoneNumberId) {
+            this.finish(this.pendingCode, this.wabaId, this.phoneNumberId);
+        }
+    },
+    async finish(code, wabaId, phoneNumberId) {
+        if (!wabaId || !phoneNumberId) {
+            this.loading = false;
+            this.message = 'Meta did not return a WhatsApp Business account.';
+            return;
+        }
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+            body: JSON.stringify({ code, business_account_id: wabaId, phone_number_id: phoneNumberId, nonce }),
+            credentials: 'same-origin',
+        });
+        if (response.ok) window.location.reload();
+        else { this.loading = false; this.message = 'WhatsApp connection failed. Please try again.'; }
+    },
+});
+
 FilePond.registerPlugin(
     FilePondPluginImagePreview,
     FilePondPluginFileValidateType,

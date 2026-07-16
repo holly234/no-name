@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AutomationLog;
 use App\Models\ConnectedAccount;
 use App\Services\GmailConnectionService;
+use App\Services\MetaConnectionService;
 use App\Services\TelegramConnectionService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
@@ -23,6 +24,12 @@ class ConnectedAccountController extends Controller
                 ->latest('connected_at')
                 ->latest()
                 ->get(),
+            'metaSignupNonce' => tap(Str::random(48), fn ($nonce) => session([
+                'meta_signup_nonce' => $nonce,
+                'meta_signup_business_id' => $business->id,
+            ])),
+            'metaAppId' => config('services.meta.app_id'),
+            'metaConfigId' => config('services.meta.embedded_signup_config_id'),
         ]);
     }
 
@@ -239,6 +246,48 @@ class ConnectedAccountController extends Controller
         }
 
         return back()->with($webhook['ok'] ? 'status' : 'error', $webhook['message']);
+    }
+
+    public function completeWhatsAppEmbeddedSignup(Request $request, MetaConnectionService $metaConnectionService)
+    {
+        $business = $request->attributes->get('currentBusiness');
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:4000'],
+            'business_account_id' => ['required', 'string', 'max:80'],
+            'phone_number_id' => ['required', 'string', 'max:80'],
+            'nonce' => ['required', 'string', 'max:100'],
+        ]);
+
+        abort_unless(
+            hash_equals((string) session('meta_signup_nonce'), $validated['nonce'])
+            && (int) session('meta_signup_business_id') === (int) $business->id,
+            403
+        );
+
+        try {
+            $account = $metaConnectionService->connectEmbeddedSignup(
+                $business->id,
+                $validated['code'],
+                $validated['business_account_id'],
+                $validated['phone_number_id'],
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->with('error', 'WhatsApp connection failed. Check the Meta app configuration and try again.');
+        } finally {
+            session()->forget(['meta_signup_nonce', 'meta_signup_business_id']);
+        }
+
+        AutomationLog::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'event_type' => 'account_connected',
+            'status' => 'success',
+            'message' => 'WhatsApp account connected through Meta Embedded Signup.',
+        ]);
+
+        return back()->with('status', $account->account_name.' connected.');
     }
 
     public function disconnect(Request $request, ConnectedAccount $account, TelegramConnectionService $telegramConnectionService)

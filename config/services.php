@@ -52,8 +52,10 @@ return [
         'app_id' => env('META_APP_ID'),
         'app_secret' => env('META_APP_SECRET'),
         'verify_token' => env('META_VERIFY_TOKEN'),
-        'graph_version' => env('META_GRAPH_VERSION', 'v21.0'),
+        'graph_version' => env('META_GRAPH_VERSION', 'v23.0'),
         'redirect_uri' => env('META_REDIRECT_URI'),
+        'webhook_verify_token' => env('META_WEBHOOK_VERIFY_TOKEN'),
+        'embedded_signup_config_id' => env('META_EMBEDDED_SIGNUP_CONFIG_ID'),
     ],
 
     'telegram' => [

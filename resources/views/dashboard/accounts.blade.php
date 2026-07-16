@@ -3,7 +3,7 @@
         $platforms = [
             ['key' => 'Instagram', 'label' => 'Instagram', 'demo' => true],
             ['key' => 'Facebook', 'label' => 'Facebook', 'demo' => true],
-            ['key' => 'WhatsApp', 'label' => 'WhatsApp', 'demo' => true],
+            ['key' => 'WhatsApp', 'label' => 'WhatsApp', 'demo' => false],
             ['key' => 'gmail', 'label' => 'Gmail', 'demo' => false],
             ['key' => 'Telegram', 'label' => 'Telegram', 'demo' => false],
         ];
@@ -103,6 +103,15 @@
                                 {{ $isConnected ? 'Add another '.$platform : 'Connect '.$platform }}
                             </button>
                         </form>
+                    @elseif ($platformKey === 'WhatsApp')
+                        <div class="mt-4" x-data="metaEmbeddedSignup(@js($metaAppId), @js($metaConfigId), @js(route('dashboard.accounts.whatsapp.embedded-signup')), @js(csrf_token()), @js($metaSignupNonce))">
+                            <button type="button" x-on:click="connect" x-bind:disabled="loading || !{{ $metaAppId ? 'true' : 'false' }} || !{{ $metaConfigId ? 'true' : 'false' }}" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60">
+                                <span x-show="!loading">Connect WhatsApp</span>
+                                <span x-show="loading" x-cloak>Opening Meta setup...</span>
+                            </button>
+                            <p x-show="message" x-text="message" class="mt-2 text-xs font-semibold text-[#6B7280]"></p>
+                            <p class="mt-2 text-xs leading-5 text-[#6B7280]">Connect securely through Meta. No access token is pasted or exposed here.</p>
+                        </div>
                     @elseif ($platformKey === 'Telegram')
                         <form method="POST" action="{{ route('dashboard.accounts.telegram.connect') }}" class="mt-4 space-y-3">
                             @csrf

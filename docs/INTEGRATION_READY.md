@@ -25,7 +25,10 @@ META_APP_ID=
 META_APP_SECRET=
 META_VERIFY_TOKEN=
 META_WEBHOOK_SECRET=
-META_GRAPH_VERSION=v21.0
+META_WEBHOOK_VERIFY_TOKEN=
+META_GRAPH_VERSION=v23.0
+META_EMBEDDED_SIGNUP_CONFIG_ID=
+LEGAL_CONTACT_EMAIL=perpetualdev2@gmail.com
 META_REDIRECT_URI="${APP_URL}/dashboard/accounts/meta/callback"
 
 GMAIL_CLIENT_ID=
@@ -39,6 +42,8 @@ N8N_WEBHOOK_SECRET=
 ```
 
 ## OpenAI
+
+WhatsApp Cloud API foundation is implemented through Meta Embedded Signup. The Accounts page opens Meta’s hosted onboarding, receives a one-time code, and completes the server-side token exchange and WABA subscription. Incoming WhatsApp text messages are accepted through the verified Meta webhook and staff text replies are sent through the WhatsApp Cloud API. Configure `META_APP_ID`, `META_APP_SECRET`, and `META_EMBEDDED_SIGNUP_CONFIG_ID`; do not collect access tokens from users.
 
 Current seam:
 
@@ -88,6 +93,8 @@ Current behavior:
 - A valid Pub/Sub notification triggers the existing Gmail inbox sync path for the matching connected account.
 - `POST /dashboard/accounts/gmail/{account}/sync` manually imports the latest 20 inbox emails.
 - `php artisan gmail:sync` can run through the Laravel scheduler to poll connected Gmail inboxes.
+- `php artisan gmail:renew-watch` runs daily through the Laravel scheduler and renews connected Gmail Pub/Sub watches before expiry.
+- Production must call `php artisan schedule:run` every minute; this drives both polling fallback and automatic watch renewal.
 - Imported Gmail messages become `Gmail` channel conversations/messages inside the existing unified inbox.
 - Duplicate Gmail messages are skipped using `metadata.gmail_message_id`.
 - Gmail conversations default to `Needs Human` and `ai_mode=human` so no email is auto-sent accidentally.

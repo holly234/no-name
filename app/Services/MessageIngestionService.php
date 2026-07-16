@@ -144,7 +144,7 @@ class MessageIngestionService
         }
 
         $nextState = $this->aiReplyService->decideState($body, (float) ($payload['confidence'] ?? 0.82));
-        if ($channel === 'Telegram' && $nextState === Conversation::STATE_AI_HANDLING) {
+        if (in_array($channel, ['Telegram', 'WhatsApp'], true) && $nextState === Conversation::STATE_AI_HANDLING) {
             $nextState = Conversation::STATE_NEEDS_HUMAN;
         }
 
@@ -153,7 +153,7 @@ class MessageIngestionService
             'customer_id' => $customer->id,
             'customer_name' => $customerName,
             'status' => $nextState,
-            'ai_mode' => $channel === 'Telegram' && $nextState === Conversation::STATE_NEEDS_HUMAN ? 'human' : 'auto',
+            'ai_mode' => in_array($channel, ['Telegram', 'WhatsApp'], true) && $nextState === Conversation::STATE_NEEDS_HUMAN ? 'human' : 'auto',
             'last_message_at' => now(),
         ]);
 

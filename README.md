@@ -19,7 +19,7 @@ Built and working as a local MVP:
 - Dashboard defaults to inbox
 - Mood-board aligned WhatsApp/Instagram-inspired inbox UI with no dashboard gradients
 - Lightweight SPA-style dashboard navigation for internal dashboard links/forms, including pending feedback and double-submit protection
-- Demo connected accounts for Instagram, Facebook, and WhatsApp
+- Demo connected accounts for Instagram and Facebook; WhatsApp uses Meta Embedded Signup
 - Real Gmail OAuth connection with encrypted token storage, manual on-demand sync, scheduled inbox polling, cleaned email rendering, clickable links, no-reply handling, and text replies through the Gmail API
 - Real Telegram bot-backed connection with encrypted bot token storage, webhook registration, incoming message/media ingestion, customer profile photos, and text/media replies through the Telegram Bot API
 - Multiple connected accounts per social platform per workspace
@@ -185,6 +185,7 @@ X-N8N-SECRET: n8n_or_app_secret
 APP_NAME="Perpetual Inbox AI"
 APP_WEBHOOK_SECRET=
 META_WEBHOOK_SECRET=
+META_WEBHOOK_VERIFY_TOKEN=use-a-long-random-value
 N8N_WEBHOOK_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
@@ -198,7 +199,7 @@ TELEGRAM_API_BASE=https://api.telegram.org/bot
 OPENAI_API_KEY=
 ```
 
-Real Meta/OpenAI integrations are not implemented yet. Gmail is implemented for OAuth connection, manual sync, scheduled inbox polling, text replies through the Gmail API, and Pub/Sub-triggered inbox sync when `GMAIL_PUBSUB_TOPIC` and `GMAIL_PUBSUB_VERIFICATION_TOKEN` are configured. Telegram is implemented through the Bot API, not private-user MTProto sessions. For real-time Telegram and Gmail webhooks, `APP_URL` must be a public HTTPS URL with a valid certificate.
+WhatsApp Cloud API is implemented through Meta Embedded Signup on the Accounts page. The browser receives a one-time signup code; Laravel exchanges it server-side, subscribes the selected WhatsApp Business Account, encrypts the access token, and stores the account scoped to the current workspace. No Meta access token is pasted into the UI. Its verified webhook is `${APP_URL}/api/webhooks/meta`; GET verification uses `META_WEBHOOK_VERIFY_TOKEN`, and POST requests require the Meta `X-Hub-Signature-256` signature calculated with `META_APP_SECRET`. Text replies are sent through the WhatsApp Cloud API. Set `META_APP_ID`, `META_APP_SECRET`, and `META_EMBEDDED_SIGNUP_CONFIG_ID` in the server `.env`. The public `/privacy`, `/terms`, and `/data-deletion` pages are included for provider review; set `LEGAL_CONTACT_EMAIL=perpetualdev2@gmail.com`. Instagram and Messenger still require their provider-specific connection and permissions. Gmail is implemented for OAuth connection, manual sync, scheduled inbox polling, text replies through the Gmail API, and Pub/Sub-triggered inbox sync when `GMAIL_PUBSUB_TOPIC` and `GMAIL_PUBSUB_VERIFICATION_TOKEN` are configured. Telegram is implemented through the Bot API, not private-user MTProto sessions. For real-time provider webhooks, `APP_URL` must be a public HTTPS URL with a valid certificate.
 
 Provider wiring guide: [docs/INTEGRATION_READY.md](docs/INTEGRATION_READY.md).
 
@@ -246,7 +247,8 @@ Connected account behavior:
 - Inbound messages can resolve the correct account using `platform + external_account_id`, with fallback support for `page_id` and `phone_number_id`.
 - Disconnecting an account clears the encrypted token, sets `status` to `disconnected`, and removes it from the active Accounts page without deleting conversation history.
 - Demo customer identity uses readable Instagram/Facebook usernames or WhatsApp numbers in the staff UI; real Meta integration should preserve a stable provider identifier separately if needed.
-- Gmail accounts use `platform=gmail`, store encrypted access/refresh tokens, and sync recent inbox emails into `Gmail` conversations manually or through the scheduled `gmail:sync` command.
+- Gmail accounts use `platform=gmail`, store encrypted access/refresh tokens, and sync recent inbox emails into `Gmail` conversations manually, through scheduled `gmail:sync`, or through Gmail Pub/Sub push-triggered sync.
+- Gmail Pub/Sub watches are renewed automatically by scheduled `gmail:renew-watch` when the Laravel scheduler is active.
 - Imported Gmail messages default to `Needs Human` and `ai_mode=human`; staff text replies are sent through Gmail API, while Gmail file replies remain disabled until attachment sending is implemented safely.
 - Gmail rendering strips noisy HTML/template markup where possible, keeps useful links clickable, detects no-reply/automated senders, and disables the composer for non-repliable threads.
 - Telegram accounts use `platform=Telegram`, store encrypted bot tokens, register a Bot API webhook when `APP_URL` is public HTTPS, and import customer messages into the unified inbox.
@@ -352,10 +354,10 @@ password
 
 Still not production-complete:
 
-- real Meta API integration
+- Instagram and Messenger Meta API connections
 - real OpenAI integration
 - real n8n workflow execution beyond compatible endpoints
-- Gmail Pub/Sub history-diff replay and automatic watch renewal
+- Gmail Pub/Sub history-diff replay
 - Gmail outbound attachment sending from the inbox
 - Telegram private-user inbox import is not supported; Telegram is bot-backed only
 - Telegram media sending is implemented for bot-backed conversations, with a 10MB upload/download cap

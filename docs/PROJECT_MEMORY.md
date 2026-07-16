@@ -10,7 +10,7 @@ Current build priority:
 - Keep the inbox as the default dashboard screen.
 - Keep every business-owned query scoped by `business_id`.
 - Preserve the calm, mature workflow-product tone. Avoid AI hype in public-facing copy.
-- Use fake/demo integrations for Meta channels first. Gmail OAuth/scheduled polling/text replies and Telegram Bot API are now the first real provider connections. Real Meta, n8n workflow execution, OpenAI, and Gmail Pub/Sub remain later-phase work.
+- Use fake/demo integrations for Meta channels first. Gmail OAuth, scheduled polling, Pub/Sub push sync, text replies, and Telegram Bot API are now the first real provider connections. Real Meta, n8n workflow execution, and OpenAI remain later-phase work.
 - Maintain the current mood-board aligned DM-style inbox UI unless the user explicitly asks for a redesign.
 - Keep dashboard surfaces flat and premium. Do not add gradients to dashboard pages, tabs, cards, loading states, or channel badges.
 - Use `docs/INTEGRATION_READY.md` as the handoff checklist when wiring OpenAI, Meta, and n8n.
@@ -129,6 +129,8 @@ Example isolation:
 - Lagos Detailing should only see Lagos Detailing messages/settings.
 - They must never see each other's conversations, customers, FAQs, connected accounts, or logs.
 - A single workspace may have multiple connected accounts for the same platform, such as three WhatsApp Business numbers or two Instagram accounts. Account routing must use account identifiers, not only platform.
+- WhatsApp real onboarding uses Meta Embedded Signup. The browser receives a one-time code plus WABA/phone IDs, while Laravel exchanges the code, subscribes the WABA, encrypts the token, and scopes the connection to the current business. The UI must never ask users to paste Meta access tokens.
+- Public provider-review pages are available at `/privacy`, `/terms`, and `/data-deletion`; production must set `LEGAL_CONTACT_EMAIL` to a monitored address.
 
 ## Auth Requirements
 
@@ -244,6 +246,7 @@ Gmail automatic polling:
 - `php artisan gmail:sync` syncs connected Gmail inbox accounts.
 - Laravel scheduler runs `gmail:sync --mailbox=inbox --limit=20` every minute when the VPS cron calls `php artisan schedule:run`.
 - Gmail Pub/Sub push support exists at `POST /api/webhooks/gmail/pubsub?token={GMAIL_PUBSUB_VERIFICATION_TOKEN}`.
+- Laravel scheduler runs `gmail:renew-watch` daily at 02:15 and renews connected Gmail Pub/Sub watches when missing or within one day of expiry. The VPS scheduler cron must remain active.
 - When `GMAIL_PUBSUB_TOPIC` is configured, Gmail connect attempts to register `users/me/watch` for inbox changes.
 - Pub/Sub currently triggers the existing recent-inbox sync path for the matching connected account; cron polling should remain as a safety fallback.
 
@@ -622,7 +625,7 @@ Telegram integration pass on 2026-07-09:
 - Added Telegram channel icon/filter support in the inbox and kept all channel filters on one horizontal row.
 - Telegram uses bot-backed customer conversations only. It does not import a user's personal Telegram inbox or private chats.
 - Telegram webhook status can show live while delivery still fails if Telegram cannot validate the site's certificate. Check `getWebhookInfo.last_error_message` when messages do not arrive.
-- Latest verification after the current Gmail Pub/Sub pass: PHPUnit passes with `90 tests, 360 assertions`, `php artisan route:list --except-vendor` passes, and `npm run build` passes.
+- Latest verification after automatic Gmail watch renewal: PHPUnit passes with `92 tests, 368 assertions`, `php artisan route:list --except-vendor` passes, and `npm run build` passes.
 
 Not built yet:
 - Authorization policies/roles beyond current business-ownership checks
@@ -633,7 +636,7 @@ Not built yet:
 - Real Meta API integration
 - Real OpenAI integration
 - Real n8n workflow integration beyond placeholder-compatible endpoints
-- Gmail Pub/Sub history-diff replay and automatic watch renewal
+- Gmail Pub/Sub history-diff replay
 - Gmail outbound attachment sending from the inbox
 - Telegram private-user inbox import through MTProto
 - Billing/subscription system

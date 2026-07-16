@@ -11,6 +11,7 @@ use App\Services\AiReplyService;
 use App\Services\ConversationMessageService;
 use App\Services\GmailConnectionService;
 use App\Services\MessageIngestionService;
+use App\Services\MetaConnectionService;
 use App\Services\TelegramConnectionService;
 use Illuminate\Http\Request;
 
@@ -26,9 +27,74 @@ class WebhookController extends Controller
             && hash_equals($expected, (string) $provided);
     }
 
+    public function verifyMeta(Request $request)
+    {
+        $mode = $request->query('hub.mode', $request->query('hub_mode'));
+        $verifyToken = $request->query('hub.verify_token', $request->query('hub_verify_token'));
+        $challenge = $request->query('hub.challenge', $request->query('hub_challenge'));
+
+        abort_unless($mode === 'subscribe', 403);
+        abort_unless(hash_equals((string) config('services.meta.webhook_verify_token'), (string) $verifyToken), 403);
+
+        return response((string) $challenge, 200)->header('Content-Type', 'text/plain');
+    }
+
     public function meta(Request $request, MessageIngestionService $messageIngestionService)
     {
-        return $this->incomingMessage($request, $messageIngestionService);
+        $appSecret = (string) config('services.meta.app_secret');
+        $signature = (string) $request->header('X-Hub-Signature-256');
+        $expectedSignature = 'sha256='.hash_hmac('sha256', $request->getContent(), $appSecret);
+
+        abort_unless($appSecret !== '' && hash_equals($expectedSignature, $signature), 401);
+
+        $payload = $request->all();
+
+        foreach ($payload['entry'] ?? [] as $entry) {
+            foreach ($entry['changes'] ?? [] as $change) {
+                if (($change['field'] ?? null) !== 'messages') {
+                    continue;
+                }
+
+                $value = $change['value'] ?? [];
+                $account = ConnectedAccount::where('platform', 'WhatsApp')
+                    ->where('phone_number_id', (string) ($value['metadata']['phone_number_id'] ?? ''))
+                    ->where('status', 'connected')
+                    ->first();
+
+                if (! $account) {
+                    continue;
+                }
+
+                foreach ($value['messages'] ?? [] as $message) {
+                    if (($message['type'] ?? null) !== 'text') {
+                        continue;
+                    }
+
+                    $contact = collect($value['contacts'] ?? [])->firstWhere('wa_id', $message['from']);
+                    $conversation = $messageIngestionService->ingest([
+                        'business_id' => $account->business_id,
+                        'channel' => 'WhatsApp',
+                        'connected_account_id' => $account->id,
+                        'external_account_id' => $account->external_account_id,
+                        'customer_name' => $contact['profile']['name'] ?? $message['from'],
+                        'customer_external_id' => $message['from'],
+                        'body' => $message['text']['body'] ?? '',
+                        'metadata' => ['source' => 'meta_whatsapp', 'whatsapp_message_id' => $message['id'] ?? null],
+                    ]);
+
+                    AutomationLog::create([
+                        'business_id' => $account->business_id,
+                        'connected_account_id' => $account->id,
+                        'event_type' => 'meta_webhook',
+                        'status' => 'success',
+                        'message' => 'WhatsApp message processed.',
+                        'metadata' => ['conversation_id' => $conversation->id, 'message_id' => $message['id'] ?? null],
+                    ]);
+                }
+            }
+        }
+
+        return response()->json(['message' => 'Meta webhook processed.']);
     }
 
     public function incomingMessage(Request $request, MessageIngestionService $messageIngestionService)
