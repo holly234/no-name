@@ -78,7 +78,11 @@ window.metaEmbeddedSignup = (appId, configId, graphVersion, endpoint, csrf, nonc
                 config_id: configId,
                 response_type: 'code',
                 override_default_response_type: true,
-                extras: { setup: {} },
+                extras: {
+                    setup: {},
+                    version: 'v4',
+                    sessionInfoVersion: '3',
+                },
             });
         } catch (error) {
             this.loading = false;
