@@ -30,6 +30,7 @@ class ConnectedAccountController extends Controller
             ])),
             'metaAppId' => config('services.meta.app_id'),
             'metaConfigId' => config('services.meta.embedded_signup_config_id'),
+            'metaGraphVersion' => config('services.meta.graph_version', 'v25.0'),
         ]);
     }
 

@@ -15,7 +15,7 @@ import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
 window.Alpine = Alpine;
 
 let metaSdkPromise;
-window.metaEmbeddedSignup = (appId, configId, endpoint, csrf, nonce) => ({
+window.metaEmbeddedSignup = (appId, configId, graphVersion, endpoint, csrf, nonce) => ({
     loading: false,
     message: '',
     wabaId: null,
@@ -44,7 +44,7 @@ window.metaEmbeddedSignup = (appId, configId, endpoint, csrf, nonce) => ({
         if (metaSdkPromise) return metaSdkPromise;
         metaSdkPromise = new Promise((resolve, reject) => {
             window.fbAsyncInit = () => {
-                window.FB.init({ appId, cookie: true, xfbml: false, version: 'v23.0' });
+                window.FB.init({ appId, cookie: true, xfbml: false, version: graphVersion || 'v25.0' });
                 resolve(window.FB);
             };
             const script = document.createElement('script');
@@ -68,7 +68,8 @@ window.metaEmbeddedSignup = (appId, configId, endpoint, csrf, nonce) => ({
                 const auth = response?.authResponse;
                 if (!auth?.code) {
                     this.loading = false;
-                    this.message = 'Meta setup was cancelled or did not return a code.';
+                    const reason = response?.error?.message || response?.status || 'no authorization code was returned';
+                    this.message = `Meta setup did not return a code (${reason}).`;
                     return;
                 }
                     this.pendingCode = auth.code;
