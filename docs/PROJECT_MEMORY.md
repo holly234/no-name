@@ -8,8 +8,8 @@ The Laravel/Blade MVP is now an active working demo for a Nigeria-first SaaS lau
 
 Current build priority:
 - Pause active Meta test-case work and public Embedded Signup testing until Perpetual Devs can complete Meta business verification and App Review. Preserve all existing Meta code and both connection lanes.
-- Authentication foundation comes first: remove email/password as the public sign-up/login method; implement Google sign-in plus secure passwordless email magic links.
-- Configure Resend for transactional mail and use queued Laravel notifications/mailables.
+- Google OAuth is the only public customer sign-up/login method. Public email/password, password reset, password update, email magic-link, and account-deletion-password screens are intentionally disabled.
+- Configure Resend later for transactional product emails and use queued Laravel notifications/mailables; Resend is not an authentication dependency.
 - Complete workspace team invitations and enforce Owner/Admin/Agent permissions with policies and middleware.
 - Continue the separate private Filament platform-owner dashboard for Perpetual Devs; its secure foundation, global statistics, directories, and workspace suspension controls are implemented, while credit/revenue/health modules remain pending.
 - Implement prepaid AI credits and an immutable usage ledger. The unified inbox/manual workflow is free; customers pay only for AI-agent usage. There is no fixed recurring SaaS fee in the current direction.
@@ -161,9 +161,9 @@ Example isolation:
 ## Auth Requirements
 
 Target public authentication:
-- Google OAuth login/sign-up using Laravel Socialite is the primary method.
-- Secure one-time email magic link is the passwordless fallback.
-- Do not expose public email/password registration, login, forgot-password, or reset-password flows after the migration is complete.
+- Google OAuth login/sign-up using Laravel Socialite is the only public authentication method.
+- Do not add passwordless email magic links unless the product direction changes.
+- Do not expose public email/password registration, login, forgot-password, reset-password, or password-update flows.
 - Keep logout, secure session regeneration/invalidation, rate limiting, and login audit events.
 - Microsoft sign-in may be added later if customer demand justifies the extra provider.
 - Resend delivers magic links, workspace invitations, welcome/onboarding messages, credit/payment notices, low-credit warnings, important connection failures, and security notifications.
@@ -189,10 +189,10 @@ User columns:
 - `last_login_at`
 - `last_login_ip`
 
-Known auth gaps as of 2026-07-16:
-- `GoogleAuthController` is still a 501 placeholder even though Socialite is installed.
-- The `User` model does not currently implement `MustVerifyEmail`; the existing `verified` middleware therefore does not enforce the intended email verification behavior.
-- Existing Breeze email/password screens/controllers still exist and must be retired from the public flow after passwordless auth is tested.
+Auth status as of 2026-07-17:
+- `GoogleAuthController` performs the Socialite redirect/callback, safely links by Google ID or normalized email, records login metadata, and routes new users to workspace onboarding.
+- The `User` model implements `MustVerifyEmail`; Google-provided identities are marked verified.
+- Public Breeze password routes are disabled. The private Filament platform-owner login remains separate so Perpetual Devs administration is not locked out.
 - Team invitation acceptance and consistent role enforcement are not complete.
 
 ## Platform Owner Dashboard

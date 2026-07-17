@@ -19,8 +19,10 @@ Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy
 Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
 Route::get('/data-deletion', [LegalController::class, 'dataDeletion'])->name('legal.data-deletion');
 
-Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
-Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+Route::middleware(['guest', 'throttle:20,1'])->group(function () {
+    Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/onboarding/workspace', [WorkspaceController::class, 'create'])->name('onboarding.workspace');
