@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\GmailAccountAlreadyConnected;
 use App\Models\AutomationLog;
 use App\Models\Business;
 use App\Models\ConnectedAccount;
@@ -11,6 +12,7 @@ use App\Models\Message;
 use App\Models\MessageAttachment;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -75,20 +77,40 @@ class GmailConnectionService
     public function connect(Business $business, array $tokens): ConnectedAccount
     {
         $profile = $this->fetchProfile($tokens['access_token']);
-        $email = $profile['emailAddress'] ?? null;
+        $email = isset($profile['emailAddress'])
+            ? Str::lower(trim($profile['emailAddress']))
+            : null;
 
         if (! $email) {
             throw new RuntimeException('Google did not return a Gmail email address.');
         }
 
-        $account = ConnectedAccount::updateOrCreate(
-            [
-                'business_id' => $business->id,
-                'platform' => 'gmail',
-                'external_account_id' => $email,
-            ],
-            [
+        $account = DB::transaction(function () use ($business, $email, $profile, $tokens) {
+            $activeOwner = ConnectedAccount::query()
+                ->where('platform', 'gmail')
+                ->where('status', 'connected')
+                ->whereRaw('LOWER(external_account_id) = ?', [$email])
+                ->lockForUpdate()
+                ->first();
+
+            if ($activeOwner && $activeOwner->business_id !== $business->id) {
+                throw new GmailAccountAlreadyConnected;
+            }
+
+            $account = ConnectedAccount::query()
+                ->where('business_id', $business->id)
+                ->where('platform', 'gmail')
+                ->whereRaw('LOWER(external_account_id) = ?', [$email])
+                ->first() ?? new ConnectedAccount([
+                    'business_id' => $business->id,
+                    'platform' => 'gmail',
+                    'external_account_id' => $email,
+                ]);
+
+            $account->fill([
                 'account_name' => $email,
+                'external_account_id' => $email,
+                'active_identity_key' => 'gmail:'.$email,
                 'access_token' => $tokens['access_token'],
                 'refresh_token' => $tokens['refresh_token'] ?? null,
                 'token_expires_at' => isset($tokens['expires_in'])
@@ -102,8 +124,10 @@ class GmailConnectionService
                 ],
                 'status' => 'connected',
                 'connected_at' => now(),
-            ]
-        );
+            ])->save();
+
+            return $account;
+        });
 
         try {
             $this->registerWatchIfConfigured($account);

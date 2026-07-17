@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\GmailAccountAlreadyConnected;
 use App\Models\AutomationLog;
 use App\Models\ConnectedAccount;
 use App\Services\GmailConnectionService;
@@ -115,6 +116,10 @@ class ConnectedAccountController extends Controller
         try {
             $tokens = $gmailConnectionService->exchangeAuthorizationCode($validated['code']);
             $account = $gmailConnectionService->connect($business, $tokens);
+        } catch (GmailAccountAlreadyConnected $exception) {
+            return redirect()
+                ->route('dashboard.accounts')
+                ->with('error', $exception->getMessage());
         } catch (ConnectionException $exception) {
             report($exception);
 
@@ -367,6 +372,7 @@ class ConnectedAccountController extends Controller
             'access_token' => null,
             'refresh_token' => null,
             'token_expires_at' => null,
+            'active_identity_key' => null,
         ]);
 
         AutomationLog::create([

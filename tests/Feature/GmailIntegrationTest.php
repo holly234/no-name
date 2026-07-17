@@ -126,6 +126,93 @@ class GmailIntegrationTest extends TestCase
         $this->assertSame('projects/perpetual/topics/gmail-inbound', $account->provider_meta['watch_topic']);
     }
 
+    public function test_gmail_callback_blocks_an_address_connected_to_another_workspace(): void
+    {
+        $owner = User::factory()->create();
+        $otherOwner = User::factory()->create();
+        $business = $this->createBusiness($owner);
+        $otherBusiness = $this->createBusiness($otherOwner, 'Other Workspace');
+        $this->createGmailAccount($otherBusiness, [
+            'external_account_id' => 'Support@Example.com',
+            'active_identity_key' => 'gmail:support@example.com',
+        ]);
+
+        config([
+            'services.gmail.client_id' => 'gmail-client-id',
+            'services.gmail.client_secret' => 'gmail-client-secret',
+            'services.gmail.redirect_uri' => 'http://localhost/dashboard/accounts/gmail/callback',
+        ]);
+
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'new-token']),
+            'https://gmail.googleapis.com/gmail/v1/users/me/profile' => Http::response([
+                'emailAddress' => 'support@example.com',
+            ]),
+        ]);
+
+        $this->actingAs($owner)
+            ->withSession([
+                'current_business_id' => $business->id,
+                'gmail_oauth_state' => 'state-token',
+                'gmail_oauth_business_id' => $business->id,
+            ])
+            ->get(route('dashboard.accounts.gmail.callback', [
+                'code' => 'auth-code',
+                'state' => 'state-token',
+            ]))
+            ->assertRedirect(route('dashboard.accounts'))
+            ->assertSessionHas('error', 'This Gmail account is already connected to another workspace. Disconnect it there before connecting it here.');
+
+        $this->assertDatabaseMissing('connected_accounts', [
+            'business_id' => $business->id,
+            'platform' => 'gmail',
+        ]);
+    }
+
+    public function test_disconnected_gmail_address_can_be_connected_to_another_workspace(): void
+    {
+        $owner = User::factory()->create();
+        $otherOwner = User::factory()->create();
+        $business = $this->createBusiness($owner);
+        $otherBusiness = $this->createBusiness($otherOwner, 'Previous Workspace');
+        $this->createGmailAccount($otherBusiness, [
+            'status' => 'disconnected',
+            'active_identity_key' => null,
+        ]);
+
+        config([
+            'services.gmail.client_id' => 'gmail-client-id',
+            'services.gmail.client_secret' => 'gmail-client-secret',
+            'services.gmail.redirect_uri' => 'http://localhost/dashboard/accounts/gmail/callback',
+        ]);
+
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'new-token']),
+            'https://gmail.googleapis.com/gmail/v1/users/me/profile' => Http::response([
+                'emailAddress' => 'SUPPORT@example.com',
+            ]),
+        ]);
+
+        $this->actingAs($owner)
+            ->withSession([
+                'current_business_id' => $business->id,
+                'gmail_oauth_state' => 'state-token',
+                'gmail_oauth_business_id' => $business->id,
+            ])
+            ->get(route('dashboard.accounts.gmail.callback', [
+                'code' => 'auth-code',
+                'state' => 'state-token',
+            ]))
+            ->assertSessionHas('status', 'support@example.com connected.');
+
+        $this->assertDatabaseHas('connected_accounts', [
+            'business_id' => $business->id,
+            'external_account_id' => 'support@example.com',
+            'active_identity_key' => 'gmail:support@example.com',
+            'status' => 'connected',
+        ]);
+    }
+
     public function test_gmail_sync_rejects_foreign_business_account(): void
     {
         $user = User::factory()->create();

@@ -11,6 +11,7 @@ class ConnectedAccount extends Model
         'platform',
         'account_name',
         'external_account_id',
+        'active_identity_key',
         'page_id',
         'phone_number_id',
         'access_token',
