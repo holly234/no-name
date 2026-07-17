@@ -7,7 +7,7 @@ Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::redirect('register', '/login')->name('register');
+    Route::view('register', 'auth.register')->name('register');
 });
 
 Route::middleware('auth')->group(function () {

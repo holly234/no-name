@@ -31,4 +31,9 @@
         and
         <a href="{{ route('legal.privacy') }}" class="font-semibold text-[#2563EB]">Privacy Policy</a>.
     </p>
+
+    <p class="mt-5 text-center text-sm text-[#6B7280]">
+        New to Perpetual Inbox?
+        <a href="{{ route('register') }}" class="font-bold text-[#2563EB]">Create an account</a>
+    </p>
 </x-guest-layout>

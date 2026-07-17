@@ -23,7 +23,11 @@ class GoogleAuthenticationTest extends TestCase
             ->assertDontSee('Forgot your password?')
             ->assertDontSee('name="password"', false);
 
-        $this->get('/register')->assertRedirect('/login');
+        $this->get('/register')
+            ->assertOk()
+            ->assertSee('Create your account')
+            ->assertSee('Sign up with Google')
+            ->assertDontSee('name="password"', false);
         $this->post('/login', [])->assertMethodNotAllowed();
         $this->get('/forgot-password')->assertNotFound();
     }
