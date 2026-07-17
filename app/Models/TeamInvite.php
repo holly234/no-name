@@ -14,4 +14,9 @@ class TeamInvite extends Model
         'status',
         'invited_by',
     ];
+
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
 }

@@ -69,4 +69,26 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     {
         return $this->hasMany(Business::class, 'owner_id');
     }
+
+    public function workspaceRole(?Business $business): ?string
+    {
+        if (! $business) {
+            return null;
+        }
+
+        if ((int) $business->owner_id === (int) $this->id) {
+            return 'owner';
+        }
+
+        $role = $business->users()
+            ->whereKey($this->id)
+            ->value('business_user.role');
+
+        return $role ? strtolower((string) $role) : null;
+    }
+
+    public function hasWorkspaceRole(?Business $business, string ...$roles): bool
+    {
+        return in_array($this->workspaceRole($business), array_map('strtolower', $roles), true);
+    }
 }

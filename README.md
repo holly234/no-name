@@ -14,9 +14,9 @@ Provider testing is temporarily paused, especially public Meta Embedded Signup, 
 
 Development now proceeds in this order:
 
-1. Complete and enforce Owner/Admin/Agent permissions across every workspace route and action.
-2. Build team invitations; Resend delivery can be connected afterward without becoming an authentication dependency.
-3. Build the prepaid AI-credit wallet, immutable usage ledger, purchases, deductions, reversals, and low-balance controls.
+1. Connect invitation email delivery through Resend; secure invitation links and role enforcement already work without email delivery.
+2. Complete prepaid AI-credit purchases, deductions, reversals, and low-balance controls on the existing wallet and usage-ledger foundation.
+3. Connect the Laravel-native AI agent to the credit and token-usage ledger.
 4. Replace n8n as the planned automation brain with Laravel-native agents, queues, jobs, tools, and conversation orchestration.
 5. Integrate an AI provider behind a provider-neutral Laravel interface. Gemini 2.5 Flash-Lite is the current default candidate for routine replies; Gemini Flash and OpenAI may be quality/fallback options.
 6. Add the customer-dashboard PWA layer after the core customer workflow is stable.
@@ -31,6 +31,8 @@ Built and working as a local MVP:
 - Google-only public signup/login through Laravel Socialite, with separate login and registration pages
 - Public password, reset, and magic-link authentication are intentionally disabled; private Filament owner authentication remains separate
 - Multi-tenant business/workspace model
+- Server-enforced Owner/Admin/Agent roles: Owner has full control, Admin manages operations and agents, and Agent is inbox-only
+- Secure team invitation links restricted to the exact invited Google email, with owner/admin member-management boundaries
 - Session-backed active workspace resolution
 - Business-scoped dashboard data
 - Dashboard defaults to inbox
@@ -44,6 +46,7 @@ Built and working as a local MVP:
 - AI Conversation State Engine demo workflow
 - Manual replies, behavior-backed human takeover switch, resume automation, and close support in backend
 - AI settings toggles are wired into behavior for auto replies, human takeover, and business-hours reply gating
+- User-dashboard Credits & Usage, Analytics, and Team pages, backed by AI wallet, transaction, and per-response usage tables
 - Editable knowledge base with mobile-friendly section tabs for FAQs, products/services, business rules, and saved replies
 - Secured webhook/API write routes
 - Per-user conversation read tracking
@@ -59,7 +62,7 @@ npm run build
 php artisan view:cache
 ```
 
-Last known passing test count: `100 tests, 385 assertions`.
+Last known passing test count: `99 tests, 452 assertions`.
 
 ## Core Product
 
@@ -136,6 +139,14 @@ Dashboard:
 - `PATCH /dashboard/accounts/{account}/disconnect`
 - `GET /dashboard/ai-settings`
 - `PATCH /dashboard/ai-settings`
+- `GET /dashboard/ai-credits`
+- `GET /dashboard/analytics`
+- `GET /dashboard/team`
+- `POST /dashboard/team/invitations`
+- `PATCH /dashboard/team/members/{member}/role`
+- `DELETE /dashboard/team/members/{member}`
+- `DELETE /dashboard/team/invitations/{invite}`
+- `GET /team/invitations/{token}`
 - `GET /dashboard/knowledge-base`
 - `POST /dashboard/knowledge-base/faqs`
 - `PATCH /dashboard/knowledge-base/faqs/{faq}`
@@ -172,6 +183,7 @@ Implemented guardrails:
 
 - current business resolved through `CurrentBusinessService`
 - `current.business` middleware shares active workspace context
+- `workspace.role` middleware enforces Owner/Admin/Agent access on the server; hidden navigation is only a matching UI convenience
 - workspace switching only allows businesses attached to the user
 - inbox mutation actions reject foreign-business conversations
 - connected account access tokens are encrypted

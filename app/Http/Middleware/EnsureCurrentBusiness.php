@@ -33,6 +33,7 @@ class EnsureCurrentBusiness
 
         $request->attributes->set('currentBusiness', $business);
         View::share('currentBusiness', $business);
+        View::share('currentWorkspaceRole', $request->user()->workspaceRole($business));
         View::share('userBusinesses', $request->user()->businesses()->orderBy('businesses.name')->get());
 
         return $next($request);

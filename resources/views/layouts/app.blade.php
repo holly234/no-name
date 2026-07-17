@@ -16,16 +16,16 @@
         @if (isset($currentBusiness))
             @php
                 $isInboxPage = request()->routeIs('dashboard.inbox');
-                $navItems = [
-                    ['label' => 'Inbox', 'route' => 'dashboard.inbox', 'icon' => 'inbox'],
-                    ['label' => 'Accounts', 'route' => 'dashboard.accounts', 'icon' => 'plug'],
-                    ['label' => 'AI Settings', 'route' => 'dashboard.ai-settings', 'icon' => 'sparkles'],
-                    ['label' => 'Credits & Usage', 'route' => 'dashboard.ai-credits', 'icon' => 'wallet'],
-                    ['label' => 'Knowledge Base', 'route' => 'dashboard.knowledge-base', 'icon' => 'book'],
-                    ['label' => 'Analytics', 'route' => 'dashboard.analytics', 'icon' => 'chart'],
-                    ['label' => 'Team', 'route' => 'dashboard.team', 'icon' => 'users'],
-                    ['label' => 'Settings', 'route' => 'dashboard.settings', 'icon' => 'settings'],
-                ];
+                $navItems = collect([
+                    ['label' => 'Inbox', 'route' => 'dashboard.inbox', 'icon' => 'inbox', 'roles' => ['owner', 'admin', 'agent']],
+                    ['label' => 'Accounts', 'route' => 'dashboard.accounts', 'icon' => 'plug', 'roles' => ['owner', 'admin']],
+                    ['label' => 'AI Settings', 'route' => 'dashboard.ai-settings', 'icon' => 'sparkles', 'roles' => ['owner', 'admin']],
+                    ['label' => 'Credits & Usage', 'route' => 'dashboard.ai-credits', 'icon' => 'wallet', 'roles' => ['owner']],
+                    ['label' => 'Knowledge Base', 'route' => 'dashboard.knowledge-base', 'icon' => 'book', 'roles' => ['owner', 'admin']],
+                    ['label' => 'Analytics', 'route' => 'dashboard.analytics', 'icon' => 'chart', 'roles' => ['owner', 'admin']],
+                    ['label' => 'Team', 'route' => 'dashboard.team', 'icon' => 'users', 'roles' => ['owner', 'admin']],
+                    ['label' => 'Settings', 'route' => 'dashboard.settings', 'icon' => 'settings', 'roles' => ['owner']],
+                ])->filter(fn ($item) => in_array($currentWorkspaceRole, $item['roles'], true))->values()->all();
                 $pageTitle = data_get(collect($navItems)->first(fn ($item) => request()->routeIs($item['route'])), 'label', 'Overview');
             @endphp
 
@@ -117,11 +117,12 @@
                             @endforeach
                         </nav>
                         <div class="mt-auto border-t border-[#E5E7EB] p-4">
-                            <a href="{{ route('dashboard.settings') }}" class="mb-3 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-[#F5F6F8]">
+                            <a href="{{ $currentWorkspaceRole === 'owner' ? route('dashboard.settings') : route('dashboard.inbox') }}" class="mb-3 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-[#F5F6F8]">
                                 <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-sm font-bold text-[#047857]">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
                                 <span class="min-w-0 flex-1">
                                     <span class="block truncate text-sm font-bold text-[#111827]">{{ auth()->user()->name }}</span>
                                     <span class="block truncate text-xs text-[#6B7280]">{{ auth()->user()->email }}</span>
+                                    <span class="mt-1 block text-[0.65rem] font-bold uppercase tracking-wide text-[#2563EB]">{{ $currentWorkspaceRole }}</span>
                                 </span>
                                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4 text-[#9CA3AF]"><path d="m9 18 6-6-6-6"/></svg>
                             </a>
@@ -151,10 +152,12 @@
                                         <p class="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">{{ $currentBusiness->name }}</p>
                                         <h1 class="truncate text-lg font-bold text-[#111827]">{{ $pageTitle }}</h1>
                                     </div>
+                                    @if (in_array($currentWorkspaceRole, ['owner', 'admin'], true))
                                     <a href="{{ route('dashboard.ai-settings') }}" class="hidden items-center gap-2 rounded-full border border-[#D1FAE5] bg-[#ECFDF5] px-3 py-2 text-xs font-bold text-[#047857] sm:inline-flex">
                                         <span class="h-2 w-2 rounded-full bg-[#10B981]"></span>
                                         AI agent
                                     </a>
+                                    @endif
                                     <a href="{{ route('dashboard.inbox') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#111827] px-3.5 text-sm font-bold text-white transition hover:bg-black">
                                         {!! $navIcon('inbox') !!}
                                         <span class="hidden sm:inline">Open inbox</span>
