@@ -14,13 +14,13 @@ Provider testing is temporarily paused, especially public Meta Embedded Signup, 
 
 Development now proceeds in this order:
 
-1. Replace public email/password authentication with Google sign-in and passwordless email magic links.
-2. Configure Resend and build transactional email delivery.
-3. Complete workspace onboarding, invitations, and enforced Owner/Admin/Agent permissions.
-4. Build a separate private platform-owner dashboard for Perpetual Devs.
-5. Build the prepaid AI-credit wallet, immutable usage ledger, purchases, deductions, reversals, and low-balance controls.
-6. Replace n8n as the planned automation brain with Laravel-native agents, queues, jobs, tools, and conversation orchestration.
-7. Integrate an AI provider behind a provider-neutral Laravel interface. Gemini 2.5 Flash-Lite is the current default candidate for routine replies; Gemini Flash and OpenAI may be quality/fallback options.
+1. Complete and enforce Owner/Admin/Agent permissions across every workspace route and action.
+2. Build team invitations; Resend delivery can be connected afterward without becoming an authentication dependency.
+3. Build the prepaid AI-credit wallet, immutable usage ledger, purchases, deductions, reversals, and low-balance controls.
+4. Replace n8n as the planned automation brain with Laravel-native agents, queues, jobs, tools, and conversation orchestration.
+5. Integrate an AI provider behind a provider-neutral Laravel interface. Gemini 2.5 Flash-Lite is the current default candidate for routine replies; Gemini Flash and OpenAI may be quality/fallback options.
+6. Add the customer-dashboard PWA layer after the core customer workflow is stable.
+7. Package only the customer application as Android/iOS clients later; marketing, Filament owner administration, webhooks, and Laravel remain web/server surfaces.
 8. Resume production provider onboarding and Meta approval work after the product foundation is stable.
 
 ## Current Status
@@ -28,8 +28,8 @@ Development now proceeds in this order:
 Built and working as a local MVP:
 
 - Laravel 12, Blade, Tailwind CSS, Alpine.js, Vite
-- Existing Breeze email/password scaffold, scheduled to be replaced as the public auth flow
-- Google OAuth routes/config placeholders via Socialite, scheduled for full implementation
+- Google-only public signup/login through Laravel Socialite, with separate login and registration pages
+- Public password, reset, and magic-link authentication are intentionally disabled; private Filament owner authentication remains separate
 - Multi-tenant business/workspace model
 - Session-backed active workspace resolution
 - Business-scoped dashboard data
@@ -109,7 +109,6 @@ Public/auth (current routes; password routes are legacy and scheduled for replac
 - `GET /`
 - `GET /login`
 - `GET /register`
-- `GET /forgot-password`
 - `GET /auth/google/redirect`
 - `GET /auth/google/callback`
 
@@ -152,6 +151,7 @@ Dashboard:
 - `DELETE /dashboard/knowledge-base/saved-replies/{savedReply}`
 - `GET /dashboard/settings`
 - `PATCH /dashboard/settings/business`
+- `DELETE /dashboard/settings/workspace`
 
 API:
 
@@ -222,6 +222,15 @@ WhatsApp Cloud API is implemented through Meta Embedded Signup on the Accounts p
 Provider wiring guide: [docs/INTEGRATION_READY.md](docs/INTEGRATION_READY.md).
 
 ## Architecture Notes
+
+### PWA and mobile boundary
+
+- Laravel, provider webhooks, queues, data, and APIs remain hosted on the VPS.
+- The installable PWA is limited to the authenticated customer application, starts at `/dashboard/inbox`, and uses `/dashboard/` as its intended application scope.
+- Marketing routes (`/`, `/privacy`, `/terms`) and the private Filament owner panel (`/owner/*`) remain browser-only even though they live in the same Laravel repository.
+- Offline support must cache only the application shell and static assets; authenticated conversations and other sensitive workspace data remain network-first and should not be persistently cached by default.
+- A future Capacitor client packages only the customer experience. Android and iOS use platform-specific Google OAuth clients and system/native authentication, never an embedded WebView OAuth flow.
+- Native push notifications, deep links, microphone/camera/files, and store packaging are later mobile phases. The PWA comes first.
 
 Key controllers:
 
@@ -361,12 +370,7 @@ php artisan view:cache
 
 The seeder creates demo businesses, accounts, settings, knowledge-base content, customers, conversations, messages, and automation logs.
 
-Demo login:
-
-```text
-demo@perpetualinbox.test
-password
-```
+The seeded customer must authenticate through a matching Google account in the public application. Password login is retained only for explicitly authorized private Filament platform-owner access.
 
 ## Current Limitations
 
@@ -380,7 +384,7 @@ Still not production-complete:
 - Telegram private-user inbox import is not supported; Telegram is bot-backed only
 - Telegram media sending is implemented for bot-backed conversations, with a 10MB upload/download cap
 - Telegram profile photos only appear when the bot can fetch them from Telegram
-- advanced workspace settings, billing, and danger-zone controls
+- advanced workspace settings and billing controls
 - configurable business-hours schedule UI
 - separate immutable provider customer IDs from display usernames/phone numbers before production if Meta payloads require both
 - role-based authorization policies and team invitation flow

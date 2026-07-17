@@ -12,6 +12,8 @@ Current build priority:
 - Configure Resend later for transactional product emails and use queued Laravel notifications/mailables; Resend is not an authentication dependency.
 - Complete workspace team invitations and enforce Owner/Admin/Agent permissions with policies and middleware.
 - Continue the separate private Filament platform-owner dashboard for Perpetual Devs; its secure foundation, global statistics, directories, and workspace suspension controls are implemented, while credit/revenue/health modules remain pending.
+- Plan a customer-dashboard PWA after the core workflow is stable. Its start URL is `/dashboard/inbox` and its intended scope is `/dashboard/`; do not include marketing pages or `/owner` in the installed customer app.
+- A later Capacitor Android/iOS client packages only the customer experience. Laravel, queues, webhooks, APIs, marketing pages, and the Filament owner panel remain hosted/web surfaces. Mobile Google authentication must use separate platform OAuth clients and native/system-browser flows, never embedded WebView OAuth.
 - Implement prepaid AI credits and an immutable usage ledger. The unified inbox/manual workflow is free; customers pay only for AI-agent usage. There is no fixed recurring SaaS fee in the current direction.
 - Scrap n8n as the planned automation bridge. Laravel is the complete application and automation brain using services, jobs, queues, events, tools, and scheduled commands. Existing n8n-compatible endpoints may remain for backward compatibility until deliberately removed.
 - Build a provider-neutral Laravel AI layer. Gemini 2.5 Flash-Lite is the current cost-first default candidate for routine DM replies; Gemini Flash and OpenAI may be configurable quality/fallback providers. Do not hard-wire business logic to one provider.
@@ -213,7 +215,7 @@ Use a proven Laravel admin-panel library such as Filament if its installed versi
 - Owner has full workspace, team, credits/payment, integrations, and danger-zone control.
 - Admin manages inbox, knowledge, team, settings, and integrations except ownership transfer and owner-only financial/danger actions.
 - Agent accesses inbox/customer work only and must not access connected-account credentials, AI configuration, credits/payment administration, or workspace danger controls.
-- Invitations are emailed through Resend, expire, are single-use, and can be accepted after Google or magic-link authentication.
+- Invitations are emailed through Resend, expire, are single-use, and are accepted after Google authentication.
 - Enforce roles through policies/middleware and business-scoped queries, not only hidden navigation.
 
 ## Security Requirements
