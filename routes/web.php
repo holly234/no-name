@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AiSettingsController;
+use App\Http\Controllers\AiCreditsController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ConnectedAccountController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GoogleAuthController;
@@ -11,6 +13,7 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\MessageAttachmentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\TeamController;
 use App\Http\Controllers\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
@@ -56,6 +59,9 @@ Route::middleware(['auth', 'verified', 'current.business'])
         Route::patch('/accounts/{account}/disconnect', [ConnectedAccountController::class, 'disconnect'])->name('dashboard.accounts.disconnect');
         Route::get('/ai-settings', [AiSettingsController::class, 'index'])->name('dashboard.ai-settings');
         Route::patch('/ai-settings', [AiSettingsController::class, 'update'])->name('dashboard.ai-settings.update');
+        Route::get('/ai-credits', AiCreditsController::class)->name('dashboard.ai-credits');
+        Route::get('/analytics', AnalyticsController::class)->name('dashboard.analytics');
+        Route::get('/team', TeamController::class)->name('dashboard.team');
         Route::get('/knowledge-base', [KnowledgeBaseController::class, 'index'])->name('dashboard.knowledge-base');
         Route::post('/knowledge-base/faqs', [KnowledgeBaseController::class, 'storeFaq'])->name('dashboard.knowledge-base.faqs.store');
         Route::patch('/knowledge-base/faqs/{faq}', [KnowledgeBaseController::class, 'updateFaq'])->name('dashboard.knowledge-base.faqs.update');

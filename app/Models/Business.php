@@ -59,6 +59,21 @@ class Business extends Model
         return $this->hasOne(AiSetting::class);
     }
 
+    public function aiCreditWallet()
+    {
+        return $this->hasOne(AiCreditWallet::class);
+    }
+
+    public function aiUsageRecords()
+    {
+        return $this->hasMany(AiUsageRecord::class);
+    }
+
+    public function aiCreditTransactions()
+    {
+        return $this->hasMany(AiCreditTransaction::class);
+    }
+
     public function faqs()
     {
         return $this->hasMany(Faq::class);

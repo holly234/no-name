@@ -20,7 +20,10 @@
                     ['label' => 'Inbox', 'route' => 'dashboard.inbox', 'icon' => 'inbox'],
                     ['label' => 'Accounts', 'route' => 'dashboard.accounts', 'icon' => 'plug'],
                     ['label' => 'AI Settings', 'route' => 'dashboard.ai-settings', 'icon' => 'sparkles'],
+                    ['label' => 'Credits & Usage', 'route' => 'dashboard.ai-credits', 'icon' => 'wallet'],
                     ['label' => 'Knowledge Base', 'route' => 'dashboard.knowledge-base', 'icon' => 'book'],
+                    ['label' => 'Analytics', 'route' => 'dashboard.analytics', 'icon' => 'chart'],
+                    ['label' => 'Team', 'route' => 'dashboard.team', 'icon' => 'users'],
                     ['label' => 'Settings', 'route' => 'dashboard.settings', 'icon' => 'settings'],
                 ];
                 $pageTitle = data_get(collect($navItems)->first(fn ($item) => request()->routeIs($item['route'])), 'label', 'Overview');
@@ -33,6 +36,9 @@
                         'plug' => '<path d="M9 7V3"/><path d="M15 7V3"/><path d="M7 7h10v4a5 5 0 0 1-10 0V7Z"/><path d="M12 16v5"/>',
                         'sparkles' => '<path d="m12 3 1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3Z"/><path d="m5 14 .9 2.1L8 17l-2.1.9L5 20l-.9-2.1L2 17l2.1-.9L5 14Z"/><path d="m19 14 .7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7.7-1.6Z"/>',
                         'book' => '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z"/><path d="M4 19a2.5 2.5 0 0 1 2.5-2.5H20"/>',
+                        'wallet' => '<path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H19v16H5.5A2.5 2.5 0 0 1 3 17.5v-11Z"/><path d="M3 8h16"/><path d="M15 13h4"/>',
+                        'chart' => '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>',
+                        'users' => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
                         'settings' => '<path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.04.04a2.1 2.1 0 1 1-2.97 2.97l-.04-.04a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.66V21a2.1 2.1 0 1 1-4.2 0v-.06a1.8 1.8 0 0 0-1.18-1.66 1.8 1.8 0 0 0-1.98.36l-.04.04a2.1 2.1 0 1 1-2.97-2.97l.04-.04A1.8 1.8 0 0 0 3 14.7a1.8 1.8 0 0 0-1.66-1.1H1.3a2.1 2.1 0 1 1 0-4.2h.06A1.8 1.8 0 0 0 3 8.22a1.8 1.8 0 0 0-.36-1.98l-.04-.04a2.1 2.1 0 1 1 2.97-2.97l.04.04A1.8 1.8 0 0 0 7.6 3a1.8 1.8 0 0 0 1.1-1.66V1.3a2.1 2.1 0 1 1 4.2 0v.06A1.8 1.8 0 0 0 14 3.02a1.8 1.8 0 0 0 1.98-.36l.04-.04a2.1 2.1 0 1 1 2.97 2.97l-.04.04A1.8 1.8 0 0 0 18.98 7.6a1.8 1.8 0 0 0 1.66 1.1h.06a2.1 2.1 0 1 1 0 4.2h-.06A1.8 1.8 0 0 0 19.4 15Z"/>',
                     ];
 
