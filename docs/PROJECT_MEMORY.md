@@ -23,6 +23,7 @@ Current build priority:
 - Keep dashboard surfaces flat and premium. Do not add gradients to dashboard pages, tabs, cards, loading states, or channel badges.
 - Use `docs/INTEGRATION_READY.md` as supporting integration history, but prefer this memory when it conflicts with the new Laravel-only direction.
 - Connected accounts must support multiple accounts per platform per workspace. Disconnect should preserve records internally but hide disconnected accounts from the active Accounts UI.
+- Workspace owners have a Settings danger-zone flow for permanent deletion. It requires the exact workspace name plus `DELETE`, cascades all workspace-owned database records and encrypted connection credentials, deletes stored attachment/avatar files, preserves users who still have another workspace, and deletes/logs out the final non-platform-owner user.
 - AI settings must be behavior-backed, not cosmetic. Auto reply, human takeover, and business-hours settings must affect ingestion and inbox actions.
 - Conversations should default to `ai_mode=auto`. `Needs Human` is a queue/status, while `ai_mode=human` is reserved for explicit takeover, manual staff replies, or disabled automation conditions.
 - Staff-facing customer identity should show Instagram/Facebook usernames, WhatsApp phone numbers, Gmail email addresses, or Telegram chat IDs where available. Add a separate stable provider ID later if real provider payloads require both identity matching and friendly display.

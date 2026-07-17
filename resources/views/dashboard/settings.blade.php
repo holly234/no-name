@@ -98,4 +98,58 @@
             </dl>
         </aside>
     </div>
+
+    @if ((int) $business->owner_id === (int) auth()->id())
+        <section class="mt-6 overflow-hidden rounded-xl border border-red-200 bg-white" x-data="{ open: {{ $errors->workspaceDeletion->isNotEmpty() ? 'true' : 'false' }} }">
+            <div class="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="font-bold text-red-700">Danger zone</h3>
+                    <p class="mt-1 text-sm leading-6 text-[#6B7280]">Permanently erase this workspace and all customer data stored by Perpetual Inbox.</p>
+                </div>
+                <button type="button" x-on:click="open = ! open" class="inline-flex w-fit items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100">
+                    Delete workspace
+                </button>
+            </div>
+
+            <div x-cloak x-show="open" x-transition class="border-t border-red-100 bg-red-50/60 px-5 py-5">
+                <div class="max-w-2xl">
+                    <h4 class="font-bold text-[#111827]">This cannot be undone</h4>
+                    <p class="mt-2 text-sm leading-6 text-[#6B7280]">
+                        Conversations, messages, customers, attachments, connected-account credentials, knowledge, settings, invitations and activity logs belonging to
+                        <strong class="text-[#111827]">{{ $business->name }}</strong> will be permanently deleted.
+                        @if (auth()->user()->businesses()->count() === 1 && ! auth()->user()->is_platform_owner)
+                            Your Perpetual Inbox user account will also be deleted and you will be logged out.
+                        @else
+                            Your user account and access to any other workspace will remain.
+                        @endif
+                    </p>
+
+                    @if ($errors->workspaceDeletion->isNotEmpty())
+                        <div class="mt-4 rounded-lg border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700">
+                            {{ $errors->workspaceDeletion->first() }}
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('dashboard.settings.workspace.destroy') }}" class="mt-5 grid gap-4" onsubmit="return confirm('Permanently delete this workspace and all of its stored data?')">
+                        @csrf
+                        @method('DELETE')
+
+                        <label class="grid gap-1.5">
+                            <span class="{{ $labelClass }}">Type the workspace name: {{ $business->name }}</span>
+                            <input name="workspace_name" value="{{ old('workspace_name') }}" class="{{ $inputClass }}" autocomplete="off" required>
+                        </label>
+
+                        <label class="grid gap-1.5">
+                            <span class="{{ $labelClass }}">Type DELETE in capital letters</span>
+                            <input name="confirmation" class="{{ $inputClass }}" autocomplete="off" required>
+                        </label>
+
+                        <button class="inline-flex w-fit items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-700">
+                            Permanently delete workspace
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    @endif
 </x-app-layout>

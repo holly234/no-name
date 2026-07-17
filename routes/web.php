@@ -71,6 +71,7 @@ Route::middleware(['auth', 'verified', 'current.business'])
         Route::delete('/knowledge-base/saved-replies/{savedReply}', [KnowledgeBaseController::class, 'destroySavedReply'])->name('dashboard.knowledge-base.saved-replies.destroy');
         Route::get('/settings', [SettingsController::class, 'index'])->name('dashboard.settings');
         Route::patch('/settings/business', [SettingsController::class, 'updateBusiness'])->name('dashboard.settings.business.update');
+        Route::delete('/settings/workspace', [SettingsController::class, 'destroyWorkspace'])->name('dashboard.settings.workspace.destroy');
     });
 
 require __DIR__.'/auth.php';
