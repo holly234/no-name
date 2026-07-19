@@ -9,6 +9,7 @@
             'rules' => ['label' => 'Rules', 'count' => $rules->count(), 'title' => 'Business rules', 'description' => 'Policies that guide routing, escalation, and tone.'],
             'saved-replies' => ['label' => 'Replies', 'count' => $savedReplies->count(), 'title' => 'Saved replies', 'description' => 'Reusable responses for common manual replies.'],
         ];
+        $ruleTypeOptions = ['handover' => 'Handover', 'pricing' => 'Pricing', 'availability' => 'Availability', 'tone' => 'Tone', 'policy' => 'Policy', 'other' => 'Other'];
         $section = $tabs[$activeSection] ?? $tabs['faqs'];
     @endphp
 
@@ -150,11 +151,7 @@
                 <summary class="cursor-pointer text-sm font-bold text-[#2563EB]">Add rule</summary>
                 <form method="POST" action="{{ route('dashboard.knowledge-base.rules.store') }}" class="mt-4 grid gap-3">
                     @csrf
-                    <select name="rule_type" class="{{ $inputClass }}">
-                        @foreach (['handover' => 'Handover', 'pricing' => 'Pricing', 'availability' => 'Availability', 'tone' => 'Tone', 'policy' => 'Policy', 'other' => 'Other'] as $value => $label)
-                            <option value="{{ $value }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
+                    <x-form-select name="rule_type" :selected="old('rule_type', 'handover')" :options="$ruleTypeOptions" />
                     <input name="title" value="{{ old('title') }}" class="{{ $inputClass }}" placeholder="Rule title">
                     <textarea name="content" rows="3" class="{{ $textareaClass }}" placeholder="What should the team or assistant follow?">{{ old('content') }}</textarea>
                     <button class="inline-flex w-fit items-center justify-center rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]">Add rule</button>
@@ -173,11 +170,7 @@
                             <form method="POST" action="{{ route('dashboard.knowledge-base.rules.update', $rule) }}" class="mt-4 grid gap-3">
                                 @csrf
                                 @method('PATCH')
-                                <select name="rule_type" class="{{ $inputClass }}">
-                                    @foreach (['handover' => 'Handover', 'pricing' => 'Pricing', 'availability' => 'Availability', 'tone' => 'Tone', 'policy' => 'Policy', 'other' => 'Other'] as $value => $label)
-                                        <option value="{{ $value }}" @selected(old('rule_type', $rule->rule_type) === $value)>{{ $label }}</option>
-                                    @endforeach
-                                </select>
+                                <x-form-select name="rule_type" :selected="old('rule_type', $rule->rule_type)" :options="$ruleTypeOptions" />
                                 <input name="title" value="{{ old('title', $rule->title) }}" class="{{ $inputClass }}">
                                 <textarea name="content" rows="3" class="{{ $textareaClass }}">{{ old('content', $rule->content) }}</textarea>
                                 <button class="w-fit rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white">Save changes</button>

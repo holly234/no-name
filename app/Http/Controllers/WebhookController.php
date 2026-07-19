@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Business;
+use App\Jobs\ProcessGmailPubSubNotification;
+use App\Jobs\ProcessIncomingMessageWebhook;
+use App\Jobs\ProcessMetaWebhook;
+use App\Jobs\ProcessTelegramWebhook;
 use App\Models\AutomationLog;
+use App\Models\Business;
 use App\Models\ConnectedAccount;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Services\AiReplyService;
 use App\Services\ConversationMessageService;
-use App\Services\GmailConnectionService;
-use App\Services\MessageIngestionService;
-use App\Services\MetaConnectionService;
 use App\Services\TelegramConnectionService;
+use App\Support\QueueDispatch;
 use Illuminate\Http\Request;
 
 class WebhookController extends Controller
@@ -39,7 +41,7 @@ class WebhookController extends Controller
         return response((string) $challenge, 200)->header('Content-Type', 'text/plain');
     }
 
-    public function meta(Request $request, MessageIngestionService $messageIngestionService)
+    public function meta(Request $request)
     {
         $appSecret = (string) config('services.meta.app_secret');
         $signature = (string) $request->header('X-Hub-Signature-256');
@@ -48,108 +50,12 @@ class WebhookController extends Controller
         abort_unless($appSecret !== '' && hash_equals($expectedSignature, $signature), 401);
 
         $payload = $request->all();
-
-        if (in_array($payload['object'] ?? null, ['page', 'instagram'], true)) {
-            $platform = ($payload['object'] ?? null) === 'instagram' ? 'Instagram' : 'Facebook';
-
-            foreach ($payload['entry'] ?? [] as $entry) {
-                foreach ($entry['messaging'] ?? [] as $event) {
-                    $message = $event['message'] ?? [];
-                    if (($message['is_echo'] ?? false) || empty($message['text']) || empty($event['sender']['id'])) {
-                        continue;
-                    }
-
-                    $assetId = (string) ($event['recipient']['id'] ?? $entry['id'] ?? '');
-                    $account = ConnectedAccount::where('platform', $platform)
-                        ->where('status', 'connected')
-                        ->where(function ($query) use ($assetId) {
-                            $query->where('page_id', $assetId)->orWhere('external_account_id', $assetId);
-                        })
-                        ->first();
-
-                    if (! $account) {
-                        continue;
-                    }
-
-                    $senderId = (string) $event['sender']['id'];
-                    $conversation = $messageIngestionService->ingest([
-                        'business_id' => $account->business_id,
-                        'channel' => $platform,
-                        'connected_account_id' => $account->id,
-                        'external_account_id' => $account->external_account_id,
-                        'customer_name' => $platform.' customer',
-                        'customer_external_id' => $senderId,
-                        'body' => (string) $message['text'],
-                        'metadata' => [
-                            'source' => $platform === 'Instagram' ? 'meta_instagram' : 'meta_messenger',
-                            'meta_message_id' => $message['mid'] ?? null,
-                            'meta_timestamp' => $event['timestamp'] ?? null,
-                        ],
-                    ]);
-
-                    AutomationLog::create([
-                        'business_id' => $account->business_id,
-                        'connected_account_id' => $account->id,
-                        'event_type' => 'meta_webhook',
-                        'status' => 'success',
-                        'message' => $platform.' message processed.',
-                        'metadata' => ['conversation_id' => $conversation->id, 'message_id' => $message['mid'] ?? null],
-                    ]);
-                }
-            }
-
-            return response()->json(['message' => 'Meta webhook processed.']);
-        }
-
-        foreach ($payload['entry'] ?? [] as $entry) {
-            foreach ($entry['changes'] ?? [] as $change) {
-                if (($change['field'] ?? null) !== 'messages') {
-                    continue;
-                }
-
-                $value = $change['value'] ?? [];
-                $account = ConnectedAccount::where('platform', 'WhatsApp')
-                    ->where('phone_number_id', (string) ($value['metadata']['phone_number_id'] ?? ''))
-                    ->where('status', 'connected')
-                    ->first();
-
-                if (! $account) {
-                    continue;
-                }
-
-                foreach ($value['messages'] ?? [] as $message) {
-                    if (($message['type'] ?? null) !== 'text') {
-                        continue;
-                    }
-
-                    $contact = collect($value['contacts'] ?? [])->firstWhere('wa_id', $message['from']);
-                    $conversation = $messageIngestionService->ingest([
-                        'business_id' => $account->business_id,
-                        'channel' => 'WhatsApp',
-                        'connected_account_id' => $account->id,
-                        'external_account_id' => $account->external_account_id,
-                        'customer_name' => $contact['profile']['name'] ?? $message['from'],
-                        'customer_external_id' => $message['from'],
-                        'body' => $message['text']['body'] ?? '',
-                        'metadata' => ['source' => 'meta_whatsapp', 'whatsapp_message_id' => $message['id'] ?? null],
-                    ]);
-
-                    AutomationLog::create([
-                        'business_id' => $account->business_id,
-                        'connected_account_id' => $account->id,
-                        'event_type' => 'meta_webhook',
-                        'status' => 'success',
-                        'message' => 'WhatsApp message processed.',
-                        'metadata' => ['conversation_id' => $conversation->id, 'message_id' => $message['id'] ?? null],
-                    ]);
-                }
-            }
-        }
+        $this->dispatchQueueAware(new ProcessMetaWebhook($payload));
 
         return response()->json(['message' => 'Meta webhook processed.']);
     }
 
-    public function incomingMessage(Request $request, MessageIngestionService $messageIngestionService)
+    public function incomingMessage(Request $request)
     {
         $validated = $request->validate([
             'business_id' => ['required', 'integer', 'exists:businesses,id'],
@@ -163,20 +69,18 @@ class WebhookController extends Controller
         $business = Business::findOrFail($validated['business_id']);
         abort_unless($this->hasValidSecret($request, $business), 401);
 
-        $conversation = $messageIngestionService->ingest($validated + ['source' => 'webhook']);
+        $result = $this->dispatchQueueAware(new ProcessIncomingMessageWebhook($validated));
 
-        return response()->json([
+        return response()->json(array_filter([
             'message' => 'Incoming message processed.',
-            'conversation_id' => $conversation->id,
-            'state' => $conversation->status,
-        ]);
+            'conversation_id' => $result['conversation_id'] ?? null,
+            'state' => $result['state'] ?? null,
+        ], fn ($value) => $value !== null));
     }
 
     public function telegram(
         Request $request,
-        ConnectedAccount $account,
-        TelegramConnectionService $telegramConnectionService,
-        MessageIngestionService $messageIngestionService
+        ConnectedAccount $account
     ) {
         abort_unless($account->platform === 'Telegram' && $account->status === 'connected', 404);
 
@@ -202,47 +106,20 @@ class WebhookController extends Controller
             abort(401);
         }
 
-        $payload = $telegramConnectionService->normalizeUpdate($account, $request->all());
+        $result = $this->dispatchQueueAware(new ProcessTelegramWebhook($account->id, $request->all()));
 
-        if (! $payload) {
-            $this->recordTelegramWebhookFailure($account, 'Telegram update ignored because it did not contain a supported message.', [
-                'update_id' => $request->input('update_id'),
-                'keys' => array_keys($request->all()),
-            ], 'ignored');
-
+        if (($result['status'] ?? null) === 'ignored') {
             return response()->json(['message' => 'Telegram update ignored.']);
         }
 
-        $payload = $this->withTelegramCustomerAvatar($account, $payload, $telegramConnectionService);
-
-        $conversation = $messageIngestionService->ingest($payload + ['source' => 'telegram']);
-
-        $this->updateTelegramWebhookMeta($account, [
-            'last_webhook_processed_at' => now()->toIso8601String(),
-            'last_webhook_error' => null,
-        ]);
-
-        AutomationLog::create([
-            'business_id' => $account->business_id,
-            'connected_account_id' => $account->id,
-            'event_type' => 'telegram_webhook',
-            'status' => 'success',
+        return response()->json(array_filter([
             'message' => 'Telegram message processed.',
-            'metadata' => [
-                'update_id' => $request->input('update_id'),
-                'conversation_id' => $conversation->id,
-                'telegram_chat_id' => $payload['metadata']['telegram_chat_id'] ?? null,
-            ],
-        ]);
-
-        return response()->json([
-            'message' => 'Telegram message processed.',
-            'conversation_id' => $conversation->id,
-            'state' => $conversation->status,
-        ]);
+            'conversation_id' => $result['conversation_id'] ?? null,
+            'state' => $result['state'] ?? null,
+        ], fn ($value) => $value !== null));
     }
 
-    public function gmailPubSub(Request $request, GmailConnectionService $gmailConnectionService)
+    public function gmailPubSub(Request $request)
     {
         $expectedToken = config('services.gmail.pubsub_verification_token');
         $providedToken = $request->query('token') ?: $request->header('X-GMAIL-PUBSUB-TOKEN');
@@ -254,9 +131,12 @@ class WebhookController extends Controller
             401
         );
 
-        $result = $gmailConnectionService->syncFromPubSubNotification($request->all());
+        $result = $this->dispatchQueueAware(new ProcessGmailPubSubNotification($request->all()));
 
-        return response()->json($result);
+        return response()->json($result ?: [
+            'status' => 'queued',
+            'message' => 'Gmail Pub/Sub notification queued.',
+        ]);
     }
 
     public function generateAiReply(Request $request, AiReplyService $aiReplyService)
@@ -353,5 +233,10 @@ class WebhookController extends Controller
         }
 
         return $payload;
+    }
+
+    private function dispatchQueueAware(object $job): mixed
+    {
+        return QueueDispatch::dispatch($job);
     }
 }

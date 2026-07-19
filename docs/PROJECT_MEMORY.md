@@ -1,6 +1,6 @@
 # Perpetual Inbox AI Project Memory
 
-Last updated: 2026-07-16
+Last updated: 2026-07-20
 
 ## Current Instruction
 
@@ -30,6 +30,7 @@ Current build priority:
 - Gmail ownership protection is implemented: one Gmail identity can only be actively connected to one workspace. Reconnects in that workspace are allowed; disconnecting releases it for another workspace. Deliberate owner-controlled transfer remains a later enhancement.
 - The business dashboard now includes Credits & Usage, Analytics, and Team. AI wallets, credit transactions, and per-response token/cost usage records have real database foundations ready for the Laravel AI agent and future checkout integration.
 - Workspace roles are enforced server-side and reflected in navigation: Owner has full workspace/billing/settings control; Admin manages channels, AI, knowledge, analytics, and agents; Agent is inbox-only. Team invitation links require the exact invited Google email, and the workspace owner cannot be demoted or removed.
+- Queue workers are required for production DMs, sync, AI replies, email delivery, and webhooks. On the current low-cost Hetzner VPS class, start conservatively with three workers: one `webhooks`, one `ai`, and one `default,sync,mail`. Do not run many workers on the small VPS; scale to a larger 4 vCPU / 8GB RAM server before targeting six to eight workers.
 - AI settings must be behavior-backed, not cosmetic. Auto reply, human takeover, and business-hours settings must affect ingestion and inbox actions.
 - Conversations should default to `ai_mode=auto`. `Needs Human` is a queue/status, while `ai_mode=human` is reserved for explicit takeover, manual staff replies, or disabled automation conditions.
 - Staff-facing customer identity should show Instagram/Facebook usernames, WhatsApp phone numbers, Gmail email addresses, or Telegram chat IDs where available. Add a separate stable provider ID later if real provider payloads require both identity matching and friendly display.
@@ -304,12 +305,36 @@ API:
 n8n endpoints require `X-N8N-SECRET`, compare it with `N8N_WEBHOOK_SECRET` or `APP_WEBHOOK_SECRET`, return 401 if invalid, are API-rate-limited, and validate request data.
 
 Gmail automatic polling:
-- `php artisan gmail:sync` syncs connected Gmail inbox accounts.
+- `php artisan gmail:sync` dispatches one `SyncGmailAccount` job per connected Gmail account to the `sync` queue; the queue worker performs the actual import.
 - Laravel scheduler runs `gmail:sync --mailbox=inbox --limit=20` every minute when the VPS cron calls `php artisan schedule:run`.
 - Gmail Pub/Sub push support exists at `POST /api/webhooks/gmail/pubsub?token={GMAIL_PUBSUB_VERIFICATION_TOKEN}`.
+- Gmail Pub/Sub requests dispatch `ProcessGmailPubSubNotification` to the `sync` queue, which then queues/runs the account sync path.
 - Laravel scheduler runs `gmail:renew-watch` daily at 02:15 and renews connected Gmail Pub/Sub watches when missing or within one day of expiry. The VPS scheduler cron must remain active.
 - When `GMAIL_PUBSUB_TOPIC` is configured, Gmail connect attempts to register `users/me/watch` for inbox changes.
 - Pub/Sub currently triggers the existing recent-inbox sync path for the matching connected account; cron polling should remain as a safety fallback.
+- The dashboard's manual Gmail sync remains synchronous only to return immediate imported/skipped feedback; it is a fallback/debug action, not required for normal automatic operation.
+
+Production queue baseline for the current small Hetzner VPS:
+- `webhooks`: 1 worker for fast inbound provider events.
+- `ai`: 1 worker for slower external model calls.
+- `default,sync,mail`: 1 shared worker for normal jobs, Gmail sync, and future emails.
+
+Recommended commands:
+
+```bash
+php artisan queue:work --queue=webhooks --sleep=1 --tries=3 --timeout=60
+php artisan queue:work --queue=ai --sleep=1 --tries=2 --timeout=180
+php artisan queue:work --queue=default,sync,mail --sleep=2 --tries=3 --timeout=300
+```
+
+Production VPS state as of 2026-07-20:
+- The `perpetual` user's crontab calls `/usr/bin/php artisan schedule:run` every minute from `/home/perpetual/htdocs/78.47.176.68.nip.io`.
+- Supervisor is installed, enabled at boot, and manages `perpetual-webhooks`, `perpetual-ai`, and `perpetual-sync-mail` using the queue split above.
+- All three Supervisor programs were verified `RUNNING`; manual SSH worker terminals are no longer required.
+- After deploying code that queue workers must reload, run `sudo -u perpetual php artisan queue:restart` from the project directory. Supervisor will start replacement processes automatically.
+- If application caches also need rebuilding, run `sudo -u perpetual php artisan optimize` before `queue:restart`; do not run it for every routine Gmail event.
+
+On a $6-ish shared Hetzner VPS, treat four workers as the practical ceiling. If queue delay grows, upgrade server resources before adding many more workers. For a real launch target, move to at least a 4 vCPU / 8GB RAM class and then run six to eight workers split by busy queues.
 
 Public webhook endpoints require `X-WEBHOOK-SECRET` or `X-META-SECRET`. They prefer the business-specific `businesses.webhook_secret` when a request is tied to a business/conversation, with `APP_WEBHOOK_SECRET`/`META_WEBHOOK_SECRET` as global fallback.
 
@@ -732,3 +757,10 @@ Direction update on 2026-07-16:
 - Refined the shared customer-facing dashboard shell with Filament-inspired information architecture while keeping the inbox custom: grouped sidebar navigation, workspace context, signed-in user card, sticky page header, quick inbox access, emerald active/status styling, softer cards, and consistent spacing now apply across customer pages.
 - Redesigned the customer overview with a compact live-workspace welcome header, connect/inbox quick actions, operational metric tiles, recent conversations, and a visible pre-launch AI-agent credit/configuration card.
 - Customer-dashboard refinement verification: production Vite build and Blade view cache pass; focused dashboard, inbox authorization, connected-account, and AI-settings tests pass with `15 tests, 56 assertions`.
+- Queue split pass on 2026-07-18:
+  - Added canonical queue names `webhooks`, `ai`, `sync`, `mail`, and `default` through `QueueName` and environment-aware dispatch behavior through `QueueDispatch`.
+  - Added `SyncGmailAccount` and `ProcessGmailPubSubNotification` on `sync`; added `ProcessIncomingMessageWebhook`, `ProcessTelegramWebhook`, and `ProcessMetaWebhook` on `webhooks`.
+  - Meta, Telegram, Gmail Pub/Sub, and generic incoming webhook controllers now acknowledge requests after dispatching their queued processing jobs.
+  - Scheduled `gmail:sync` now queues one sync job per Gmail account; manual dashboard sync stays synchronous for immediate feedback.
+  - Focused provider verification passes with `44 tests, 183 assertions`; focused workspace/owner authorization verification passes with `12 tests, 51 assertions`.
+- Production queue operations completed on 2026-07-20: the `perpetual` scheduler cron is installed, Supervisor is enabled, and the three queue programs (`perpetual-webhooks`, `perpetual-ai`, and `perpetual-sync-mail`) were verified `RUNNING` on the Hetzner VPS.

@@ -16,6 +16,11 @@
             'Gmail' => 'Customer emails from connected Gmail inboxes.',
             'Telegram' => 'Telegram messages from customers who message your connected bot account.',
         ];
+        $metaDevelopmentPlatforms = [
+            'WhatsApp' => 'WhatsApp',
+            'Facebook' => 'Facebook Messenger',
+            'Instagram' => 'Instagram',
+        ];
     @endphp
 
     <div class="space-y-6">
@@ -195,7 +200,22 @@
         </section>
 
         @if ($metaDevelopmentConnectEnabled)
-            <section class="content-card overflow-hidden" x-data="{ platform: @js(old('platform', 'WhatsApp')) }">
+            <section
+                class="content-card overflow-hidden"
+                x-data="{
+                    platform: @js(old('platform', 'WhatsApp')),
+                    platformOpen: false,
+                    platformOptions: @js($metaDevelopmentPlatforms),
+                    get platformLabel() {
+                        return this.platformOptions[this.platform] || 'Select channel';
+                    },
+                    choosePlatform(value) {
+                        this.platform = value;
+                        this.platformOpen = false;
+                    },
+                }"
+                x-on:keydown.escape.window="platformOpen = false"
+            >
                 <div class="border-b border-[#E5E7EB] px-4 py-4">
                     <div class="flex flex-wrap items-center gap-2">
                         <h3 class="text-base font-bold text-[#111827]">Meta development connection</h3>
@@ -206,14 +226,42 @@
 
                 <form method="POST" action="{{ route('dashboard.accounts.meta.development-connect') }}" class="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
                     @csrf
-                    <label class="block">
+                    <div class="block">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]">Channel</span>
-                        <select name="platform" x-model="platform" class="w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm font-semibold text-[#111827] focus:border-[#2563EB] focus:ring-[#2563EB]/20">
-                            <option value="WhatsApp">WhatsApp</option>
-                            <option value="Facebook">Facebook Messenger</option>
-                            <option value="Instagram">Instagram</option>
-                        </select>
-                    </label>
+                        <div class="relative" x-on:click.outside="platformOpen = false">
+                            <input type="hidden" name="platform" x-bind:value="platform">
+                            <button
+                                type="button"
+                                x-on:click="platformOpen = ! platformOpen"
+                                class="inline-flex w-full items-center justify-between gap-3 rounded-lg border border-[#D1D5DB] bg-white px-3 py-2.5 text-left text-sm font-semibold text-[#111827] shadow-sm transition hover:border-[#93C5FD] hover:bg-[#F8FAFC] focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                                aria-haspopup="listbox"
+                                x-bind:aria-expanded="platformOpen"
+                            >
+                                <span class="truncate" x-text="platformLabel"></span>
+                                <svg class="h-4 w-4 shrink-0 text-[#6B7280] transition" x-bind:class="{ 'rotate-180': platformOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="m6 9 6 6 6-6"></path>
+                                </svg>
+                            </button>
+
+                            <div x-cloak x-show="platformOpen" x-transition.origin.top class="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white py-1 shadow-xl shadow-[#111827]/10" role="listbox">
+                                @foreach ($metaDevelopmentPlatforms as $value => $label)
+                                    <button
+                                        type="button"
+                                        x-on:click="choosePlatform(@js($value))"
+                                        class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+                                        x-bind:class="platform === @js($value) ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#374151]'"
+                                        role="option"
+                                        x-bind:aria-selected="platform === @js($value)"
+                                    >
+                                        <span>{{ $label }}</span>
+                                        <svg x-cloak x-show="platform === @js($value)" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M20 6 9 17l-5-5"></path>
+                                        </svg>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
 
                     <label class="block">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]">Display name</span>

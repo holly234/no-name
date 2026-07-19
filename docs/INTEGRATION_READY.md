@@ -91,9 +91,10 @@ Current behavior:
 - Access and refresh tokens are stored encrypted on `connected_accounts`.
 - When `GMAIL_PUBSUB_TOPIC` is configured, Gmail connect attempts to register `users/me/watch` for the account inbox.
 - Google Pub/Sub should push to `POST /api/webhooks/gmail/pubsub?token={GMAIL_PUBSUB_VERIFICATION_TOKEN}`.
-- A valid Pub/Sub notification triggers the existing Gmail inbox sync path for the matching connected account.
+- A valid Pub/Sub notification dispatches `ProcessGmailPubSubNotification` to the `sync` queue; its handler triggers the Gmail inbox sync path for the matching connected account.
 - `POST /dashboard/accounts/gmail/{account}/sync` manually imports the latest 20 inbox emails.
-- `php artisan gmail:sync` can run through the Laravel scheduler to poll connected Gmail inboxes.
+- The manual dashboard sync stays synchronous so the user receives immediate imported/skipped feedback; automatic operation does not require pressing this button.
+- `php artisan gmail:sync` runs through the Laravel scheduler and dispatches one `SyncGmailAccount` job per connected Gmail account to the `sync` queue.
 - `php artisan gmail:renew-watch` runs daily through the Laravel scheduler and renews connected Gmail Pub/Sub watches before expiry.
 - Production must call `php artisan schedule:run` every minute; this drives both polling fallback and automatic watch renewal.
 - Imported Gmail messages become `Gmail` channel conversations/messages inside the existing unified inbox.
@@ -120,7 +121,7 @@ Current Gmail limitations:
 - Gmail `watch` expires and must be renewed periodically before expiration.
 - Scheduler polling should remain enabled as a safety fallback.
 - Gmail attachment sending from the inbox is not implemented yet.
-- High-volume production traffic should move Pub/Sub processing into queued jobs.
+- A running `sync` queue worker is required for scheduled and Pub/Sub-triggered Gmail imports.
 
 ## Meta
 

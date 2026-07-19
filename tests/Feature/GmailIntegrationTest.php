@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ProcessGmailPubSubNotification;
+use App\Jobs\SyncGmailAccount;
 use App\Models\Business;
 use App\Models\ConnectedAccount;
 use App\Models\Conversation;
@@ -9,6 +11,7 @@ use App\Models\MessageAttachment;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -544,16 +547,33 @@ class GmailIntegrationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_gmail_auto_sync_command_imports_connected_account_messages(): void
+    public function test_gmail_auto_sync_command_queues_connected_account_sync_jobs(): void
+    {
+        Bus::fake();
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createGmailAccount($business);
+
+        $this->artisan('gmail:sync')
+            ->expectsOutputToContain('support@example.com: queued.')
+            ->assertExitCode(0);
+
+        Bus::assertDispatched(SyncGmailAccount::class, fn (SyncGmailAccount $job) => $job->accountId === $account->id
+            && $job->mailbox === 'inbox');
+    }
+
+    public function test_gmail_sync_job_imports_connected_account_messages(): void
     {
         $user = User::factory()->create();
         $business = $this->createBusiness($user);
-        $this->createGmailAccount($business);
-        $this->fakeGmailSync('msg-auto', 'thread-auto', 'Ada Customer <ada@example.com>', 'Need pricing', 'Please send your pricing.');
+        $account = $this->createGmailAccount($business);
+        $this->fakeGmailSync('msg-auto-job', 'thread-auto-job', 'Ada Customer <ada@example.com>', 'Need pricing', 'Please send your pricing.');
 
-        $this->artisan('gmail:sync')
-            ->expectsOutputToContain('support@example.com: 1 imported, 0 skipped.')
-            ->assertExitCode(0);
+        app(SyncGmailAccount::class, [
+            'accountId' => $account->id,
+            'limit' => 20,
+            'mailbox' => 'inbox',
+        ])->handle(app(\App\Services\GmailConnectionService::class));
 
         $this->assertDatabaseHas('messages', [
             'business_id' => $business->id,
@@ -573,14 +593,14 @@ class GmailIntegrationTest extends TestCase
         ])->assertUnauthorized();
     }
 
-    public function test_gmail_pubsub_webhook_triggers_account_sync(): void
+    public function test_gmail_pubsub_webhook_queues_account_sync(): void
     {
+        Bus::fake();
         config(['services.gmail.pubsub_verification_token' => 'pubsub-secret']);
 
         $user = User::factory()->create();
         $business = $this->createBusiness($user);
         $this->createGmailAccount($business);
-        $this->fakeGmailSync('msg-pubsub', 'thread-pubsub', 'Ada Customer <ada@example.com>', 'Need pricing', 'Please send your pricing.');
 
         $response = $this->postJson('/api/webhooks/gmail/pubsub?token=pubsub-secret', [
             'message' => [
@@ -595,15 +615,36 @@ class GmailIntegrationTest extends TestCase
 
         $response->assertOk()
             ->assertJson([
-                'status' => 'processed',
-                'email' => 'support@example.com',
-                'history_id' => 'history-pubsub',
-                'message_id' => 'pubsub-message-1',
-                'accounts' => 1,
-                'imported' => 1,
-                'failed' => 0,
+                'status' => 'queued',
+                'message' => 'Gmail Pub/Sub notification queued.',
             ]);
 
+        Bus::assertDispatched(ProcessGmailPubSubNotification::class);
+    }
+
+    public function test_gmail_pubsub_job_triggers_account_sync(): void
+    {
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $this->createGmailAccount($business);
+        $this->fakeGmailSync('msg-pubsub', 'thread-pubsub', 'Ada Customer <ada@example.com>', 'Need pricing', 'Please send your pricing.');
+
+        $result = app(ProcessGmailPubSubNotification::class, [
+            'payload' => [
+                'message' => [
+                    'messageId' => 'pubsub-message-1',
+                    'data' => base64_encode(json_encode([
+                        'emailAddress' => 'support@example.com',
+                        'historyId' => 'history-pubsub',
+                    ])),
+                ],
+                'subscription' => 'projects/perpetual/subscriptions/gmail-inbound',
+            ],
+        ])->handle(app(\App\Services\GmailConnectionService::class));
+
+        $this->assertSame('processed', $result['status']);
+        $this->assertSame(1, $result['imported']);
+        $this->assertSame(0, $result['failed']);
         $this->assertDatabaseHas('messages', [
             'business_id' => $business->id,
             'direction' => 'incoming',
@@ -611,7 +652,6 @@ class GmailIntegrationTest extends TestCase
         ]);
 
         $account = ConnectedAccount::where('platform', 'gmail')->firstOrFail();
-
         $this->assertSame('success', $account->provider_meta['last_pubsub_status']);
         $this->assertSame('history-pubsub', $account->provider_meta['last_pubsub_history_id']);
     }

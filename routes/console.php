@@ -1,8 +1,10 @@
 <?php
 
+use App\Jobs\SyncGmailAccount;
 use App\Models\AutomationLog;
 use App\Models\ConnectedAccount;
 use App\Services\GmailConnectionService;
+use App\Support\QueueDispatch;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -12,7 +14,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=20 : Number of recent messages to inspect per account}', function (GmailConnectionService $gmailConnectionService) {
+Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=20 : Number of recent messages to inspect per account}', function () {
     $mailbox = (string) $this->option('mailbox');
     $limit = max(1, min(100, (int) $this->option('limit')));
 
@@ -34,14 +36,25 @@ Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=
     $totalImported = 0;
     $totalSkipped = 0;
     $failed = 0;
+    $queued = 0;
+    $runImmediately = QueueDispatch::shouldRunInline();
 
     foreach ($accounts as $account) {
         try {
-            $result = $gmailConnectionService->syncRecentInboxMessages($account, $limit, $mailbox);
-            $totalImported += $result['imported'];
-            $totalSkipped += $result['skipped'];
+            $job = new SyncGmailAccount($account->id, $limit, $mailbox);
 
-            $this->line("{$account->account_name}: {$result['imported']} imported, {$result['skipped']} skipped.");
+            if ($runImmediately) {
+                $result = QueueDispatch::dispatch($job);
+                $totalImported += $result['imported'] ?? 0;
+                $totalSkipped += $result['skipped'] ?? 0;
+
+                $this->line("{$account->account_name}: {$result['imported']} imported, {$result['skipped']} skipped.");
+            } else {
+                QueueDispatch::dispatch($job);
+                $queued++;
+
+                $this->line("{$account->account_name}: queued.");
+            }
         } catch (\Throwable $exception) {
             report($exception);
             $failed++;
@@ -62,7 +75,11 @@ Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=
         }
     }
 
-    $this->components->info("Gmail auto-sync complete: {$totalImported} imported, {$totalSkipped} skipped, {$failed} failed.");
+    $summary = $runImmediately
+        ? "Gmail auto-sync complete: {$totalImported} imported, {$totalSkipped} skipped, {$failed} failed."
+        : "Gmail auto-sync queued: {$queued} queued, {$failed} failed.";
+
+    $this->components->info($summary);
 
     return $failed > 0 ? self::FAILURE : self::SUCCESS;
 })->purpose('Sync recent Gmail inbox messages for every connected Gmail account');

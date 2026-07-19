@@ -25,10 +25,13 @@
                                 <div class="flex items-center gap-2">
                                     <form method="POST" action="{{ route('dashboard.team.members.role', $member) }}" class="flex items-center gap-2">
                                         @csrf @method('PATCH')
-                                        <select name="role" class="rounded-lg border-[#D1D5DB] py-2 text-sm" onchange="this.form.submit()">
-                                            <option value="agent" @selected($memberRole === 'agent')>Agent</option>
-                                            @if ($canManageAdmins)<option value="admin" @selected($memberRole === 'admin')>Admin</option>@endif
-                                        </select>
+                                        <x-form-select
+                                            name="role"
+                                            :selected="$memberRole"
+                                            :options="$canManageAdmins ? ['agent' => 'Agent', 'admin' => 'Admin'] : ['agent' => 'Agent']"
+                                            button-class="min-w-[8rem]"
+                                            auto-submit
+                                        />
                                     </form>
                                     <form method="POST" action="{{ route('dashboard.team.members.remove', $member) }}" onsubmit="return confirm('Remove this member from the workspace?')">
                                         @csrf @method('DELETE')
@@ -49,7 +52,15 @@
                 <form method="POST" action="{{ route('dashboard.team.invite') }}" class="mt-5 space-y-4">
                     @csrf
                     <label class="block"><span class="mb-1.5 block text-xs font-bold uppercase text-[#6B7280]">Google email</span><input type="email" name="email" value="{{ old('email') }}" required class="w-full rounded-xl border-[#D1D5DB] text-sm" placeholder="person@gmail.com">@error('email')<span class="mt-1 block text-xs text-red-600">{{ $message }}</span>@enderror</label>
-                    <label class="block"><span class="mb-1.5 block text-xs font-bold uppercase text-[#6B7280]">Role</span><select name="role" class="w-full rounded-xl border-[#D1D5DB] text-sm"><option value="agent">Agent — inbox only</option>@if ($canManageAdmins)<option value="admin">Admin — operations</option>@endif</select></label>
+                    <div>
+                        <span class="mb-1.5 block text-xs font-bold uppercase text-[#6B7280]">Role</span>
+                        <x-form-select
+                            name="role"
+                            :selected="old('role', 'agent')"
+                            :options="$canManageAdmins ? ['agent' => 'Agent - inbox only', 'admin' => 'Admin - operations'] : ['agent' => 'Agent - inbox only']"
+                            button-class="w-full rounded-xl"
+                        />
+                    </div>
                     <button class="w-full rounded-xl bg-[#2563EB] px-4 py-3 text-sm font-bold text-white hover:bg-[#1D4ED8]">Create invitation</button>
                 </form>
             </article>

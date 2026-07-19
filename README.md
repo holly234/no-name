@@ -39,7 +39,7 @@ Built and working as a local MVP:
 - Mood-board aligned WhatsApp/Instagram-inspired inbox UI with no dashboard gradients
 - Lightweight SPA-style dashboard navigation for internal dashboard links/forms, including pending feedback and double-submit protection
 - Demo connected accounts for Instagram and Facebook; WhatsApp uses Meta Embedded Signup
-- Real Gmail OAuth connection with encrypted token storage, manual on-demand sync, scheduled inbox polling, cleaned email rendering, clickable links, no-reply handling, and text replies through the Gmail API
+- Real Gmail OAuth connection with encrypted token storage, queued automatic scheduled/Pub/Sub sync, manual on-demand fallback sync, cleaned email rendering, clickable links, no-reply handling, and text replies through the Gmail API
 - Real Telegram bot-backed connection with encrypted bot token storage, webhook registration, incoming message/media ingestion, customer profile photos, and text/media replies through the Telegram Bot API
 - Multiple connected accounts per social platform per workspace
 - Disconnect flow for connected accounts; disconnected records are preserved internally but hidden from the active Accounts UI
@@ -357,6 +357,36 @@ For frontend development:
 ```bash
 npm run dev
 ```
+
+## Queue Workers
+
+The app uses Laravel queues for work that should not block page loads or webhook responses: provider webhooks, Gmail sync, AI replies, outbound messages, and future Resend emails.
+
+For the current low-cost Hetzner VPS class, start with three workers:
+
+- `webhooks`: 1 worker for fast inbound provider events
+- `ai`: 1 worker for slower external AI calls
+- `default,sync,mail`: 1 shared worker for normal jobs, Gmail sync, and email
+
+Commands:
+
+```bash
+php artisan queue:work --queue=webhooks --sleep=1 --tries=3 --timeout=60
+php artisan queue:work --queue=ai --sleep=1 --tries=2 --timeout=180
+php artisan queue:work --queue=default,sync,mail --sleep=2 --tries=3 --timeout=300
+```
+
+Production uses Supervisor programs named `perpetual-webhooks`, `perpetual-ai`, and `perpetual-sync-mail`, running as the `perpetual` system user. The Laravel scheduler must also be called every minute by that user's crontab. On the current VPS both Supervisor and the scheduler cron are installed and enabled; manual SSH worker terminals are not required.
+
+After deploying queue-related code, gracefully reload the long-running workers from the project directory:
+
+```bash
+sudo -u perpetual php artisan queue:restart
+```
+
+Supervisor automatically starts the replacement processes. Rebuild Laravel caches first with `sudo -u perpetual php artisan optimize` only when the deployment requires refreshed application caches or configuration.
+
+On a $6-ish shared Hetzner VPS, treat four workers as the practical ceiling. More workers can fight PHP-FPM, the database, and the OS for CPU/RAM. When queue delay grows, upgrade server resources before adding many workers. A real launch target should move to at least a 4 vCPU / 8GB RAM server before running six to eight workers comfortably.
 
 ## Verification
 
