@@ -13,7 +13,13 @@ class TeamInvite extends Model
         'token',
         'status',
         'invited_by',
+        'expires_at',
     ];
+
+    protected function casts(): array
+    {
+        return ['expires_at' => 'datetime'];
+    }
 
     public function business()
     {

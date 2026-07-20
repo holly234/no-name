@@ -39,7 +39,7 @@ class TeamController extends Controller
 
         $invite = TeamInvite::updateOrCreate(
             ['business_id' => $business->id, 'email' => $email, 'status' => 'pending'],
-            ['role' => $validated['role'], 'token' => Str::random(64), 'invited_by' => $request->user()->id]
+            ['role' => $validated['role'], 'token' => Str::random(64), 'invited_by' => $request->user()->id, 'expires_at' => now()->addDays(7)]
         );
 
         return back()->with('status', 'Invitation created. Copy the invitation link and send it to '.$invite->email.'.');
@@ -88,6 +88,7 @@ class TeamController extends Controller
     public function accept(Request $request, string $token)
     {
         $invite = TeamInvite::where('token', $token)->where('status', 'pending')->firstOrFail();
+        abort_if($invite->expires_at?->isPast(), 410, 'This invitation has expired. Ask the workspace owner for a new one.');
         abort_unless(hash_equals(Str::lower($invite->email), Str::lower($request->user()->email)), 403, 'Sign in with the invited Google account.');
 
         DB::transaction(function () use ($invite, $request) {

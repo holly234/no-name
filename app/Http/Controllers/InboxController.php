@@ -121,13 +121,13 @@ class InboxController extends Controller
             default => null,
         };
 
-        $conversationQuery->orderBy('last_message_at', $activeSort === 'oldest' ? 'asc' : 'desc');
-
-        $conversations = $conversationQuery
-            ->limit(self::CONVERSATION_PAGE_SIZE + 1)
-            ->get();
-        $hasMoreConversations = $conversations->count() > self::CONVERSATION_PAGE_SIZE;
-        $conversations = $conversations->take(self::CONVERSATION_PAGE_SIZE)->values();
+        $sortDirection = $activeSort === 'oldest' ? 'asc' : 'desc';
+        $conversationPage = $conversationQuery
+            ->orderBy('last_message_at', $sortDirection)
+            ->orderBy('id', $sortDirection)
+            ->cursorPaginate(self::CONVERSATION_PAGE_SIZE)
+            ->withQueryString();
+        $conversations = $conversationPage->getCollection();
 
         $selectedConversation = null;
         if ($selectedId) {
@@ -191,8 +191,7 @@ class InboxController extends Controller
             'search' => $search,
             'filterMeta' => InboxUi::stateFilters(),
             'channelMeta' => InboxUi::channels(),
-            'hasMoreConversations' => $hasMoreConversations,
-            'conversationPageSize' => self::CONVERSATION_PAGE_SIZE,
+            'nextConversationCursor' => $conversationPage->nextCursor()?->encode(),
             'messageHistoryLimit' => self::MESSAGE_HISTORY_LIMIT,
             'aiSettings' => $aiSettings,
             'inboxVersion' => $this->inboxVersion($business->id),
@@ -220,7 +219,7 @@ class InboxController extends Controller
             'body' => ['nullable', 'required_without:attachments', 'string', 'max:4000'],
             'reply_to_message_id' => ['nullable', 'integer'],
             'attachments' => ['nullable', 'array', 'max:6'],
-            'attachments.*' => ['file', 'max:10240'],
+            'attachments.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,pdf,txt,csv,doc,docx,xls,xlsx,ppt,pptx,zip,mp3,wav,ogg,m4a,mp4,mov,webm'],
         ]);
 
         $attachments = $request->file('attachments', []);

@@ -38,6 +38,8 @@ class ConnectedAccountController extends Controller
 
     public function fakeConnect(Request $request)
     {
+        abort_unless(config('services.development.fake_connections_enabled'), 404);
+
         $business = $request->attributes->get('currentBusiness');
         $validated = $request->validate([
             'platform' => ['required', 'string', Rule::in(['Instagram', 'Facebook', 'WhatsApp'])],

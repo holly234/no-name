@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Jobs\ProcessAiReply;
 use App\Models\AutomationLog;
+use App\Models\AiUsageRecord;
 use App\Models\Conversation;
 use App\Support\QueueDispatch;
 use Illuminate\Support\Facades\Cache;
@@ -25,11 +26,17 @@ class AiReplyRecoveryService
             ->get();
 
         $queued = 0;
+        $attemptCounts = AiUsageRecord::query()
+            ->whereIn('message_id', $conversations->pluck('latestMessage.id')->filter())
+            ->selectRaw('message_id, COUNT(*) as attempts')
+            ->groupBy('message_id')
+            ->pluck('attempts', 'message_id');
 
         foreach ($conversations as $conversation) {
             $message = $conversation->latestMessage;
 
-            if (! $message || ! Cache::add('ai-reply-recovery:'.$message->id, true, now()->addMinutes(10))) {
+            if (! $message || (int) ($attemptCounts[$message->id] ?? 0) >= 3
+                || ! Cache::add('ai-reply-recovery:'.$message->id, true, now()->addMinutes(10))) {
                 continue;
             }
 

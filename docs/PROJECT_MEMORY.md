@@ -10,11 +10,11 @@ Current build priority:
 - Pause active Meta test-case work and public Embedded Signup testing until Perpetual Devs can complete Meta business verification and App Review. Preserve all existing Meta code and both connection lanes.
 - Google OAuth is the only public customer sign-up/login method. Public email/password, password reset, password update, email magic-link, and account-deletion-password screens are intentionally disabled.
 - Configure Resend later for transactional product emails and use queued Laravel notifications/mailables; Resend is not an authentication dependency.
-- Complete workspace team invitations and enforce Owner/Admin/Agent permissions with policies and middleware.
-- Continue the separate private Filament platform-owner dashboard for Perpetual Devs; its secure foundation, global statistics, directories, and workspace suspension controls are implemented, while credit/revenue/health modules remain pending.
+- Workspace team invitations and Owner/Admin/Agent boundaries are implemented. Transactional invitation delivery waits for Resend; continue tightening policy coverage only when a new surface is added.
+- Continue the separate private Filament platform-owner dashboard for Perpetual Devs. Its secure foundation, directories, suspension controls, AI/connection visibility, health screen, and pre-launch revenue screen are implemented; verified payment/revenue data remains pending.
 - Plan a customer-dashboard PWA after the core workflow is stable. Its start URL is `/dashboard/inbox` and its intended scope is `/dashboard/`; do not include marketing pages or `/owner` in the installed customer app.
 - A later Capacitor Android/iOS client packages only the customer experience. Laravel, queues, webhooks, APIs, marketing pages, and the Filament owner panel remain hosted/web surfaces. Mobile Google authentication must use separate platform OAuth clients and native/system-browser flows, never embedded WebView OAuth.
-- Implement prepaid AI credits and an immutable usage ledger. The unified inbox/manual workflow is free; customers pay only for AI-agent usage. There is no fixed recurring SaaS fee in the current direction.
+- The prepaid AI wallet, immutable usage ledger, reservations, settlement, grants, and failure releases are implemented. The next commercial milestone is verified customer checkout and payment-to-credit settlement. The unified inbox/manual workflow remains free; there is no fixed recurring SaaS fee in the current direction.
 - Scrap n8n as the planned automation bridge. Laravel is the complete application and automation brain using services, jobs, queues, events, tools, and scheduled commands. Existing n8n-compatible endpoints may remain for backward compatibility until deliberately removed.
 - The provider-neutral Laravel AI runtime is implemented with Gemini 3.1 Flash-Lite as the first adapter, guarded by `AI_ENABLED=false` until a key and test credits are supplied. Gemini Flash and OpenAI may be configurable quality/fallback providers later. Do not hard-wire business logic to one provider.
 - Keep the inbox as the default dashboard screen.
@@ -37,6 +37,31 @@ Current build priority:
 - For polished UI/design interactions, prefer proven focused libraries/components over custom hand-built controls when a library gives better quality, accessibility, or maintainability. Keep all third-party UI aligned with `docs/VISUAL_MOOD_BOARD.md`; do not import a library's default visual style blindly.
 - Do not push to GitHub unless the user explicitly asks for `push`.
 - Preserve two Meta connection lanes: production/customer WhatsApp Embedded Signup and an explicitly enabled owner/admin-only development connector for test WhatsApp, Facebook Page, and Instagram professional assets. `META_DEVELOPMENT_CONNECT_ENABLED` defaults to false.
+
+## Immediate Agenda After AI Stabilization
+
+Current focus is pre-launch hardening. Payments, Resend, and production Meta onboarding are intentionally paused. The completed audit, fixes, remaining risks, and production flags are recorded in `docs/PRELAUNCH_AUDIT.md`.
+
+Gmail inbox classification now separates automated/no-reply and Gmail category mail into an `Informational` lane. Replyable customer email remains `Needs Human`; Gmail intent labels are `Automated email` or `Email enquiry` instead of the previous generic discount guess. Migration `2026_07_20_130000_classify_automated_gmail_conversations.php` reclassifies existing automated Gmail threads.
+
+The inbox conversation rail now uses cursor-based infinite scrolling in batches of 50. Loading older rows preserves the active state, channel, search, date, time, and sort query, and avoids unstable offset pagination when new messages arrive.
+
+The next major milestone is verified prepaid AI-credit checkout. Do not spend the next development block repeatedly redesigning the AI setup unless production evidence reveals a blocking defect. Prompt/personality tuning remains an iterative later task.
+
+1. **Deploy and smoke-test the unanswered-chat recovery batch.** Pull commit `9d1e6fe`, rebuild Laravel caches, and restart Supervisor workers. Confirm one normal reply, one authority-requiring handover with acknowledgement, and recovery of one eligible historical unanswered AI-controlled conversation.
+2. **Build payment-provider-neutral credit purchases.** Add pending/succeeded/failed payment records, immutable references, NGN package snapshots, idempotent webhook settlement, verified server-side credit grants, and customer payment history. Never credit a wallet from a browser redirect alone.
+3. **Connect the first Nigeria-capable payment gateway in test mode.** The platform owner must provide test credentials and approve initial NGN package sizes/prices. Keep gateway-specific code behind a contract so another provider can be added later.
+4. **Add low-balance UX and operational visibility.** Show understandable insufficient-credit status, optional low-balance warnings, payment/webhook failures, reconciliation information, and owner-panel revenue/margin data sourced from verified transactions.
+5. **Add production observability and error UX.** Cover failed queues, provider delivery failures, AI recovery attempts, payment webhooks, and safe customer-facing error pages before broader onboarding.
+6. **Resume blocked external work only when prerequisites exist.** Resend waits for an owned sending domain. Public Meta onboarding waits for business verification/App Review. Neither blocks checkout development.
+7. **Later product layers.** PWA comes after checkout and operational stability; packaged mobile clients come after the PWA/customer workflow is proven.
+
+Inputs needed from the platform owner for the payment milestone:
+
+- Selected gateway test credentials. Never commit them; store them only in environment variables.
+- Approved starter credit packages and NGN selling prices.
+- The customer-facing business/support name for payment and receipt screens.
+- A monitored support email. An owned sending domain can be supplied later for Resend delivery.
 
 ## Product Brief
 
@@ -658,7 +683,7 @@ Backend/security/scalability pass on 2026-07-06:
 - Added `ConversationMessageService` for shared outgoing message writes and read marking.
 - Added `InboxUi` support class so channel/status/intent presentation metadata is no longer defined inside the Blade view.
 - Added feature tests for webhook auth, workspace switching, inbox search/channel filters, read receipts, default dashboard redirect, and cross-business inbox mutation denial.
-- Latest verification: `npm run build` passes, PHPUnit passes with `55 tests, 171 assertions`, and `php artisan view:cache` passes.
+- Milestone verification at that time: `npm run build` passed, PHPUnit passed with `55 tests, 171 assertions`, and `php artisan view:cache` passed. See the current baseline near the end of this file.
 
 Connected accounts pass on 2026-07-06:
 - Accounts page was redesigned into active channel cards and a responsive active-account list.
@@ -683,7 +708,7 @@ Settings/profile/performance/UI refinement pass on 2026-07-06:
 - Seeded demo customer external IDs with readable handles and phone numbers.
 - Changed `/dashboard/inbox` so it no longer selects the first conversation by default; thread/profile data loads only after a conversation is opened.
 - Hardened the dashboard SPA helper so Alpine and SPA event listeners initialize once, clicked controls show immediate pending feedback, and form submit buttons temporarily disable to prevent double submits.
-- Latest verification after this pass: PHPUnit passes with `55 tests, 171 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+- Milestone verification at that time: PHPUnit passed with `55 tests, 171 assertions`; see the current baseline near the end of this file.
 
 Gmail integration pass on 2026-07-07:
 - Added Gmail as the first real provider connection while preserving the existing inbox and AI Conversation State Engine architecture.
@@ -698,7 +723,7 @@ Gmail integration pass on 2026-07-07:
 - Staff text replies in Gmail conversations are sent through Gmail API with reply-thread metadata when available. Gmail attachment replies remain disabled until implemented safely.
 - Gmail HTML is cleaned before display, useful links are preserved, no-reply/automated senders are detected, and non-repliable email threads disable the composer.
 - Added feature tests for Gmail auth requirement, callback account creation, foreign-business sync denial, scoped import, duplicate prevention, and token secrecy.
-- Latest verification after this pass: PHPUnit passes with `55 tests, 171 assertions`, `php artisan view:cache` passes, and `npm run build` passes.
+- Milestone verification at that time: PHPUnit passed with `55 tests, 171 assertions`; see the current baseline near the end of this file.
 
 Telegram integration pass on 2026-07-09:
 - Added Telegram as a real bot-backed provider connection, not a demo channel and not private-user MTProto inbox import.
@@ -714,16 +739,12 @@ Telegram integration pass on 2026-07-09:
 - Latest verification after automatic Gmail watch renewal: PHPUnit passes with `92 tests, 368 assertions`, `php artisan route:list --except-vendor` passes, and `npm run build` passes.
 
 Not built yet:
-- Passwordless email magic-link authentication (Google remains the only public authentication method)
 - Resend delivery is paused until a real owned domain is available for production sender verification
-- Real credit wallet/payment ledger, email-delivery history, and production alert delivery behind the designed Filament owner modules
-- Advanced workspace settings and danger-zone controls
+- Verified payment checkout, purchase records, reconciliation, email-delivery history, and production alert delivery behind the existing wallet/usage foundations
 - Configurable business-hours schedule UI
 - Separate immutable provider customer IDs from display usernames/phone numbers before production if real Meta payloads require both
-- Real Google OAuth login/linking behavior
 - Public Facebook/Instagram OAuth onboarding and production approval; development-token connections, signed webhooks, and text replies are implemented for test assets
-- Provider-neutral Laravel AI agent integration with usage reporting
-- Prepaid AI-credit wallet, immutable ledger, purchases, deductions, reversals, and low-balance handling
+- Verified prepaid AI-credit purchases and low-balance notifications; wallet grants, reservations, usage deductions, settlement, and failure releases are implemented
 - Payment gateway integration suitable for Nigerian customers
 - Removal or deliberate deprecation of legacy n8n-compatible endpoints after Laravel replacements exist
 - Gmail Pub/Sub history-diff replay

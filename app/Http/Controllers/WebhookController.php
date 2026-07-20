@@ -36,7 +36,8 @@ class WebhookController extends Controller
         $challenge = $request->query('hub.challenge', $request->query('hub_challenge'));
 
         abort_unless($mode === 'subscribe', 403);
-        abort_unless(hash_equals((string) config('services.meta.webhook_verify_token'), (string) $verifyToken), 403);
+        $expectedToken = (string) config('services.meta.webhook_verify_token');
+        abort_unless($expectedToken !== '' && hash_equals($expectedToken, (string) $verifyToken), 403);
 
         return response((string) $challenge, 200)->header('Content-Type', 'text/plain');
     }
@@ -84,12 +85,6 @@ class WebhookController extends Controller
     ) {
         abort_unless($account->platform === 'Telegram' && $account->status === 'connected', 404);
 
-        $this->updateTelegramWebhookMeta($account, [
-            'last_webhook_attempt_at' => now()->toIso8601String(),
-            'last_webhook_update_id' => $request->input('update_id'),
-            'last_webhook_error' => null,
-        ]);
-
         $expectedSecret = $account->provider_meta['webhook_secret'] ?? null;
         $providedSecret = $request->header('X-Telegram-Bot-Api-Secret-Token');
 
@@ -98,13 +93,14 @@ class WebhookController extends Controller
             || $expectedSecret === ''
             || ! hash_equals($expectedSecret, (string) $providedSecret)
         ) {
-            $this->recordTelegramWebhookFailure($account, 'Telegram webhook secret mismatch.', [
-                'update_id' => $request->input('update_id'),
-                'has_secret_header' => $providedSecret !== null,
-            ]);
-
             abort(401);
         }
+
+        $this->updateTelegramWebhookMeta($account, [
+            'last_webhook_attempt_at' => now()->toIso8601String(),
+            'last_webhook_update_id' => $request->input('update_id'),
+            'last_webhook_error' => null,
+        ]);
 
         $result = $this->dispatchQueueAware(new ProcessTelegramWebhook($account->id, $request->all()));
 

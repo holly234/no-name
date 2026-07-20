@@ -40,6 +40,7 @@
             \App\Models\Conversation::STATE_NEEDS_HUMAN => 'Needs reply',
             \App\Models\Conversation::STATE_AI_HANDLING => 'AI',
             \App\Models\Conversation::STATE_WAITING => 'Scheduled',
+            \App\Models\Conversation::STATE_INFORMATIONAL => 'Info',
             \App\Models\Conversation::STATE_CLOSED => 'Done',
         ];
         $channelIconTone = [
@@ -110,7 +111,7 @@
                     @endforeach
                 </div>
 
-                <div class="mt-3 grid w-full min-w-0 max-w-full grid-cols-5 gap-1 overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-1 sm:mt-4">
+                <div class="mt-3 grid w-full min-w-0 max-w-full grid-cols-6 gap-1 overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-1 sm:mt-4">
                     @foreach ($filterMeta as $state => $meta)
                         @php
                             $count = $counts[$state] ?? 0;
@@ -128,6 +129,7 @@
                                 \App\Models\Conversation::STATE_NEEDS_HUMAN => 'text-[#BE185D]',
                                 \App\Models\Conversation::STATE_AI_HANDLING => 'text-[#047857]',
                                 \App\Models\Conversation::STATE_WAITING => 'text-[#B45309]',
+                                \App\Models\Conversation::STATE_INFORMATIONAL => 'text-[#2563EB]',
                                 default => 'text-[#6B7280]',
                             };
                         @endphp
@@ -227,7 +229,8 @@
                 </div>
             </div>
 
-            <div class="min-h-0 w-full max-w-full flex-1 overflow-y-auto overflow-x-hidden bg-white">
+            <div x-ref="conversationScroller" class="min-h-0 w-full max-w-full flex-1 overflow-y-auto overflow-x-hidden bg-white">
+                <div x-ref="conversationList" data-conversation-list data-next-cursor="{{ $nextConversationCursor }}">
                 @forelse ($conversations as $conversation)
                     @php
                         $intent = $conversation->getAttribute('intent');
@@ -308,9 +311,11 @@
                 @empty
                     <p class="p-6 text-sm text-[#6B7280]">No conversations in this state.</p>
                 @endforelse
-                @if ($hasMoreConversations)
-                    <div class="px-5 py-4 text-center text-xs font-semibold text-[#6B7280]">Showing latest {{ $conversationPageSize }} conversations. Narrow the search or filters to find older threads.</div>
-                @endif
+                </div>
+                <div x-ref="conversationSentinel" class="px-5 py-4 text-center text-xs font-semibold text-[#6B7280]" x-show="nextConversationCursor || loadingConversations">
+                    <span x-show="loadingConversations">Loading older conversations…</span>
+                    <span x-show="! loadingConversations && nextConversationCursor">Scroll for more</span>
+                </div>
             </div>
         </aside>
 

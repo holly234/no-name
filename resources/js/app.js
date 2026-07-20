@@ -134,6 +134,66 @@ window.videoPlayer = () => ({
 window.inboxPage = () => ({
     profileOpen: false,
     filtersOpen: false,
+    nextConversationCursor: null,
+    loadingConversations: false,
+    conversationObserver: null,
+    init() {
+        this.nextConversationCursor = this.$refs.conversationList?.dataset.nextCursor || null;
+
+        this.$nextTick(() => {
+            if (!this.$refs.conversationSentinel || !this.$refs.conversationScroller) {
+                return;
+            }
+
+            this.conversationObserver = new IntersectionObserver(
+                (entries) => {
+                    if (entries.some((entry) => entry.isIntersecting)) {
+                        this.loadMoreConversations();
+                    }
+                },
+                { root: this.$refs.conversationScroller, rootMargin: '240px 0px' },
+            );
+            this.conversationObserver.observe(this.$refs.conversationSentinel);
+        });
+    },
+    async loadMoreConversations() {
+        if (!this.nextConversationCursor || this.loadingConversations) {
+            return;
+        }
+
+        this.loadingConversations = true;
+        const url = new URL(window.location.href);
+        url.searchParams.delete('conversation');
+        url.searchParams.set('cursor', this.nextConversationCursor);
+
+        try {
+            const response = await fetch(url.href, {
+                headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Conversation page failed with ${response.status}`);
+            }
+
+            const documentPage = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const nextList = documentPage.querySelector('[data-conversation-list]');
+
+            if (!nextList || !this.$refs.conversationList) {
+                throw new Error('Conversation page was missing its list.');
+            }
+
+            [...nextList.children].forEach((conversation) => {
+                this.$refs.conversationList.appendChild(conversation);
+            });
+            this.nextConversationCursor = nextList.dataset.nextCursor || null;
+            this.$refs.conversationList.dataset.nextCursor = this.nextConversationCursor || '';
+        } catch (error) {
+            console.error('Could not load more conversations.', error);
+        } finally {
+            this.loadingConversations = false;
+        }
+    },
     mediaViewer: {
         open: false,
         type: null,

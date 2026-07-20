@@ -272,6 +272,38 @@ class GmailIntegrationTest extends TestCase
         $this->assertSame(1, Message::where('metadata->gmail_message_id', 'msg-duplicate')->count());
     }
 
+    public function test_gmail_sync_classifies_no_reply_mail_as_informational(): void
+    {
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createGmailAccount($business);
+        $this->fakeGmailSync(
+            'msg-automated',
+            'thread-automated',
+            'Google <no-reply@accounts.google.com>',
+            'Security alert',
+            'A new sign-in was detected.'
+        );
+
+        $this->actingAs($user)
+            ->post(route('dashboard.accounts.gmail.sync', $account))
+            ->assertRedirect();
+
+        $conversation = Conversation::where('business_id', $business->id)
+            ->where('channel', 'Gmail')
+            ->firstOrFail();
+
+        $this->assertSame(Conversation::STATE_INFORMATIONAL, $conversation->status);
+        $this->assertTrue((bool) $conversation->latestMessage->metadata['reply_disabled']);
+
+        $this->actingAs($user)
+            ->get(route('dashboard.inbox', ['state' => Conversation::STATE_INFORMATIONAL]))
+            ->assertOk()
+            ->assertSee('Security alert')
+            ->assertSee('Automated email')
+            ->assertDontSee('Needs staff attention');
+    }
+
     public function test_gmail_sync_stores_subject_separately_and_strips_template_html(): void
     {
         $user = User::factory()->create();

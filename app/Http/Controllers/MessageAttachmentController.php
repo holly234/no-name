@@ -15,9 +15,17 @@ class MessageAttachmentController extends Controller
         abort_unless($attachment->business_id === $business->id, 403);
         abort_unless(Storage::disk($attachment->disk)->exists($attachment->storage_path), 404);
 
-        $headers = ['Content-Type' => $attachment->mime_type ?: 'application/octet-stream'];
+        $headers = [
+            'Content-Type' => $attachment->mime_type ?: 'application/octet-stream',
+            'X-Content-Type-Options' => 'nosniff',
+        ];
 
-        if ($request->boolean('inline')) {
+        $inlineTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+
+        if ($request->boolean('inline') && in_array($attachment->mime_type, $inlineTypes, true)) {
+            if ($attachment->mime_type === 'application/pdf') {
+                $headers['Content-Security-Policy'] = "sandbox; default-src 'none'; style-src 'unsafe-inline'";
+            }
             return Storage::disk($attachment->disk)->response(
                 $attachment->storage_path,
                 $attachment->filename,

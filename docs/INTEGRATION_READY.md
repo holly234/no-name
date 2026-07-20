@@ -1,6 +1,6 @@
 # Integration Readiness
 
-This app is ready to continue wiring real OpenAI, Meta, and n8n integrations. Gmail and Telegram are now the first real provider connections: Gmail OAuth, manual/scheduled inbox sync, Gmail text replies, Telegram webhooks, and Telegram replies/media are implemented, while Meta and AI behavior remain demo/fake or placeholder.
+Gmail, Telegram, Meta development assets, and the provider-neutral Gemini AI runtime are implemented. Gmail OAuth/sync/replies, Telegram webhooks/replies/media, signed Meta webhooks/test-asset replies, queued Gemini decisions, prepaid-credit enforcement, safe handover acknowledgement, and unanswered-chat recovery all run through Laravel. Public Meta onboarding remains gated by provider approval; Resend remains gated by an owned sending domain.
 
 ## Shared Rules
 
@@ -48,9 +48,11 @@ Current implementation:
 
 - `App\Contracts\AiProvider` keeps conversation logic provider-neutral.
 - `GeminiAiProvider` calls Gemini 3.1 Flash-Lite with structured JSON output and records tokens, latency, actual/estimated provider cost, state, confidence, intent, and escalation reason.
-- `AiPromptBuilder` supplies bounded recent history plus workspace FAQs, products/services, business rules, assistant tone, forbidden claims, and handover instructions.
+- `AiPromptBuilder` supplies bounded recent history plus workspace FAQs, products/services, business policies, assistant tone, and handover instructions. It permits low-risk general knowledge and clarification while prohibiting invented business-specific claims.
 - `ProcessAiReply` runs on the `ai` queue only when `AI_ENABLED=true`.
 - The job reserves workspace credits before provider work, settles against actual token usage, releases failed reservations, and routes empty-credit/provider/delivery failures safely to staff.
+- AI handover sends and stores an acknowledgement before setting `Needs Human`. Empty model replies use workspace fallback copy or a safe built-in acknowledgement.
+- Scheduled `ai:recover-unanswered` requeues stale unanswered messages only for AI-controlled conversations; human-controlled chats are excluded.
 - `OutboundChannelService` delivers AI text through real Telegram and Meta accounts; demo/non-provider conversations remain local. Gmail automatic AI replies remain intentionally disabled.
 - Operators can grant beta credits with `php artisan ai:credits:grant {business-id} {credits} --reference=...` until verified checkout exists.
 
@@ -67,7 +69,7 @@ GEMINI_TIMEOUT=30
 GEMINI_BILLING_MODE=free
 ```
 
-Keep `AI_ENABLED=false` until the key is configured, the `ai` worker is running, and test credits are granted. Gemini's free tier may use submitted content to improve Google products; use paid billing/data terms before processing real customer conversations.
+Keep `AI_ENABLED=false` in a new environment until the key is configured, the `ai` worker is running, and test credits are granted. The current production environment has completed those activation steps. Gemini's free tier may use submitted content to improve Google products; use paid billing/data terms before processing sensitive customer conversations.
 
 ## Legacy AI Seam Notes
 
@@ -80,7 +82,7 @@ Current seam:
 - `app/Http/Controllers/WebhookController.php`
 - `app/Http/Controllers/N8nController.php`
 
-Current behavior:
+Fallback-only behavior when the real provider runtime is disabled:
 
 - `AiReplyService::decideState()` uses keyword/confidence demo logic.
 - `AiReplyService::generatePlaceholderReply()` returns a static business-aware reply.
@@ -90,7 +92,7 @@ Previously planned steps (superseded by the provider-neutral Gemini implementati
 1. Replace `generatePlaceholderReply()` with an OpenAI-backed response method.
 2. Keep `decideState()` deterministic enough to preserve the four-state contract.
 3. Feed business context from `AiSetting`, FAQs, products, and business rules.
-4. Return `Needs Human` for low confidence, refund/discount/complaint/custom quote/approval requests, and missing knowledge.
+4. The old plan used keyword/low-confidence escalation; production now uses contextual risk-based decisions instead.
 5. Add request/response logging without storing sensitive customer content unnecessarily.
 6. Add retry/timeout handling and move calls to queued jobs before production traffic.
 
@@ -292,13 +294,12 @@ Expected log-event payload:
 }
 ```
 
-Next implementation steps:
+Disposition:
 
-1. Create n8n workflow using the routes above.
-2. Keep Laravel as source of truth for conversations/messages.
-3. Use n8n only for provider automation and orchestration.
-4. Log provider failures through `/api/n8n/log-event`.
-5. Keep retries/idempotency in mind before production.
+1. Laravel is the source of truth and production orchestration layer.
+2. Do not create new n8n workflows for core product behavior.
+3. Keep these routes temporarily for compatibility only.
+4. Remove or formally deprecate them after confirming no external production consumer depends on them.
 
 ## Current Verification
 
@@ -310,4 +311,4 @@ npm run build
 php artisan view:cache
 ```
 
-Expected suite size after the latest readiness work: `55 tests, 171 assertions`.
+Expected suite size after the latest readiness work: `117 tests, 519 assertions`.

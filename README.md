@@ -14,13 +14,13 @@ Provider testing is temporarily paused, especially public Meta Embedded Signup, 
 
 Development now proceeds in this order:
 
-1. Production-test the provider-neutral AI runtime with Gemini 3.1 Flash-Lite, then add a configurable quality/fallback provider only when needed.
-2. Add verified prepaid AI-credit purchases and low-balance customer controls to the implemented reserve/settle/release ledger.
-3. Continue replacing n8n compatibility paths with the implemented Laravel-native AI jobs and conversation orchestration.
-4. Connect Resend invitation/transactional email delivery after an owned sending domain is available.
-5. Add the customer-dashboard PWA layer after the core customer workflow is stable.
+1. Add verified prepaid AI-credit purchases, payment history, and low-balance customer controls to the implemented reserve/settle/release ledger.
+2. Add production observability for payment webhooks, AI recovery, queue failures, and customer-facing error states.
+3. Remove or deliberately deprecate the remaining n8n compatibility endpoints after confirming no production consumer depends on them.
+4. Connect Resend invitations and transactional email after an owned sending domain is available.
+5. Add the customer-dashboard PWA layer after checkout and the core customer workflow are stable.
 6. Package only the customer application as Android/iOS clients later; marketing, Filament owner administration, webhooks, and Laravel remain web/server surfaces.
-7. Resume production provider onboarding and Meta approval work after the product foundation is stable.
+7. Resume public Meta onboarding and App Review work after Meta verification is available.
 
 ## Current Status
 
@@ -42,11 +42,12 @@ Built and working as a local MVP:
 - Real Telegram bot-backed connection with encrypted bot token storage, webhook registration, incoming message/media ingestion, customer profile photos, and text/media replies through the Telegram Bot API
 - Multiple connected accounts per social platform per workspace
 - Disconnect flow for connected accounts; disconnected records are preserved internally but hidden from the active Accounts UI
-- AI Conversation State Engine demo workflow
+- Production-tested AI Conversation State Engine with risk-based routing
 - Provider-neutral queued AI runtime with a Gemini 3.1 Flash-Lite adapter, structured state/reply decisions, business knowledge context, token/cost usage records, and guarded activation
 - Atomic AI-credit grants, reservations, usage settlement, and failure releases; paid credit checkout is still pending
 - Manual replies, always-available human takeover, resume automation, and close support in backend
 - The consolidated AI Assistant setup controls automatic replies and business-hours gating; business facts and policies remain structured underneath
+- AI handovers always send a customer acknowledgement, and the scheduler recovers stale unanswered AI-controlled chats without touching human-owned conversations
 - User-dashboard Credits & Usage, Analytics, and Team pages, backed by AI wallet, transaction, and per-response usage tables
 - Editable knowledge base with mobile-friendly section tabs for FAQs, products/services, business rules, and saved replies
 - Secured webhook/API write routes
@@ -304,11 +305,13 @@ Connected account behavior:
 
 AI settings behavior:
 
-- `auto_reply_enabled=false` prevents demo automatic replies and sends incoming conversations to staff review.
-- `human_takeover_enabled=false` hides/disables the takeover switch and blocks takeover requests.
+- `auto_reply_enabled=false` prevents automatic replies and sends incoming conversations to staff review.
+- Human takeover and resume are always available safety actions; workspace configuration cannot disable them.
 - `business_hours_enabled=true` gates automatic replies to the current fixed demo window of 09:00-19:00 app time.
 - Resuming AI mode only changes the conversation back to automation control; it does not send an immediate placeholder reply.
 - Sending a manual staff reply automatically switches the conversation into human mode.
+- Live AI routing is contextual rather than keyword-based: harmless general knowledge, clarification, and routine engagement do not require handover.
+- Handover sends an acknowledgement before `Needs Human`; `ai:recover-unanswered` checks stale unanswered AI-controlled chats every minute.
 
 Knowledge base behavior:
 
@@ -371,7 +374,7 @@ npm run dev
 
 The app uses Laravel queues for work that should not block page loads or webhook responses: provider webhooks, Gmail sync, AI replies, outbound messages, and future Resend emails.
 
-The real AI runtime is disabled by default. When `AI_ENABLED=true`, eligible incoming messages dispatch `ProcessAiReply` to the `ai` queue. The job requires a configured provider key and a positive workspace credit balance, reserves credits before calling the provider, records actual tokens/cost, settles successful usage, and releases reservations after provider or delivery failures.
+The real AI runtime is disabled by default in source configuration. Production enables it through environment configuration. Eligible incoming messages dispatch `ProcessAiReply` to the `ai` queue. The job requires a configured provider key and a positive workspace credit balance, reserves credits before calling the provider, records actual tokens/cost, settles successful usage, and releases reservations after provider or delivery failures.
 
 Platform operators can grant beta/test credits without a payment gateway:
 
@@ -436,7 +439,7 @@ The seeded customer must authenticate through a matching Google account in the p
 Still not production-complete:
 
 - Public Instagram and Messenger OAuth onboarding (development test assets can be connected manually when explicitly enabled)
-- production AI prompt/provider evaluation and fallback-provider policy
+- longer-term AI prompt/provider evaluation and fallback-provider policy; the current Gemini runtime is live and functional
 - n8n endpoints remain for compatibility but n8n is no longer the planned automation engine
 - Gmail Pub/Sub history-diff replay
 - Gmail outbound attachment sending from the inbox
@@ -446,7 +449,7 @@ Still not production-complete:
 - advanced workspace settings and billing controls
 - configurable business-hours schedule UI
 - separate immutable provider customer IDs from display usernames/phone numbers before production if Meta payloads require both
-- role-based authorization policies and team invitation flow
+- transactional delivery for the implemented team invitation flow
 - verified prepaid AI-credit purchases and payment-gateway integration (wallet, usage ledger, and AI enforcement are implemented)
 - private Perpetual Devs platform-owner dashboard at `/owner` with SPA navigation, platform/workspace directories, conversations, customers, AI-agent settings, connection monitoring, activity/error logs, system health, activity analytics, and a pre-launch revenue/AI-credit control screen
 - Resend transactional email integration

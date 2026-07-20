@@ -17,7 +17,7 @@ class AnalyticsController extends Controller
         return view('dashboard.analytics', [
             'conversationCount' => Conversation::where('business_id', $business->id)->where('created_at', '>=', $since)->count(),
             'messageCount' => Message::where('business_id', $business->id)->where('created_at', '>=', $since)->count(),
-            'inboundCount' => Message::where('business_id', $business->id)->where('direction', 'inbound')->where('created_at', '>=', $since)->count(),
+            'inboundCount' => Message::where('business_id', $business->id)->where('direction', 'incoming')->where('created_at', '>=', $since)->count(),
             'channelBreakdown' => Conversation::where('business_id', $business->id)->where('created_at', '>=', $since)
                 ->select('channel', DB::raw('COUNT(*) as total'))->groupBy('channel')->orderByDesc('total')->get(),
         ]);

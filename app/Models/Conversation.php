@@ -12,12 +12,15 @@ class Conversation extends Model
 
     public const STATE_NEEDS_HUMAN = 'Needs Human';
 
+    public const STATE_INFORMATIONAL = 'Informational';
+
     public const STATE_CLOSED = 'Closed';
 
     public const STATES = [
         self::STATE_AI_HANDLING,
         self::STATE_WAITING,
         self::STATE_NEEDS_HUMAN,
+        self::STATE_INFORMATIONAL,
         self::STATE_CLOSED,
     ];
 

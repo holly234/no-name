@@ -66,6 +66,7 @@ return [
     'n8n' => [
         'base_url' => env('N8N_BASE_URL'),
         'webhook_secret' => env('N8N_WEBHOOK_SECRET') ?: env('APP_WEBHOOK_SECRET'),
+        'compatibility_endpoints_enabled' => env('N8N_COMPATIBILITY_ENDPOINTS_ENABLED', false),
     ],
 
     'slack' => [
@@ -77,6 +78,11 @@ return [
 
     'webhooks' => [
         'secret' => env('APP_WEBHOOK_SECRET') ?: env('META_WEBHOOK_SECRET'),
+        'legacy_endpoints_enabled' => env('LEGACY_WEBHOOK_ENDPOINTS_ENABLED', false),
+    ],
+
+    'development' => [
+        'fake_connections_enabled' => env('FAKE_CONNECTIONS_ENABLED', false),
     ],
 
 ];

@@ -408,6 +408,10 @@ class GmailConnectionService
         $body = $this->sanitizeEmailBody($this->bodyFromPayload($gmailMessage['payload'] ?? [])) ?: '(empty email)';
         $date = $this->messageDate($gmailMessage, $headers);
         $replyDisabled = $this->replyDisabled($headers, $fromEmail);
+        $informational = $this->isInformationalEmail($replyDisabled['disabled'], $labelIds);
+        $inboxState = $informational
+            ? Conversation::STATE_INFORMATIONAL
+            : Conversation::STATE_NEEDS_HUMAN;
 
         $customer = Customer::firstOrCreate(
             [
@@ -429,7 +433,7 @@ class GmailConnectionService
                 'customer_name' => $customer->name,
                 'customer_external_id' => $fromEmail,
                 'channel' => 'Gmail',
-                'status' => Conversation::STATE_NEEDS_HUMAN,
+                'status' => $inboxState,
                 'ai_mode' => 'human',
                 'last_message_at' => $date,
             ]);
@@ -439,7 +443,7 @@ class GmailConnectionService
             'customer_id' => $customer->id,
             'customer_name' => $customer->name,
             'customer_external_id' => $fromEmail,
-            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'status' => $inboxState,
             'ai_mode' => 'human',
             'last_message_at' => $date,
         ]);
@@ -464,6 +468,7 @@ class GmailConnectionService
                 'references' => $headers['references'] ?? null,
                 'reply_disabled' => $replyDisabled['disabled'],
                 'reply_disabled_reason' => $replyDisabled['reason'],
+                'gmail_kind' => $informational ? 'informational' : 'actionable',
             ],
             'created_at' => $date,
             'updated_at' => $date,
@@ -472,6 +477,20 @@ class GmailConnectionService
         $this->importAttachments($account, $message, $gmailMessage);
 
         return true;
+    }
+
+    private function isInformationalEmail(bool $replyDisabled, array $labelIds): bool
+    {
+        if ($replyDisabled) {
+            return true;
+        }
+
+        return count(array_intersect($labelIds, [
+            'CATEGORY_PROMOTIONS',
+            'CATEGORY_SOCIAL',
+            'CATEGORY_UPDATES',
+            'CATEGORY_FORUMS',
+        ])) > 0;
     }
 
     private function validAccessToken(ConnectedAccount $account): string

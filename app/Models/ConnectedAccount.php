@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ConnectedAccount extends Model
 {
+    protected $hidden = ['access_token', 'refresh_token', 'provider_meta'];
+
     protected $fillable = [
         'business_id',
         'platform',

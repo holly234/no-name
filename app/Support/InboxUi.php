@@ -21,6 +21,10 @@ class InboxUi
                 'label' => 'AI handling',
                 'icon' => '<path d="m12 3 1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3Z"/><path d="M5 15v4"/><path d="M19 15v4"/>',
             ],
+            Conversation::STATE_INFORMATIONAL => [
+                'label' => 'Info only',
+                'icon' => '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
+            ],
             Conversation::STATE_WAITING => [
                 'label' => 'Waiting',
                 'icon' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -86,6 +90,11 @@ class InboxUi
                 'class' => 'bg-[#ECFDF5] text-[#047857]',
                 'icon' => '<path d="m12 3 1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3Z"/><path d="M5 15v4"/><path d="M19 15v4"/>',
             ],
+            Conversation::STATE_INFORMATIONAL => [
+                'label' => 'Informational email — no action needed',
+                'class' => 'bg-[#EFF6FF] text-[#2563EB]',
+                'icon' => '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
+            ],
             default => [
                 'label' => 'Closed',
                 'class' => 'bg-[#EEF0F3] text-[#6B7280]',
@@ -103,6 +112,12 @@ class InboxUi
 
     public static function intentFor(Conversation $conversation): string
     {
+        if ($conversation->channel === 'Gmail') {
+            return $conversation->status === Conversation::STATE_INFORMATIONAL
+                ? 'Automated email'
+                : 'Email enquiry';
+        }
+
         return match ($conversation->status) {
             Conversation::STATE_NEEDS_HUMAN => str_contains(strtolower($conversation->latestMessage?->body ?? ''), 'complaint') ? 'Complaint' : 'Discount',
             Conversation::STATE_WAITING => 'Booking',
