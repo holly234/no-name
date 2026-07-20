@@ -14,14 +14,13 @@ Provider testing is temporarily paused, especially public Meta Embedded Signup, 
 
 Development now proceeds in this order:
 
-1. Connect invitation email delivery through Resend; secure invitation links and role enforcement already work without email delivery.
-2. Complete prepaid AI-credit purchases, deductions, reversals, and low-balance controls on the existing wallet and usage-ledger foundation.
-3. Connect the Laravel-native AI agent to the credit and token-usage ledger.
-4. Replace n8n as the planned automation brain with Laravel-native agents, queues, jobs, tools, and conversation orchestration.
-5. Integrate an AI provider behind a provider-neutral Laravel interface. Gemini 2.5 Flash-Lite is the current default candidate for routine replies; Gemini Flash and OpenAI may be quality/fallback options.
-6. Add the customer-dashboard PWA layer after the core customer workflow is stable.
-7. Package only the customer application as Android/iOS clients later; marketing, Filament owner administration, webhooks, and Laravel remain web/server surfaces.
-8. Resume production provider onboarding and Meta approval work after the product foundation is stable.
+1. Production-test the provider-neutral AI runtime with Gemini 2.5 Flash-Lite, then add a configurable quality/fallback provider only when needed.
+2. Add verified prepaid AI-credit purchases and low-balance customer controls to the implemented reserve/settle/release ledger.
+3. Continue replacing n8n compatibility paths with the implemented Laravel-native AI jobs and conversation orchestration.
+4. Connect Resend invitation/transactional email delivery after an owned sending domain is available.
+5. Add the customer-dashboard PWA layer after the core customer workflow is stable.
+6. Package only the customer application as Android/iOS clients later; marketing, Filament owner administration, webhooks, and Laravel remain web/server surfaces.
+7. Resume production provider onboarding and Meta approval work after the product foundation is stable.
 
 ## Current Status
 
@@ -44,6 +43,8 @@ Built and working as a local MVP:
 - Multiple connected accounts per social platform per workspace
 - Disconnect flow for connected accounts; disconnected records are preserved internally but hidden from the active Accounts UI
 - AI Conversation State Engine demo workflow
+- Provider-neutral queued AI runtime with a Gemini 2.5 Flash-Lite adapter, structured state/reply decisions, business knowledge context, token/cost usage records, and guarded activation
+- Atomic AI-credit grants, reservations, usage settlement, and failure releases; paid credit checkout is still pending
 - Manual replies, behavior-backed human takeover switch, resume automation, and close support in backend
 - AI settings toggles are wired into behavior for auto replies, human takeover, and business-hours reply gating
 - User-dashboard Credits & Usage, Analytics, and Team pages, backed by AI wallet, transaction, and per-response usage tables
@@ -62,7 +63,7 @@ npm run build
 php artisan view:cache
 ```
 
-Last known passing test count: `99 tests, 452 assertions`.
+Last known passing test count: `106 tests, 478 assertions`.
 
 ## Core Product
 
@@ -225,6 +226,14 @@ GMAIL_CLIENT_SECRET=
 GMAIL_REDIRECT_URI="${APP_URL}/dashboard/accounts/gmail/callback"
 GMAIL_PUBSUB_TOPIC=
 GMAIL_PUBSUB_VERIFICATION_TOKEN=
+AI_ENABLED=false
+AI_PROVIDER=gemini
+AI_RESERVATION_CREDITS=25
+AI_TOKENS_PER_CREDIT=100
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_TIMEOUT=30
+GEMINI_BILLING_MODE=free
 TELEGRAM_API_BASE=https://api.telegram.org/bot
 OPENAI_API_KEY=
 ```
@@ -362,6 +371,14 @@ npm run dev
 
 The app uses Laravel queues for work that should not block page loads or webhook responses: provider webhooks, Gmail sync, AI replies, outbound messages, and future Resend emails.
 
+The real AI runtime is disabled by default. When `AI_ENABLED=true`, eligible incoming messages dispatch `ProcessAiReply` to the `ai` queue. The job requires a configured provider key and a positive workspace credit balance, reserves credits before calling the provider, records actual tokens/cost, settles successful usage, and releases reservations after provider or delivery failures.
+
+Platform operators can grant beta/test credits without a payment gateway:
+
+```bash
+php artisan ai:credits:grant {business-id} 1000 --reference=beta-{business-id}
+```
+
 For the current low-cost Hetzner VPS class, start with three workers:
 
 - `webhooks`: 1 worker for fast inbound provider events
@@ -419,7 +436,7 @@ The seeded customer must authenticate through a matching Google account in the p
 Still not production-complete:
 
 - Public Instagram and Messenger OAuth onboarding (development test assets can be connected manually when explicitly enabled)
-- real Laravel-native AI agent/provider integration
+- production AI prompt/provider evaluation and fallback-provider policy
 - n8n endpoints remain for compatibility but n8n is no longer the planned automation engine
 - Gmail Pub/Sub history-diff replay
 - Gmail outbound attachment sending from the inbox
@@ -430,7 +447,7 @@ Still not production-complete:
 - configurable business-hours schedule UI
 - separate immutable provider customer IDs from display usernames/phone numbers before production if Meta payloads require both
 - role-based authorization policies and team invitation flow
-- prepaid AI-credit wallet, purchases, usage ledger, and payment integration
+- verified prepaid AI-credit purchases and payment-gateway integration (wallet, usage ledger, and AI enforcement are implemented)
 - private Perpetual Devs platform-owner dashboard at `/owner` with SPA navigation, platform/workspace directories, conversations, customers, AI-agent settings, connection monitoring, activity/error logs, system health, activity analytics, and a pre-launch revenue/AI-credit control screen
 - Resend transactional email integration
 - true infinite loading for older conversations/messages

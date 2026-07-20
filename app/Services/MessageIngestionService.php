@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\ProcessAiReply;
 use App\Models\AutomationLog;
 use App\Models\AiSetting;
 use App\Models\ConnectedAccount;
@@ -9,6 +10,7 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
 use App\Models\MessageAttachment;
+use App\Support\QueueDispatch;
 
 class MessageIngestionService
 {
@@ -147,7 +149,7 @@ class MessageIngestionService
         $source = (string) ($payload['metadata']['source'] ?? $payload['source'] ?? '');
         $realProviderChannel = in_array($channel, ['Telegram', 'WhatsApp'], true)
             || in_array($source, ['meta_messenger', 'meta_instagram'], true);
-        if ($realProviderChannel && $nextState === Conversation::STATE_AI_HANDLING) {
+        if ($realProviderChannel && ! config('ai.enabled') && $nextState === Conversation::STATE_AI_HANDLING) {
             $nextState = Conversation::STATE_NEEDS_HUMAN;
         }
 
@@ -161,6 +163,12 @@ class MessageIngestionService
         ]);
 
         if ($nextState === Conversation::STATE_AI_HANDLING) {
+            if (config('ai.enabled')) {
+                QueueDispatch::dispatch(new ProcessAiReply($message->id));
+
+                return $conversation->fresh(['messages']);
+            }
+
             Message::create([
                 'conversation_id' => $conversation->id,
                 'business_id' => $businessId,

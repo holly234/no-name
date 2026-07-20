@@ -16,7 +16,7 @@ Current build priority:
 - A later Capacitor Android/iOS client packages only the customer experience. Laravel, queues, webhooks, APIs, marketing pages, and the Filament owner panel remain hosted/web surfaces. Mobile Google authentication must use separate platform OAuth clients and native/system-browser flows, never embedded WebView OAuth.
 - Implement prepaid AI credits and an immutable usage ledger. The unified inbox/manual workflow is free; customers pay only for AI-agent usage. There is no fixed recurring SaaS fee in the current direction.
 - Scrap n8n as the planned automation bridge. Laravel is the complete application and automation brain using services, jobs, queues, events, tools, and scheduled commands. Existing n8n-compatible endpoints may remain for backward compatibility until deliberately removed.
-- Build a provider-neutral Laravel AI layer. Gemini 2.5 Flash-Lite is the current cost-first default candidate for routine DM replies; Gemini Flash and OpenAI may be configurable quality/fallback providers. Do not hard-wire business logic to one provider.
+- The provider-neutral Laravel AI runtime is implemented with Gemini 2.5 Flash-Lite as the first adapter, guarded by `AI_ENABLED=false` until a key and test credits are supplied. Gemini Flash and OpenAI may be configurable quality/fallback providers later. Do not hard-wire business logic to one provider.
 - Keep the inbox as the default dashboard screen.
 - Keep every business-owned query scoped by `business_id`.
 - Preserve the calm, mature workflow-product tone. Avoid AI hype in public-facing copy.
@@ -714,9 +714,8 @@ Telegram integration pass on 2026-07-09:
 - Latest verification after automatic Gmail watch renewal: PHPUnit passes with `92 tests, 368 assertions`, `php artisan route:list --except-vendor` passes, and `npm run build` passes.
 
 Not built yet:
-- Authorization policies/roles beyond current business-ownership checks
-- Passwordless Google/magic-link authentication and Resend delivery
-- Team invitation acceptance and complete Owner/Admin/Agent enforcement
+- Passwordless email magic-link authentication (Google remains the only public authentication method)
+- Resend delivery is paused until a real owned domain is available for production sender verification
 - Real credit wallet/payment ledger, email-delivery history, and production alert delivery behind the designed Filament owner modules
 - Advanced workspace settings and danger-zone controls
 - Configurable business-hours schedule UI
@@ -764,3 +763,10 @@ Direction update on 2026-07-16:
   - Scheduled `gmail:sync` now queues one sync job per Gmail account; manual dashboard sync stays synchronous for immediate feedback.
   - Focused provider verification passes with `44 tests, 183 assertions`; focused workspace/owner authorization verification passes with `12 tests, 51 assertions`.
 - Production queue operations completed on 2026-07-20: the `perpetual` scheduler cron is installed, Supervisor is enabled, and the three queue programs (`perpetual-webhooks`, `perpetual-ai`, and `perpetual-sync-mail`) were verified `RUNNING` on the Hetzner VPS.
+- Provider-neutral AI and credit enforcement pass on 2026-07-20:
+  - Added the `AiProvider` contract, Gemini 2.5 Flash-Lite structured-output adapter, bounded workspace knowledge/history prompt builder, and guarded runtime configuration.
+  - Added `ProcessAiReply` on the `ai` queue with safe state checks, duplicate-completion protection, token/cost/latency usage records, escalation handling, and Telegram/Meta text delivery.
+  - Added atomic credit grants, pre-call reservations, actual-usage settlement, idempotent release/settlement references, and automatic reservation release on provider or delivery failures.
+  - Empty balances route conversations to `Needs Human`; the free manual inbox continues working. `php artisan ai:credits:grant` supports controlled beta grants until payment checkout exists.
+  - Real AI execution remains off by default. Activation requires `GEMINI_API_KEY`, `AI_ENABLED=true`, a running `ai` worker, and a positive workspace wallet balance.
+  - Full verification passes with `106 tests, 478 assertions`; production Vite build and Blade view compilation also pass.

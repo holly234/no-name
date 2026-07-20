@@ -42,7 +42,34 @@ N8N_BASE_URL=
 N8N_WEBHOOK_SECRET=
 ```
 
-## OpenAI
+## AI Provider and Credits
+
+Current implementation:
+
+- `App\Contracts\AiProvider` keeps conversation logic provider-neutral.
+- `GeminiAiProvider` calls Gemini 2.5 Flash-Lite with structured JSON output and records tokens, latency, actual/estimated provider cost, state, confidence, intent, and escalation reason.
+- `AiPromptBuilder` supplies bounded recent history plus workspace FAQs, products/services, business rules, assistant tone, forbidden claims, and handover instructions.
+- `ProcessAiReply` runs on the `ai` queue only when `AI_ENABLED=true`.
+- The job reserves workspace credits before provider work, settles against actual token usage, releases failed reservations, and routes empty-credit/provider/delivery failures safely to staff.
+- `OutboundChannelService` delivers AI text through real Telegram and Meta accounts; demo/non-provider conversations remain local. Gmail automatic AI replies remain intentionally disabled.
+- Operators can grant beta credits with `php artisan ai:credits:grant {business-id} {credits} --reference=...` until verified checkout exists.
+
+Required environment:
+
+```env
+AI_ENABLED=false
+AI_PROVIDER=gemini
+AI_RESERVATION_CREDITS=25
+AI_TOKENS_PER_CREDIT=100
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_TIMEOUT=30
+GEMINI_BILLING_MODE=free
+```
+
+Keep `AI_ENABLED=false` until the key is configured, the `ai` worker is running, and test credits are granted. Gemini's free tier may use submitted content to improve Google products; use paid billing/data terms before processing real customer conversations.
+
+## Legacy AI Seam Notes
 
 WhatsApp Cloud API foundation is implemented through Meta Embedded Signup. The Accounts page opens Meta’s hosted onboarding, receives a one-time code, and completes the server-side token exchange and WABA subscription. Incoming WhatsApp text messages are accepted through the verified Meta webhook and staff text replies are sent through the WhatsApp Cloud API. Configure `META_APP_ID`, `META_APP_SECRET`, and `META_EMBEDDED_SIGNUP_CONFIG_ID`; do not collect access tokens from users.
 
@@ -58,7 +85,7 @@ Current behavior:
 - `AiReplyService::decideState()` uses keyword/confidence demo logic.
 - `AiReplyService::generatePlaceholderReply()` returns a static business-aware reply.
 
-Next implementation steps:
+Previously planned steps (superseded by the provider-neutral Gemini implementation above):
 
 1. Replace `generatePlaceholderReply()` with an OpenAI-backed response method.
 2. Keep `decideState()` deterministic enough to preserve the four-state contract.
@@ -67,7 +94,7 @@ Next implementation steps:
 5. Add request/response logging without storing sensitive customer content unnecessarily.
 6. Add retry/timeout handling and move calls to queued jobs before production traffic.
 
-Recommended config source:
+Legacy OpenAI config seam retained for a possible fallback provider:
 
 ```php
 config('services.openai.api_key')

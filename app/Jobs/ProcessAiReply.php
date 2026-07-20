@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Contracts\AiProvider;
+use App\Exceptions\InsufficientAiCredits;
+use App\Models\AiUsageRecord;
+use App\Models\AutomationLog;
+use App\Models\Conversation;
+use App\Models\Message;
+use App\Services\AiCreditLedgerService;
+use App\Services\AiPromptBuilder;
+use App\Services\ConversationMessageService;
+use App\Services\OutboundChannelService;
+use App\Support\QueueName;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Throwable;
+
+class ProcessAiReply implements ShouldQueue
+{
+    use Queueable;
+
+    public int $tries = 2;
+
+    public int $timeout = 180;
+
+    public function __construct(public readonly int $messageId)
+    {
+        $this->onQueue(QueueName::AI);
+    }
+
+    public function handle(
+        AiProvider $provider,
+        AiPromptBuilder $promptBuilder,
+        AiCreditLedgerService $credits,
+        OutboundChannelService $outbound,
+        ConversationMessageService $messages,
+    ): void {
+        $incoming = Message::with('conversation.business')->find($this->messageId);
+
+        if (! $incoming || $incoming->direction !== 'incoming') {
+            return;
+        }
+
+        $conversation = $incoming->conversation;
+        $business = $conversation->business;
+
+        if ($conversation->ai_mode !== 'auto' || $conversation->status !== Conversation::STATE_AI_HANDLING) {
+            return;
+        }
+
+        if (AiUsageRecord::where('message_id', $incoming->id)->where('status', 'completed')->exists()) {
+            return;
+        }
+
+        try {
+            $reservation = $credits->reserve(
+                $business,
+                (int) config('ai.reservation_credits', 25),
+                ['conversation_id' => $conversation->id, 'message_id' => $incoming->id]
+            );
+        } catch (InsufficientAiCredits) {
+            $conversation->update(['status' => Conversation::STATE_NEEDS_HUMAN]);
+            $this->log($conversation, 'ai_reply_blocked', 'AI reply paused because the workspace has insufficient credits.');
+
+            return;
+        }
+
+        $usage = AiUsageRecord::create([
+            'business_id' => $business->id,
+            'conversation_id' => $conversation->id,
+            'message_id' => $incoming->id,
+            'provider' => (string) config('ai.provider'),
+            'model' => (string) config('ai.providers.'.config('ai.provider').'.model'),
+            'status' => 'processing',
+            'metadata' => ['reservation_reference' => $reservation->reference],
+        ]);
+
+        try {
+            $generation = $provider->generate($promptBuilder->build($conversation, (string) $incoming->body));
+            $actualCredits = $credits->creditsForTokens($generation->inputTokens, $generation->outputTokens);
+
+            if ($generation->requiresHuman || $generation->state === Conversation::STATE_NEEDS_HUMAN || $generation->reply === '') {
+                $charged = $credits->settle($business, $reservation, $actualCredits, ['outcome' => 'escalated']);
+                $conversation->update(['status' => Conversation::STATE_NEEDS_HUMAN]);
+                $this->completeUsage($usage, $generation, $charged, ['outcome' => 'escalated']);
+                $this->log($conversation, 'ai_reply_escalated', $generation->reason ?: 'AI escalated the conversation to staff.');
+
+                return;
+            }
+
+            try {
+                $delivery = $outbound->sendText($conversation->fresh('connectedAccount'), $generation->reply);
+            } catch (Throwable $deliveryException) {
+                $credits->release($business, $reservation, 'outbound_delivery_failed');
+                $conversation->update(['status' => Conversation::STATE_NEEDS_HUMAN]);
+                $this->completeUsage($usage, $generation, 0, [
+                    'outcome' => 'delivery_failed',
+                    'error' => $deliveryException->getMessage(),
+                ], 'delivery_failed');
+                $this->log($conversation, 'ai_reply_delivery_failed', 'AI reply delivery failed and credits were released.');
+                report($deliveryException);
+
+                return;
+            }
+
+            $charged = $credits->settle($business, $reservation, $actualCredits, ['outcome' => 'replied']);
+            $messages->saveOutgoing($conversation, $generation->reply, 'ai', [
+                'provider' => $generation->provider,
+                'model' => $generation->model,
+                'confidence' => $generation->confidence,
+                'intent' => $generation->intent,
+                'delivery' => $delivery,
+            ]);
+            $this->completeUsage($usage, $generation, $charged, ['outcome' => 'replied']);
+            $this->log($conversation, 'ai_reply_sent', 'AI generated and sent a reply.');
+        } catch (Throwable $exception) {
+            $credits->release($business, $reservation, 'provider_failed');
+            $usage->update([
+                'status' => 'failed',
+                'metadata' => array_merge($usage->metadata ?? [], ['error' => $exception->getMessage()]),
+            ]);
+            report($exception);
+
+            throw $exception;
+        }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $incoming = Message::with('conversation')->find($this->messageId);
+        $incoming?->conversation?->update(['status' => Conversation::STATE_NEEDS_HUMAN]);
+    }
+
+    private function completeUsage(AiUsageRecord $usage, object $generation, int $charged, array $metadata, string $status = 'completed'): void
+    {
+        $usage->update([
+            'provider' => $generation->provider,
+            'model' => $generation->model,
+            'input_tokens' => $generation->inputTokens,
+            'output_tokens' => $generation->outputTokens,
+            'credits_used' => $charged,
+            'provider_cost_usd' => $generation->providerCostUsd,
+            'latency_ms' => $generation->latencyMs,
+            'status' => $status,
+            'metadata' => array_merge($usage->metadata ?? [], $generation->metadata, $metadata),
+        ]);
+    }
+
+    private function log(Conversation $conversation, string $event, string $message): void
+    {
+        AutomationLog::create([
+            'business_id' => $conversation->business_id,
+            'connected_account_id' => $conversation->connected_account_id,
+            'event_type' => $event,
+            'status' => str_contains($event, 'failed') ? 'failed' : 'success',
+            'message' => $message,
+            'metadata' => ['conversation_id' => $conversation->id],
+        ]);
+    }
+}

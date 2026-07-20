@@ -2,7 +2,9 @@
 
 use App\Jobs\SyncGmailAccount;
 use App\Models\AutomationLog;
+use App\Models\Business;
 use App\Models\ConnectedAccount;
+use App\Services\AiCreditLedgerService;
 use App\Services\GmailConnectionService;
 use App\Support\QueueDispatch;
 use Illuminate\Foundation\Inspiring;
@@ -55,7 +57,7 @@ Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=
 
                 $this->line("{$account->account_name}: queued.");
             }
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             report($exception);
             $failed++;
 
@@ -115,6 +117,7 @@ Artisan::command('gmail:renew-watch {--force : Renew every connected Gmail watch
         if (! $shouldRenew) {
             $skipped++;
             $this->line("{$account->account_name}: watch still valid until {$expiresAt->toDateTimeString()}.");
+
             continue;
         }
 
@@ -132,7 +135,7 @@ Artisan::command('gmail:renew-watch {--force : Renew every connected Gmail watch
             ]);
 
             $this->line("{$account->account_name}: watch renewed.");
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             report($exception);
             $failed++;
 
@@ -153,6 +156,29 @@ Artisan::command('gmail:renew-watch {--force : Renew every connected Gmail watch
 
     return $failed > 0 ? self::FAILURE : self::SUCCESS;
 })->purpose('Renew Gmail Pub/Sub watches before they expire');
+
+Artisan::command('ai:credits:grant {business : Workspace ID} {credits : Number of promotional credits} {--reference= : Unique external reference}', function (AiCreditLedgerService $ledger) {
+    $business = Business::findOrFail((int) $this->argument('business'));
+    $credits = (int) $this->argument('credits');
+
+    if ($credits <= 0) {
+        $this->components->error('Credits must be greater than zero.');
+
+        return self::FAILURE;
+    }
+
+    $transaction = $ledger->grant(
+        $business,
+        $credits,
+        'Promotional AI credits granted by platform operator',
+        $this->option('reference') ?: null,
+        ['source' => 'artisan']
+    );
+
+    $this->components->info(number_format($credits).' credits granted to '.$business->name.'. Balance: '.number_format($transaction->balance_after).'.');
+
+    return self::SUCCESS;
+})->purpose('Grant promotional AI credits to a workspace');
 
 Schedule::command('gmail:sync --mailbox=inbox --limit=20')
     ->everyMinute()

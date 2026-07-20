@@ -5,6 +5,22 @@
         <p class="mt-2 max-w-2xl text-sm leading-6 text-[#6B7280]">Control tone, routing rules, automatic replies, and human takeover behavior.</p>
     </div>
 
+    <div class="mb-6 rounded-xl border {{ $aiRuntimeEnabled && $aiProviderConfigured ? 'border-[#A7F3D0] bg-[#ECFDF5]' : 'border-[#FDE68A] bg-[#FFFBEB]' }} p-4">
+        <p class="font-bold {{ $aiRuntimeEnabled && $aiProviderConfigured ? 'text-[#047857]' : 'text-[#92400E]' }}">
+            {{ $aiRuntimeEnabled && $aiProviderConfigured ? 'AI runtime ready' : 'AI runtime safely paused' }}
+        </p>
+        <p class="mt-1 text-sm leading-6 {{ $aiRuntimeEnabled && $aiProviderConfigured ? 'text-[#047857]' : 'text-[#92400E]' }}">
+            Provider: {{ ucfirst($aiProvider) }}.
+            @if (! $aiProviderConfigured)
+                Add the provider API key on the server before enabling live replies.
+            @elseif (! $aiRuntimeEnabled)
+                The provider is configured, but <code>AI_ENABLED</code> is off.
+            @else
+                Replies use the dedicated AI queue and require a positive workspace credit balance.
+            @endif
+        </p>
+    </div>
+
     <form method="POST" action="{{ route('dashboard.ai-settings.update') }}" class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         @csrf
         @method('PATCH')

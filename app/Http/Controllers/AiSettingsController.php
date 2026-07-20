@@ -14,6 +14,9 @@ class AiSettingsController extends Controller
 
         return view('dashboard.ai-settings', [
             'settings' => AiSetting::firstOrCreate(['business_id' => $business->id]),
+            'aiRuntimeEnabled' => (bool) config('ai.enabled'),
+            'aiProvider' => (string) config('ai.provider'),
+            'aiProviderConfigured' => filled(config('ai.providers.'.config('ai.provider').'.api_key')),
         ]);
     }
 
