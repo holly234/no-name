@@ -92,15 +92,15 @@ When the AI determines that human judgment is required, it must:
 - Change the conversation status to `Needs Human`.
 - Display a red status indicator throughout the UI.
 
+The AI uses risk-based escalation rather than keyword routing. It should answer harmless general-knowledge questions, handle normal conversation, acknowledge routine complaints, and ask concise clarifying questions when a business detail is missing. Missing knowledge or moderate confidence alone must not force handover.
+
 The AI should escalate conversations when:
-- Customer requests a discount.
-- Customer files a complaint.
-- Customer requests a refund.
-- Customer asks for a custom quotation.
-- Customer requests manager approval.
-- AI confidence falls below a configurable threshold.
-- Request is outside the business knowledge base.
-- Business rules require human approval.
+- The customer explicitly asks for a person.
+- An action requires business authority, such as approving or executing a refund, discount, custom quotation, exception, commitment, or manager decision.
+- A complaint is serious or presents legal or safety risk.
+- Workspace escalation instructions or business policies require human approval.
+
+The AI must never invent business-specific prices, stock, availability, delivery promises, policies, refunds, discounts, or approvals. This restriction does not prevent it from using reliable general knowledge for low-risk questions.
 
 The state engine should make the inbox operationally focused: staff should immediately see which conversations are being handled by AI, which are waiting, which need human attention, and which are closed.
 
@@ -770,6 +770,8 @@ Direction update on 2026-07-16:
   - Added atomic credit grants, pre-call reservations, actual-usage settlement, idempotent release/settlement references, and automatic reservation release on provider or delivery failures.
   - Empty balances route conversations to `Needs Human`; the free manual inbox continues working. `php artisan ai:credits:grant` supports controlled beta grants until payment checkout exists.
   - Real AI execution remains off by default. Activation requires `GEMINI_API_KEY`, `AI_ENABLED=true`, a running `ai` worker, and a positive workspace wallet balance.
-  - Full verification passes with `111 tests, 504 assertions`; production Vite build and Blade view compilation also pass.
+  - Full verification passes with `113 tests, 510 assertions`; production Vite build and Blade view compilation also pass.
   - Consolidated the competing AI Settings and Knowledge Base experiences into one top-level AI Assistant setup. Settings now own behavior, structured knowledge owns approved business facts/policies, and saved replies are explicitly manual team tools.
   - Removed the cosmetic confidence-threshold UI and the customer-facing human-takeover toggle. Staff takeover is always available. A forward-only migration consolidates legacy handover text, restricted-claim guidance, tone values, and rule types without discarding customer data.
+  - Replaced rigid pre-provider keyword/confidence escalation with contextual model routing whenever the live AI runtime is enabled. The assistant may use general knowledge, ask clarifying questions, and gather routine complaint details while protecting business-specific claims and authority-requiring actions.
+  - Reduced setup further to one automatic-reply switch. Name, tone, hours, acknowledgement, escalation guidance, structured business knowledge, and team saved replies are all optional customization.

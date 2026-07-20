@@ -60,9 +60,9 @@ class DashboardOperationsPagesTest extends TestCase
             ->withSession(['current_business_id' => $business->id])
             ->get(route('dashboard.ai-settings'))
             ->assertOk()
-            ->assertSee('Set it up in a few minutes')
+            ->assertSee('Ready without the homework')
             ->assertSee('Teach it about your business')
-            ->assertSee('Human help is always available')
+            ->assertSee('Customize it (optional)')
             ->assertSee('Team saved replies')
             ->assertDontSee('Confidence threshold')
             ->assertDontSee('Human takeover enabled');

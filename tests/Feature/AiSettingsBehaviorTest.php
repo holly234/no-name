@@ -9,8 +9,10 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
 use App\Models\User;
+use App\Jobs\ProcessAiReply;
 use App\Services\MessageIngestionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class AiSettingsBehaviorTest extends TestCase
@@ -125,6 +127,32 @@ class AiSettingsBehaviorTest extends TestCase
         $this->assertSame(Conversation::STATE_NEEDS_HUMAN, $conversation->status);
         $this->assertSame('auto', $conversation->ai_mode);
         $this->assertFalse($conversation->isHumanControlled());
+    }
+
+    public function test_live_ai_gets_context_before_keyword_heuristics_can_escalate(): void
+    {
+        Queue::fake();
+        config(['ai.enabled' => true]);
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        AiSetting::create([
+            'business_id' => $business->id,
+            'auto_reply_enabled' => true,
+            'human_takeover_enabled' => true,
+        ]);
+
+        $conversation = app(MessageIngestionService::class)->ingest([
+            'business_id' => $business->id,
+            'channel' => 'Instagram',
+            'external_account_id' => 'instagram-main',
+            'customer_external_id' => '@customer-ai',
+            'customer_name' => 'Customer AI',
+            'body' => 'Please explain how refunds normally work.',
+            'confidence' => 0.20,
+        ]);
+
+        $this->assertSame(Conversation::STATE_AI_HANDLING, $conversation->status);
+        Queue::assertPushed(ProcessAiReply::class);
     }
 
     public function test_resuming_ai_does_not_send_an_immediate_placeholder_reply(): void

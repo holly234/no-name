@@ -18,6 +18,7 @@ use App\Models\Customer;
 use App\Models\Message;
 use App\Models\User;
 use App\Services\AiCreditLedgerService;
+use App\Services\AiPromptBuilder;
 use App\Services\GeminiAiProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -76,6 +77,18 @@ class AiProviderAndCreditsTest extends TestCase
         $this->expectExceptionMessage('Gemini request failed with HTTP 404: This model is no longer available.');
 
         app(GeminiAiProvider::class)->generate(new AiPrompt('System rules', 'Hello'));
+    }
+
+    public function test_ai_prompt_encourages_useful_general_answers_without_inventing_business_facts(): void
+    {
+        [, $conversation, $incoming] = $this->conversation();
+
+        $prompt = app(AiPromptBuilder::class)->build($conversation, $incoming->body);
+
+        $this->assertStringContainsString('low-risk general-knowledge questions', $prompt->system);
+        $this->assertStringContainsString('Missing knowledge or moderate uncertainty alone is not a reason to hand over', $prompt->system);
+        $this->assertStringContainsString('Never invent business-specific facts', $prompt->system);
+        $this->assertStringContainsString('ask one concise clarifying question', $prompt->system);
     }
 
     public function test_credit_ledger_reserves_settles_and_releases_atomically(): void

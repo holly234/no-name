@@ -145,7 +145,12 @@ class MessageIngestionService
             return $conversation->fresh(['messages']);
         }
 
-        $nextState = $this->aiReplyService->decideState($body, (float) ($payload['confidence'] ?? 0.82));
+        // When the real AI runtime is enabled, let the model make the contextual
+        // routing decision. Keyword and confidence heuristics are only a safe
+        // fallback for installations that are not running a provider yet.
+        $nextState = config('ai.enabled') && trim($body) !== ''
+            ? Conversation::STATE_AI_HANDLING
+            : $this->aiReplyService->decideState($body, (float) ($payload['confidence'] ?? 0.82));
         $source = (string) ($payload['metadata']['source'] ?? $payload['source'] ?? '');
         $realProviderChannel = in_array($channel, ['Telegram', 'WhatsApp'], true)
             || in_array($source, ['meta_messenger', 'meta_instagram'], true);
