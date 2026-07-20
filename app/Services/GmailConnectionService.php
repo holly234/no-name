@@ -9,6 +9,7 @@ use App\Models\ConnectedAccount;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
+use App\Support\GmailMessageClassifier;
 use App\Models\MessageAttachment;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Carbon;
@@ -408,7 +409,14 @@ class GmailConnectionService
         $body = $this->sanitizeEmailBody($this->bodyFromPayload($gmailMessage['payload'] ?? [])) ?: '(empty email)';
         $date = $this->messageDate($gmailMessage, $headers);
         $replyDisabled = $this->replyDisabled($headers, $fromEmail);
-        $informational = $this->isInformationalEmail($replyDisabled['disabled'], $labelIds);
+        $classification = GmailMessageClassifier::classify(
+            $headers,
+            $fromEmail,
+            $subject,
+            $labelIds,
+            $replyDisabled['disabled']
+        );
+        $informational = $classification['kind'] === 'informational';
         $inboxState = $informational
             ? Conversation::STATE_INFORMATIONAL
             : Conversation::STATE_NEEDS_HUMAN;
@@ -469,6 +477,7 @@ class GmailConnectionService
                 'reply_disabled' => $replyDisabled['disabled'],
                 'reply_disabled_reason' => $replyDisabled['reason'],
                 'gmail_kind' => $informational ? 'informational' : 'actionable',
+                'gmail_classification_reason' => $classification['reason'],
             ],
             'created_at' => $date,
             'updated_at' => $date,
@@ -477,20 +486,6 @@ class GmailConnectionService
         $this->importAttachments($account, $message, $gmailMessage);
 
         return true;
-    }
-
-    private function isInformationalEmail(bool $replyDisabled, array $labelIds): bool
-    {
-        if ($replyDisabled) {
-            return true;
-        }
-
-        return count(array_intersect($labelIds, [
-            'CATEGORY_PROMOTIONS',
-            'CATEGORY_SOCIAL',
-            'CATEGORY_UPDATES',
-            'CATEGORY_FORUMS',
-        ])) > 0;
     }
 
     private function validAccessToken(ConnectedAccount $account): string

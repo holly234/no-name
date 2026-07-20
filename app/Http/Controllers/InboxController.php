@@ -14,6 +14,8 @@ use App\Support\InboxUi;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class InboxController extends Controller
 {
@@ -195,6 +197,7 @@ class InboxController extends Controller
             'messageHistoryLimit' => self::MESSAGE_HISTORY_LIMIT,
             'aiSettings' => $aiSettings,
             'inboxVersion' => $this->inboxVersion($business->id),
+            'canDeleteConversations' => in_array($user->workspaceRole($business), ['owner', 'admin'], true),
         ]);
     }
 
@@ -499,6 +502,28 @@ class InboxController extends Controller
         ]);
 
         return back()->with('status', 'Conversation closed.');
+    }
+
+    public function destroy(Request $request, Conversation $conversation)
+    {
+        $business = $request->attributes->get('currentBusiness');
+        abort_unless($conversation->business_id === $business->id, 404);
+
+        $attachments = $conversation->messages()
+            ->with('attachments:id,message_id,disk,storage_path')
+            ->get()
+            ->pluck('attachments')
+            ->flatten();
+
+        DB::transaction(fn () => $conversation->delete());
+
+        $attachments->each(function ($attachment) {
+            if ($attachment->storage_path !== '') {
+                Storage::disk($attachment->disk)->delete($attachment->storage_path);
+            }
+        });
+
+        return redirect()->route('dashboard.inbox')->with('status', 'Conversation deleted.');
     }
 
     private function unreadCount(Conversation $conversation, mixed $lastReadAt): int

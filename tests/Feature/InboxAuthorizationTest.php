@@ -7,6 +7,7 @@ use App\Models\ConnectedAccount;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\User;
+use App\Models\Message;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -53,6 +54,55 @@ class InboxAuthorizationTest extends TestCase
 
         $response->assertForbidden();
         $this->assertSame(Conversation::STATE_NEEDS_HUMAN, $foreignConversation->fresh()->status);
+    }
+
+    public function test_owner_can_delete_own_conversation_and_its_messages(): void
+    {
+        $owner = User::factory()->create();
+        $business = $this->createBusiness($owner, 'Delete Test', 'delete-test');
+        $account = ConnectedAccount::create([
+            'business_id' => $business->id,
+            'platform' => 'Telegram',
+            'account_name' => 'Delete Test Bot',
+            'external_account_id' => 'delete-test-bot',
+            'status' => 'connected',
+        ]);
+        $conversation = Conversation::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_name' => 'Delete Me',
+            'customer_external_id' => 'delete-me',
+            'channel' => 'Telegram',
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+            'last_message_at' => now(),
+        ]);
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => 'Delete this chat.',
+        ]);
+
+        $this->actingAs($owner)
+            ->withSession(['current_business_id' => $business->id])
+            ->delete(route('dashboard.inbox.destroy', $conversation))
+            ->assertRedirect(route('dashboard.inbox'));
+
+        $this->assertDatabaseMissing('conversations', ['id' => $conversation->id]);
+        $this->assertDatabaseMissing('messages', ['id' => $message->id]);
+    }
+
+    public function test_user_cannot_delete_foreign_business_conversation(): void
+    {
+        [$user, $foreignConversation] = $this->createUserAndForeignConversation();
+
+        $this->actingAs($user)
+            ->delete(route('dashboard.inbox.destroy', $foreignConversation))
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('conversations', ['id' => $foreignConversation->id]);
     }
 
     private function createUserAndForeignConversation(string $foreignStatus = Conversation::STATE_AI_HANDLING): array

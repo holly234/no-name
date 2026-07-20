@@ -821,6 +821,20 @@
                         <p class="truncate font-bold text-[#111827]">{{ $selectedConversation->customer_name }}</p>
                         <p class="truncate text-xs font-semibold text-[#6B7280]">{{ $selectedConversation->channel }}</p>
                     </div>
+                    @if ($canDeleteConversations)
+                        <form method="POST" action="{{ route('dashboard.inbox.destroy', $selectedConversation) }}" onsubmit="return confirm('Delete this entire conversation? This cannot be undone.')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#9CA3AF] transition hover:bg-red-50 hover:text-red-600" title="Delete conversation" aria-label="Delete conversation">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                    <path d="M3 6h18"></path>
+                                    <path d="M8 6V4h8v2"></path>
+                                    <path d="m19 6-1 14H6L5 6"></path>
+                                    <path d="M10 11v5M14 11v5"></path>
+                                </svg>
+                            </button>
+                        </form>
+                    @endif
                 </div>
                 <dl class="mt-5 space-y-3 text-sm">
                     <div class="rounded-xl bg-[#F5F6F8] p-4">

@@ -44,6 +44,10 @@ Current focus is pre-launch hardening. Payments, Resend, and production Meta onb
 
 Gmail inbox classification now separates automated/no-reply and Gmail category mail into an `Informational` lane. Replyable customer email remains `Needs Human`; Gmail intent labels are `Automated email` or `Email enquiry` instead of the previous generic discount guess. Migration `2026_07_20_130000_classify_automated_gmail_conversations.php` reclassifies existing automated Gmail threads.
 
+Classification was strengthened further with `GmailMessageClassifier`: it considers list-unsubscribe/list-id, bulk and auto-submitted headers, common notification/newsletter sender names, Gmail categories, and strong promotional subject signals. Migration `2026_07_20_140000_reclassify_automated_gmail_conversations.php` repairs older conversations missed by the first pass.
+
+Workspace owners and admins can permanently delete an inbox conversation from its header. The action is workspace-scoped, requires confirmation, cascades database messages/attachment records, and removes stored attachment files. Agents cannot delete conversations.
+
 The inbox conversation rail now uses cursor-based infinite scrolling in batches of 50. Loading older rows preserves the active state, channel, search, date, time, and sort query, and avoids unstable offset pagination when new messages arrive.
 
 The next major milestone is verified prepaid AI-credit checkout. Do not spend the next development block repeatedly redesigning the AI setup unless production evidence reveals a blocking defect. Prompt/personality tuning remains an iterative later task.

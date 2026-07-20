@@ -48,6 +48,9 @@ Route::middleware(['auth', 'verified', 'current.business'])
         Route::post('/inbox/{conversation}/take-over', [InboxController::class, 'takeOver'])->name('dashboard.inbox.take-over');
         Route::post('/inbox/{conversation}/resume-ai', [InboxController::class, 'resumeAi'])->name('dashboard.inbox.resume-ai');
         Route::post('/inbox/{conversation}/close', [InboxController::class, 'close'])->name('dashboard.inbox.close');
+        Route::delete('/inbox/{conversation}', [InboxController::class, 'destroy'])
+            ->middleware('workspace.role:owner,admin')
+            ->name('dashboard.inbox.destroy');
         Route::get('/attachments/{attachment}', [MessageAttachmentController::class, 'download'])->name('dashboard.attachments.download');
         Route::middleware('workspace.role:owner,admin')->group(function () {
             Route::get('/accounts', [ConnectedAccountController::class, 'index'])->name('dashboard.accounts');
