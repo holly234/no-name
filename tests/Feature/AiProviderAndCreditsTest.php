@@ -31,7 +31,7 @@ class AiProviderAndCreditsTest extends TestCase
     {
         config([
             'ai.providers.gemini.api_key' => 'test-key',
-            'ai.providers.gemini.model' => 'gemini-2.5-flash-lite',
+            'ai.providers.gemini.model' => 'gemini-3.1-flash-lite',
             'ai.providers.gemini.billing_mode' => 'free',
         ]);
         Http::fake([
@@ -59,6 +59,23 @@ class AiProviderAndCreditsTest extends TestCase
         $this->assertSame(24, $result->outputTokens);
         $this->assertSame(0.0, $result->providerCostUsd);
         Http::assertSent(fn ($request) => $request->hasHeader('x-goog-api-key', 'test-key'));
+    }
+
+    public function test_gemini_provider_includes_the_provider_error_message(): void
+    {
+        config([
+            'ai.providers.gemini.api_key' => 'test-key',
+            'ai.providers.gemini.model' => 'retired-model',
+        ]);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'error' => ['message' => 'This model is no longer available.'],
+            ], 404),
+        ]);
+
+        $this->expectExceptionMessage('Gemini request failed with HTTP 404: This model is no longer available.');
+
+        app(GeminiAiProvider::class)->generate(new AiPrompt('System rules', 'Hello'));
     }
 
     public function test_credit_ledger_reserves_settles_and_releases_atomically(): void
@@ -106,7 +123,7 @@ class AiProviderAndCreditsTest extends TestCase
                     reason: null,
                     intent: 'booking',
                     provider: 'gemini',
-                    model: 'gemini-2.5-flash-lite',
+                    model: 'gemini-3.1-flash-lite',
                     inputTokens: 180,
                     outputTokens: 20,
                     providerCostUsd: 0,

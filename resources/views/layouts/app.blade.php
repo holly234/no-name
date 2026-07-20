@@ -19,14 +19,15 @@
                 $navItems = collect([
                     ['label' => 'Inbox', 'route' => 'dashboard.inbox', 'icon' => 'inbox', 'roles' => ['owner', 'admin', 'agent']],
                     ['label' => 'Accounts', 'route' => 'dashboard.accounts', 'icon' => 'plug', 'roles' => ['owner', 'admin']],
-                    ['label' => 'AI Settings', 'route' => 'dashboard.ai-settings', 'icon' => 'sparkles', 'roles' => ['owner', 'admin']],
+                    ['label' => 'AI Assistant', 'route' => 'dashboard.ai-settings', 'icon' => 'sparkles', 'roles' => ['owner', 'admin']],
                     ['label' => 'Credits & Usage', 'route' => 'dashboard.ai-credits', 'icon' => 'wallet', 'roles' => ['owner']],
-                    ['label' => 'Knowledge Base', 'route' => 'dashboard.knowledge-base', 'icon' => 'book', 'roles' => ['owner', 'admin']],
                     ['label' => 'Analytics', 'route' => 'dashboard.analytics', 'icon' => 'chart', 'roles' => ['owner', 'admin']],
                     ['label' => 'Team', 'route' => 'dashboard.team', 'icon' => 'users', 'roles' => ['owner', 'admin']],
                     ['label' => 'Settings', 'route' => 'dashboard.settings', 'icon' => 'settings', 'roles' => ['owner']],
                 ])->filter(fn ($item) => in_array($currentWorkspaceRole, $item['roles'], true))->values()->all();
-                $pageTitle = data_get(collect($navItems)->first(fn ($item) => request()->routeIs($item['route'])), 'label', 'Overview');
+                $pageTitle = request()->routeIs('dashboard.knowledge-base*')
+                    ? 'AI Assistant'
+                    : data_get(collect($navItems)->first(fn ($item) => request()->routeIs($item['route'])), 'label', 'Overview');
             @endphp
 
             @php

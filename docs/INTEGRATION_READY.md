@@ -47,7 +47,7 @@ N8N_WEBHOOK_SECRET=
 Current implementation:
 
 - `App\Contracts\AiProvider` keeps conversation logic provider-neutral.
-- `GeminiAiProvider` calls Gemini 2.5 Flash-Lite with structured JSON output and records tokens, latency, actual/estimated provider cost, state, confidence, intent, and escalation reason.
+- `GeminiAiProvider` calls Gemini 3.1 Flash-Lite with structured JSON output and records tokens, latency, actual/estimated provider cost, state, confidence, intent, and escalation reason.
 - `AiPromptBuilder` supplies bounded recent history plus workspace FAQs, products/services, business rules, assistant tone, forbidden claims, and handover instructions.
 - `ProcessAiReply` runs on the `ai` queue only when `AI_ENABLED=true`.
 - The job reserves workspace credits before provider work, settles against actual token usage, releases failed reservations, and routes empty-credit/provider/delivery failures safely to staff.
@@ -62,7 +62,7 @@ AI_PROVIDER=gemini
 AI_RESERVATION_CREDITS=25
 AI_TOKENS_PER_CREDIT=100
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_MODEL=gemini-3.1-flash-lite
 GEMINI_TIMEOUT=30
 GEMINI_BILLING_MODE=free
 ```

@@ -437,12 +437,6 @@ class InboxController extends Controller
     {
         $business = $request->attributes->get('currentBusiness');
         abort_unless($conversation->business_id === $business->id, 403);
-        $aiSettings = AiSetting::firstOrCreate(['business_id' => $business->id]);
-
-        if (! $aiSettings->human_takeover_enabled) {
-            return back()->with('status', 'Human takeover is disabled in AI settings.');
-        }
-
         $conversation->update([
             'status' => Conversation::STATE_NEEDS_HUMAN,
             'ai_mode' => 'human',
@@ -471,12 +465,6 @@ class InboxController extends Controller
     {
         $business = $request->attributes->get('currentBusiness');
         abort_unless($conversation->business_id === $business->id, 403);
-        $aiSettings = AiSetting::firstOrCreate(['business_id' => $business->id]);
-
-        if (! $aiSettings->human_takeover_enabled) {
-            return back()->with('status', 'Human takeover is disabled in AI settings.');
-        }
-
         $conversation->update([
             'status' => Conversation::STATE_AI_HANDLING,
             'ai_mode' => 'auto',

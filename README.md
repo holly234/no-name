@@ -14,7 +14,7 @@ Provider testing is temporarily paused, especially public Meta Embedded Signup, 
 
 Development now proceeds in this order:
 
-1. Production-test the provider-neutral AI runtime with Gemini 2.5 Flash-Lite, then add a configurable quality/fallback provider only when needed.
+1. Production-test the provider-neutral AI runtime with Gemini 3.1 Flash-Lite, then add a configurable quality/fallback provider only when needed.
 2. Add verified prepaid AI-credit purchases and low-balance customer controls to the implemented reserve/settle/release ledger.
 3. Continue replacing n8n compatibility paths with the implemented Laravel-native AI jobs and conversation orchestration.
 4. Connect Resend invitation/transactional email delivery after an owned sending domain is available.
@@ -43,10 +43,10 @@ Built and working as a local MVP:
 - Multiple connected accounts per social platform per workspace
 - Disconnect flow for connected accounts; disconnected records are preserved internally but hidden from the active Accounts UI
 - AI Conversation State Engine demo workflow
-- Provider-neutral queued AI runtime with a Gemini 2.5 Flash-Lite adapter, structured state/reply decisions, business knowledge context, token/cost usage records, and guarded activation
+- Provider-neutral queued AI runtime with a Gemini 3.1 Flash-Lite adapter, structured state/reply decisions, business knowledge context, token/cost usage records, and guarded activation
 - Atomic AI-credit grants, reservations, usage settlement, and failure releases; paid credit checkout is still pending
-- Manual replies, behavior-backed human takeover switch, resume automation, and close support in backend
-- AI settings toggles are wired into behavior for auto replies, human takeover, and business-hours reply gating
+- Manual replies, always-available human takeover, resume automation, and close support in backend
+- The consolidated AI Assistant setup controls automatic replies and business-hours gating; business facts and policies remain structured underneath
 - User-dashboard Credits & Usage, Analytics, and Team pages, backed by AI wallet, transaction, and per-response usage tables
 - Editable knowledge base with mobile-friendly section tabs for FAQs, products/services, business rules, and saved replies
 - Secured webhook/API write routes
@@ -97,7 +97,7 @@ The UI includes:
 - customer context panel on wide desktop
 - mobile customer profile bottom sheet opened from the chat header name
 - channel-aware customer identity labels: Instagram username, Facebook username, WhatsApp number, Gmail email address, or Telegram chat ID
-- human takeover switch
+- always-available human takeover
 - top-right toast notifications that auto-dismiss after 3 seconds
 - inbox polling keeps open lists and selected threads updated without manual refresh
 - conversations default to `ai_mode=auto`; `Needs Human` is a status, while `human` mode is reserved for explicit takeover or disabled automation conditions
@@ -231,7 +231,7 @@ AI_PROVIDER=gemini
 AI_RESERVATION_CREDITS=25
 AI_TOKENS_PER_CREDIT=100
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_MODEL=gemini-3.1-flash-lite
 GEMINI_TIMEOUT=30
 GEMINI_BILLING_MODE=free
 TELEGRAM_API_BASE=https://api.telegram.org/bot

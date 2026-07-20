@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\Business;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\RedirectResponse;
 use Laravel\Socialite\Contracts\Provider;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 use Laravel\Socialite\Facades\Socialite;
@@ -30,6 +31,29 @@ class GoogleAuthenticationTest extends TestCase
             ->assertDontSee('name="password"', false);
         $this->post('/login', [])->assertMethodNotAllowed();
         $this->get('/forgot-password')->assertNotFound();
+    }
+
+    public function test_google_authentication_always_asks_the_user_to_choose_an_account(): void
+    {
+        $provider = Mockery::mock(Provider::class);
+        $provider->shouldReceive('scopes')->once()->with(['openid', 'profile', 'email'])->andReturnSelf();
+        $provider->shouldReceive('with')->once()->with(['prompt' => 'select_account'])->andReturnSelf();
+        $provider->shouldReceive('redirect')->once()->andReturn(new RedirectResponse('https://accounts.google.test/oauth'));
+        Socialite::shouldReceive('driver')->with('google')->once()->andReturn($provider);
+
+        $this->get('/auth/google/redirect')
+            ->assertRedirect('https://accounts.google.test/oauth');
+    }
+
+    public function test_logout_clears_the_authenticated_session(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/logout')
+            ->assertRedirect('/');
+
+        $this->assertGuest();
     }
 
     public function test_new_google_user_is_created_and_sent_to_workspace_onboarding(): void

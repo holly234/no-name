@@ -9,7 +9,7 @@ return [
     'providers' => [
         'gemini' => [
             'api_key' => env('GEMINI_API_KEY'),
-            'model' => env('GEMINI_MODEL', 'gemini-2.5-flash-lite'),
+            'model' => env('GEMINI_MODEL', 'gemini-3.1-flash-lite'),
             'timeout' => (int) env('GEMINI_TIMEOUT', 30),
             'billing_mode' => env('GEMINI_BILLING_MODE', 'free'),
             'input_cost_per_million_usd' => (float) env('GEMINI_INPUT_COST_PER_MILLION_USD', 0.10),

@@ -62,7 +62,10 @@ class GeminiAiProvider implements AiProvider
             ]);
 
         if (! $response->successful()) {
-            throw new RuntimeException('Gemini request failed with HTTP '.$response->status().'.');
+            $providerMessage = trim((string) data_get($response->json(), 'error.message'));
+            $detail = $providerMessage !== '' ? ': '.$providerMessage : '.';
+
+            throw new RuntimeException('Gemini request failed with HTTP '.$response->status().$detail);
         }
 
         $text = (string) data_get($response->json(), 'candidates.0.content.parts.0.text', '');

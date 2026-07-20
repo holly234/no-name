@@ -6,17 +6,17 @@
         $tabs = [
             'faqs' => ['label' => 'FAQs', 'count' => $faqs->count(), 'title' => 'FAQs', 'description' => 'Common questions and approved answers.'],
             'products' => ['label' => 'Services', 'count' => $products->count(), 'title' => 'Products and services', 'description' => 'Offers, pricing, availability, and reply guidance.'],
-            'rules' => ['label' => 'Rules', 'count' => $rules->count(), 'title' => 'Business rules', 'description' => 'Policies that guide routing, escalation, and tone.'],
-            'saved-replies' => ['label' => 'Replies', 'count' => $savedReplies->count(), 'title' => 'Saved replies', 'description' => 'Reusable responses for common manual replies.'],
+            'rules' => ['label' => 'Policies', 'count' => $rules->count(), 'title' => 'Business policies', 'description' => 'Facts and limits the assistant must follow.'],
+            'saved-replies' => ['label' => 'Team replies', 'count' => $savedReplies->count(), 'title' => 'Team saved replies', 'description' => 'Manual shortcuts for staff. These are not used to train the AI assistant.'],
         ];
-        $ruleTypeOptions = ['handover' => 'Handover', 'pricing' => 'Pricing', 'availability' => 'Availability', 'tone' => 'Tone', 'policy' => 'Policy', 'other' => 'Other'];
+        $ruleTypeOptions = ['pricing' => 'Pricing', 'availability' => 'Availability', 'policy' => 'Policy', 'other' => 'Other'];
         $section = $tabs[$activeSection] ?? $tabs['faqs'];
     @endphp
 
     <div class="mb-5">
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#2563EB]">Knowledge base</p>
-        <h2 class="mt-2 text-3xl font-bold text-[#111827]">Business memory</h2>
-        <p class="mt-2 max-w-2xl text-sm leading-6 text-[#6B7280]">Add and maintain the source material used for replies, routing, and handover decisions.</p>
+        <a href="{{ route('dashboard.ai-settings') }}" class="text-xs font-semibold uppercase tracking-[0.16em] text-[#2563EB]">← AI Assistant</a>
+        <h2 class="mt-2 text-3xl font-bold text-[#111827]">Teach your assistant</h2>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-[#6B7280]">Add the answers, services, prices, and policies it is allowed to use.</p>
     </div>
 
     @if ($errors->any())

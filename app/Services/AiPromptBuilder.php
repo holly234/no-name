@@ -41,8 +41,6 @@ PROMPT;
                 'tone' => $settings->tone,
                 'fallback_response' => $settings->fallback_response,
                 'escalation_instructions' => $settings->escalation_instructions,
-                'never_say' => $settings->never_say,
-                'handover_rules' => $settings->handover_rules,
             ],
             'knowledge' => [
                 'faqs' => $faqs,

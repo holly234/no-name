@@ -17,7 +17,7 @@ class AiSettingsBehaviorTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_disabled_human_takeover_hides_switch_and_blocks_takeover_action(): void
+    public function test_human_takeover_is_always_available_as_a_safety_control(): void
     {
         $this->withoutVite();
 
@@ -35,17 +35,17 @@ class AiSettingsBehaviorTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('Pause automation unavailable');
-        $response->assertDontSee(route('dashboard.inbox.take-over', $conversation), false);
+        $response->assertDontSee('Pause automation unavailable');
+        $response->assertSee(route('dashboard.inbox.take-over', $conversation), false);
 
         $this->actingAs($user)
             ->post(route('dashboard.inbox.take-over', $conversation))
             ->assertRedirect()
-            ->assertSessionHas('status', 'Human takeover is disabled in AI settings.');
+            ->assertSessionHas('status', 'Human takeover enabled.');
 
         $conversation->refresh();
-        $this->assertSame(Conversation::STATE_WAITING, $conversation->status);
-        $this->assertSame('auto', $conversation->ai_mode);
+        $this->assertSame(Conversation::STATE_NEEDS_HUMAN, $conversation->status);
+        $this->assertSame('human', $conversation->ai_mode);
     }
 
     public function test_disabled_auto_reply_prevents_ai_response_generation(): void

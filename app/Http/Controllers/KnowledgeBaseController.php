@@ -110,7 +110,7 @@ class KnowledgeBaseController extends Controller
     {
         $business = $request->attributes->get('currentBusiness');
         $validated = $request->validate([
-            'rule_type' => ['required', 'string', 'max:80', Rule::in(['handover', 'pricing', 'availability', 'tone', 'policy', 'other'])],
+            'rule_type' => ['required', 'string', 'max:80', Rule::in(['pricing', 'availability', 'policy', 'other'])],
             'title' => ['required', 'string', 'max:160'],
             'content' => ['required', 'string', 'max:3000'],
         ]);
@@ -124,7 +124,7 @@ class KnowledgeBaseController extends Controller
     {
         $this->authorizeBusinessResource($request, $rule->business_id);
         $validated = $request->validate([
-            'rule_type' => ['required', 'string', 'max:80', Rule::in(['handover', 'pricing', 'availability', 'tone', 'policy', 'other'])],
+            'rule_type' => ['required', 'string', 'max:80', Rule::in(['pricing', 'availability', 'policy', 'other'])],
             'title' => ['required', 'string', 'max:160'],
             'content' => ['required', 'string', 'max:3000'],
         ]);

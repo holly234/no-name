@@ -16,7 +16,7 @@ Current build priority:
 - A later Capacitor Android/iOS client packages only the customer experience. Laravel, queues, webhooks, APIs, marketing pages, and the Filament owner panel remain hosted/web surfaces. Mobile Google authentication must use separate platform OAuth clients and native/system-browser flows, never embedded WebView OAuth.
 - Implement prepaid AI credits and an immutable usage ledger. The unified inbox/manual workflow is free; customers pay only for AI-agent usage. There is no fixed recurring SaaS fee in the current direction.
 - Scrap n8n as the planned automation bridge. Laravel is the complete application and automation brain using services, jobs, queues, events, tools, and scheduled commands. Existing n8n-compatible endpoints may remain for backward compatibility until deliberately removed.
-- The provider-neutral Laravel AI runtime is implemented with Gemini 2.5 Flash-Lite as the first adapter, guarded by `AI_ENABLED=false` until a key and test credits are supplied. Gemini Flash and OpenAI may be configurable quality/fallback providers later. Do not hard-wire business logic to one provider.
+- The provider-neutral Laravel AI runtime is implemented with Gemini 3.1 Flash-Lite as the first adapter, guarded by `AI_ENABLED=false` until a key and test credits are supplied. Gemini Flash and OpenAI may be configurable quality/fallback providers later. Do not hard-wire business logic to one provider.
 - Keep the inbox as the default dashboard screen.
 - Keep every business-owned query scoped by `business_id`.
 - Preserve the calm, mature workflow-product tone. Avoid AI hype in public-facing copy.
@@ -31,7 +31,7 @@ Current build priority:
 - The business dashboard now includes Credits & Usage, Analytics, and Team. AI wallets, credit transactions, and per-response token/cost usage records have real database foundations ready for the Laravel AI agent and future checkout integration.
 - Workspace roles are enforced server-side and reflected in navigation: Owner has full workspace/billing/settings control; Admin manages channels, AI, knowledge, analytics, and agents; Agent is inbox-only. Team invitation links require the exact invited Google email, and the workspace owner cannot be demoted or removed.
 - Queue workers are required for production DMs, sync, AI replies, email delivery, and webhooks. On the current low-cost Hetzner VPS class, start conservatively with three workers: one `webhooks`, one `ai`, and one `default,sync,mail`. Do not run many workers on the small VPS; scale to a larger 4 vCPU / 8GB RAM server before targeting six to eight workers.
-- AI settings must be behavior-backed, not cosmetic. Auto reply, human takeover, and business-hours settings must affect ingestion and inbox actions.
+- AI settings must be behavior-backed, not cosmetic. Auto reply and business-hours settings affect ingestion. Human takeover is an always-available safety action and must never be disabled by workspace configuration.
 - Conversations should default to `ai_mode=auto`. `Needs Human` is a queue/status, while `ai_mode=human` is reserved for explicit takeover, manual staff replies, or disabled automation conditions.
 - Staff-facing customer identity should show Instagram/Facebook usernames, WhatsApp phone numbers, Gmail email addresses, or Telegram chat IDs where available. Add a separate stable provider ID later if real provider payloads require both identity matching and friendly display.
 - For polished UI/design interactions, prefer proven focused libraries/components over custom hand-built controls when a library gives better quality, accessibility, or maintainability. Keep all third-party UI aligned with `docs/VISUAL_MOOD_BOARD.md`; do not import a library's default visual style blindly.
@@ -61,7 +61,7 @@ The free product includes the unified inbox and manual team workflow. Monetizati
 - When credits are exhausted, AI pauses safely and routes work to humans; the free inbox must continue functioning.
 - Routine classification and reply generation should be combined into one structured AI call where practical to reduce cost.
 - Limit history, retrieve only relevant knowledge, cap output, and avoid unnecessary tool loops.
-- Gemini 2.5 Flash-Lite is the current default candidate because of its low text-token cost. The provider layer must allow later switching, fallback, and per-workspace model policy.
+- Gemini 3.1 Flash-Lite is the current stable cost-first default. The provider layer must allow later switching, fallback, and per-workspace model policy.
 
 ## AI Conversation State Engine
 
@@ -348,7 +348,7 @@ Landing page:
 - Feature framing: unified inbox, color-coded conversation states, human takeover, team visibility, customer history, smart assistance in the background.
 
 Dashboard layout:
-- Sidebar: Inbox, Accounts, AI Settings, Knowledge Base, Settings
+- Sidebar: Inbox, Accounts, AI Assistant, Credits & Usage, Analytics, Team, Settings. Business knowledge is managed from inside AI Assistant rather than competing as a separate top-level area.
 - No Home tab, Customers tab, Team tab, or Logs tab in the current dashboard.
 - Logout sits at the bottom of the side panel.
 - Mobile: collapsible sidebar and usable DM-style inbox.
@@ -673,8 +673,8 @@ Connected accounts pass on 2026-07-06:
 Settings/profile/performance/UI refinement pass on 2026-07-06:
 - Removed the Accounts page intro/explainer block so the page starts directly with the connected channel controls.
 - Confirmed dashboard CSS has no gradients in app shell, chat wallpaper, loading indicators, tabs, cards, or social channel badges.
-- Wired AI settings into behavior: auto replies, human takeover availability, and business-hours gating now affect ingestion and inbox actions.
-- Added tests for disabled human takeover, disabled auto reply, and business-hours reply gating.
+- Wired AI settings into behavior: auto replies and business-hours gating affect ingestion; human takeover and resume are always available safety actions.
+- Added tests for always-available human takeover, disabled auto reply, and business-hours reply gating.
 - Added a test ensuring AI-escalated `Needs Human` conversations stay in `ai_mode=auto` by default.
 - Fixed the mode switch so icon visibility changes immediately with the optimistic UI state, and resume AI no longer sends a duplicate placeholder reply.
 - Manual staff reply now flips the visible mode switch to human immediately and persists `ai_mode=human` on the conversation.
@@ -739,7 +739,8 @@ Direction update on 2026-07-16:
 - Chose Google plus email magic links as the target passwordless authentication flow.
 - Added Resend, workspace roles/invitations, a private platform-owner panel, and the AI-credit ledger as the next foundation phases.
 - Removed n8n from the planned production architecture; Laravel will own agent orchestration.
-- Selected Gemini 2.5 Flash-Lite as the current cost-first default candidate, behind a provider-neutral interface.
+- Selected Gemini 3.1 Flash-Lite as the stable cost-first default, behind a provider-neutral interface. Gemini 2.5 Flash-Lite returned HTTP 404 for new API users and was replaced in July 2026.
+- Google application sign-in now requests `prompt=select_account`, so logging out and signing back in always presents the Google account chooser instead of silently reusing the previous account. Laravel logout already invalidates the application session.
 - Installed Filament 4.11 for the private Perpetual Devs owner panel and enabled the required PHP `intl` extension locally.
 - Added `/owner` with owner-only access, global user/workspace/conversation/connection statistics, read-only user and connection directories, workspace monitoring, and explicit suspend/reactivate actions.
 - Added `users.is_platform_owner` plus `platform:owner {email}` and `platform:owner {email} --revoke` commands so access is granted explicitly instead of inferred from a customer workspace role.
@@ -764,9 +765,11 @@ Direction update on 2026-07-16:
   - Focused provider verification passes with `44 tests, 183 assertions`; focused workspace/owner authorization verification passes with `12 tests, 51 assertions`.
 - Production queue operations completed on 2026-07-20: the `perpetual` scheduler cron is installed, Supervisor is enabled, and the three queue programs (`perpetual-webhooks`, `perpetual-ai`, and `perpetual-sync-mail`) were verified `RUNNING` on the Hetzner VPS.
 - Provider-neutral AI and credit enforcement pass on 2026-07-20:
-  - Added the `AiProvider` contract, Gemini 2.5 Flash-Lite structured-output adapter, bounded workspace knowledge/history prompt builder, and guarded runtime configuration.
+  - Added the `AiProvider` contract, Gemini 3.1 Flash-Lite structured-output adapter, bounded workspace knowledge/history prompt builder, and guarded runtime configuration.
   - Added `ProcessAiReply` on the `ai` queue with safe state checks, duplicate-completion protection, token/cost/latency usage records, escalation handling, and Telegram/Meta text delivery.
   - Added atomic credit grants, pre-call reservations, actual-usage settlement, idempotent release/settlement references, and automatic reservation release on provider or delivery failures.
   - Empty balances route conversations to `Needs Human`; the free manual inbox continues working. `php artisan ai:credits:grant` supports controlled beta grants until payment checkout exists.
   - Real AI execution remains off by default. Activation requires `GEMINI_API_KEY`, `AI_ENABLED=true`, a running `ai` worker, and a positive workspace wallet balance.
-  - Full verification passes with `106 tests, 478 assertions`; production Vite build and Blade view compilation also pass.
+  - Full verification passes with `111 tests, 504 assertions`; production Vite build and Blade view compilation also pass.
+  - Consolidated the competing AI Settings and Knowledge Base experiences into one top-level AI Assistant setup. Settings now own behavior, structured knowledge owns approved business facts/policies, and saved replies are explicitly manual team tools.
+  - Removed the cosmetic confidence-threshold UI and the customer-facing human-takeover toggle. Staff takeover is always available. A forward-only migration consolidates legacy handover text, restricted-claim guidance, tone values, and rule types without discarding customer data.
