@@ -5,6 +5,7 @@ use App\Models\AutomationLog;
 use App\Models\Business;
 use App\Models\ConnectedAccount;
 use App\Services\AiCreditLedgerService;
+use App\Services\AiReplyRecoveryService;
 use App\Services\GmailConnectionService;
 use App\Support\QueueDispatch;
 use Illuminate\Foundation\Inspiring;
@@ -180,10 +181,22 @@ Artisan::command('ai:credits:grant {business : Workspace ID} {credits : Number o
     return self::SUCCESS;
 })->purpose('Grant promotional AI credits to a workspace');
 
+Artisan::command('ai:recover-unanswered {--limit=50 : Maximum conversations to recover per run}', function (AiReplyRecoveryService $recovery) {
+    $queued = $recovery->recover((int) $this->option('limit'));
+
+    $this->components->info("Queued {$queued} unanswered AI conversations for recovery.");
+
+    return self::SUCCESS;
+})->purpose('Recover AI-controlled conversations that never received a reply');
+
 Schedule::command('gmail:sync --mailbox=inbox --limit=20')
     ->everyMinute()
     ->withoutOverlapping();
 
 Schedule::command('gmail:renew-watch')
     ->dailyAt('02:15')
+    ->withoutOverlapping();
+
+Schedule::command('ai:recover-unanswered --limit=50')
+    ->everyMinute()
     ->withoutOverlapping();

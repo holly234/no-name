@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Contracts\AiProvider;
 use App\Exceptions\InsufficientAiCredits;
+use App\Models\AiSetting;
 use App\Models\AiUsageRecord;
 use App\Models\AutomationLog;
 use App\Models\Conversation;
@@ -25,7 +26,10 @@ class ProcessAiReply implements ShouldQueue
 
     public int $timeout = 180;
 
-    public function __construct(public readonly int $messageId)
+    public function __construct(
+        public readonly int $messageId,
+        public readonly bool $recovery = false,
+    )
     {
         $this->onQueue(QueueName::AI);
     }
@@ -46,11 +50,14 @@ class ProcessAiReply implements ShouldQueue
         $conversation = $incoming->conversation;
         $business = $conversation->business;
 
-        if ($conversation->ai_mode !== 'auto' || $conversation->status !== Conversation::STATE_AI_HANDLING) {
+        $recoverableHandover = $this->recovery && $conversation->status === Conversation::STATE_NEEDS_HUMAN;
+
+        if ($conversation->ai_mode !== 'auto'
+            || ($conversation->status !== Conversation::STATE_AI_HANDLING && ! $recoverableHandover)) {
             return;
         }
 
-        if (AiUsageRecord::where('message_id', $incoming->id)->where('status', 'completed')->exists()) {
+        if (! $this->recovery && AiUsageRecord::where('message_id', $incoming->id)->where('status', 'completed')->exists()) {
             return;
         }
 
@@ -82,6 +89,33 @@ class ProcessAiReply implements ShouldQueue
             $actualCredits = $credits->creditsForTokens($generation->inputTokens, $generation->outputTokens);
 
             if ($generation->requiresHuman || $generation->state === Conversation::STATE_NEEDS_HUMAN || $generation->reply === '') {
+                $handoverReply = trim($generation->reply)
+                    ?: trim((string) AiSetting::where('business_id', $business->id)->value('fallback_response'))
+                    ?: 'Thanks for the details. I’m passing this to a team member who can confirm that for you. They’ll reply here shortly.';
+
+                try {
+                    $delivery = $outbound->sendText($conversation->fresh('connectedAccount'), $handoverReply);
+                } catch (Throwable $deliveryException) {
+                    $credits->release($business, $reservation, 'outbound_delivery_failed');
+                    $conversation->update(['status' => Conversation::STATE_NEEDS_HUMAN]);
+                    $this->completeUsage($usage, $generation, 0, [
+                        'outcome' => 'handover_delivery_failed',
+                        'error' => $deliveryException->getMessage(),
+                    ], 'delivery_failed');
+                    $this->log($conversation, 'ai_handover_delivery_failed', 'The conversation was handed over, but its acknowledgement could not be delivered.');
+                    report($deliveryException);
+
+                    return;
+                }
+
+                $messages->saveOutgoing($conversation, $handoverReply, 'ai', [
+                    'provider' => $generation->provider,
+                    'model' => $generation->model,
+                    'confidence' => $generation->confidence,
+                    'intent' => $generation->intent,
+                    'handover' => true,
+                    'delivery' => $delivery,
+                ]);
                 $charged = $credits->settle($business, $reservation, $actualCredits, ['outcome' => 'escalated']);
                 $conversation->update(['status' => Conversation::STATE_NEEDS_HUMAN]);
                 $this->completeUsage($usage, $generation, $charged, ['outcome' => 'escalated']);

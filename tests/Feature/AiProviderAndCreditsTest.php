@@ -19,8 +19,11 @@ use App\Models\Message;
 use App\Models\User;
 use App\Services\AiCreditLedgerService;
 use App\Services\AiPromptBuilder;
+use App\Services\AiReplyRecoveryService;
 use App\Services\GeminiAiProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -157,6 +160,78 @@ class AiProviderAndCreditsTest extends TestCase
         $this->assertSame(98, AiCreditWallet::where('business_id', $business->id)->value('balance'));
     }
 
+    public function test_ai_job_sends_the_generated_acknowledgement_before_handover(): void
+    {
+        [$business, $conversation, $incoming] = $this->conversation();
+        app(AiCreditLedgerService::class)->grant($business, 100, 'Beta grant');
+        $this->app->instance(AiProvider::class, new class implements AiProvider
+        {
+            public function generate(AiPrompt $prompt): AiGeneration
+            {
+                return new AiGeneration(
+                    reply: 'Thanks — I have passed this to a teammate who can confirm the exact price.',
+                    state: Conversation::STATE_NEEDS_HUMAN,
+                    confidence: 0.72,
+                    requiresHuman: true,
+                    reason: 'Price requires staff confirmation.',
+                    intent: 'pricing',
+                    provider: 'gemini',
+                    model: 'gemini-3.1-flash-lite',
+                    inputTokens: 120,
+                    outputTokens: 18,
+                    providerCostUsd: 0,
+                    latencyMs: 100,
+                );
+            }
+        });
+
+        app()->call([new ProcessAiReply($incoming->id), 'handle']);
+
+        $this->assertSame(Conversation::STATE_NEEDS_HUMAN, $conversation->fresh()->status);
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $conversation->id,
+            'sender_type' => 'ai',
+            'body' => 'Thanks — I have passed this to a teammate who can confirm the exact price.',
+        ]);
+    }
+
+    public function test_ai_job_uses_a_safe_fallback_so_handover_is_never_silent(): void
+    {
+        [$business, $conversation, $incoming] = $this->conversation();
+        AiSetting::where('business_id', $business->id)->update([
+            'fallback_response' => 'I’m checking this with the team. Someone will reply here shortly.',
+        ]);
+        app(AiCreditLedgerService::class)->grant($business, 100, 'Beta grant');
+        $this->app->instance(AiProvider::class, new class implements AiProvider
+        {
+            public function generate(AiPrompt $prompt): AiGeneration
+            {
+                return new AiGeneration(
+                    reply: '',
+                    state: Conversation::STATE_NEEDS_HUMAN,
+                    confidence: 0.4,
+                    requiresHuman: true,
+                    reason: 'Staff confirmation required.',
+                    intent: 'handover',
+                    provider: 'gemini',
+                    model: 'gemini-3.1-flash-lite',
+                    inputTokens: 100,
+                    outputTokens: 0,
+                    providerCostUsd: 0,
+                    latencyMs: 80,
+                );
+            }
+        });
+
+        app()->call([new ProcessAiReply($incoming->id), 'handle']);
+
+        $this->assertSame(Conversation::STATE_NEEDS_HUMAN, $conversation->fresh()->status);
+        $this->assertTrue($conversation->messages()
+            ->where('sender_type', 'ai')
+            ->where('body', 'I’m checking this with the team. Someone will reply here shortly.')
+            ->exists());
+    }
+
     public function test_ai_job_routes_to_human_when_credits_are_empty(): void
     {
         [, $conversation, $incoming] = $this->conversation();
@@ -166,6 +241,42 @@ class AiProviderAndCreditsTest extends TestCase
         $this->assertSame(Conversation::STATE_NEEDS_HUMAN, $conversation->fresh()->status);
         $this->assertSame(0, AiUsageRecord::count());
         $this->assertFalse($conversation->messages()->where('sender_type', 'ai')->exists());
+    }
+
+    public function test_unanswered_ai_controlled_handover_is_automatically_requeued(): void
+    {
+        Bus::fake();
+        Cache::flush();
+        [, $conversation, $incoming] = $this->conversation();
+        $conversation->update([
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'auto',
+        ]);
+        $incoming->forceFill(['created_at' => now()->subMinutes(2)])->save();
+
+        $queued = app(AiReplyRecoveryService::class)->recover();
+
+        $this->assertSame(1, $queued);
+        Bus::assertDispatched(ProcessAiReply::class, fn (ProcessAiReply $job) => $job->messageId === $incoming->id && $job->recovery);
+        $this->assertDatabaseHas('automation_logs', [
+            'business_id' => $conversation->business_id,
+            'event_type' => 'ai_reply_recovery_queued',
+        ]);
+    }
+
+    public function test_recovery_never_touches_human_controlled_conversations(): void
+    {
+        Bus::fake();
+        Cache::flush();
+        [, $conversation, $incoming] = $this->conversation();
+        $conversation->update([
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+        ]);
+        $incoming->forceFill(['created_at' => now()->subMinutes(2)])->save();
+
+        $this->assertSame(0, app(AiReplyRecoveryService::class)->recover());
+        Bus::assertNotDispatched(ProcessAiReply::class);
     }
 
     private function business(): Business
