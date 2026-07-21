@@ -34,6 +34,13 @@ Security, workspace isolation, webhook ingress, queues, AI recovery, file handli
 5. Prefer authenticated Google Pub/Sub push/OIDC over query-token verification.
 6. Complete domain-dependent Meta/email work and payments when those holds are lifted.
 
+## Final backend hardening update
+
+- External provider exception messages are redacted before being written to logs, operational metadata, or customer-facing errors.
+- Exhausted queue jobs emit a credential-safe critical log event and appear in System Health alongside stale reserved jobs and disconnected/expired accounts.
+- Daily retention removes routine automation logs after 30 days, error logs after 90 days, expired invitations after their retention window, failed jobs after 30 days, and old job batches after seven days. Customer conversations and attachments are not pruned automatically.
+- Knowledge-base and team collections are paginated, while monthly AI-credit statistics use one aggregate query.
+
 ## Production requirements
 
 Keep `FAKE_CONNECTIONS_ENABLED`, `LEGACY_WEBHOOK_ENDPOINTS_ENABLED`, and `N8N_COMPATIBILITY_ENDPOINTS_ENABLED` false. Also use `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true`, HTTPS, and unique uncommitted secrets.

@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Services\MessageIngestionService;
 use App\Services\TelegramConnectionService;
 use App\Support\QueueName;
+use App\Support\ProviderError;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -125,7 +126,7 @@ class ProcessTelegramWebhook implements ShouldQueue
         try {
             $avatar = $telegramConnectionService->fetchCustomerAvatar($account, $customerExternalId);
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'telegram', 'account_id' => $account->id]);
 
             $avatar = null;
         }

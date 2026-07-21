@@ -15,6 +15,7 @@ use App\Services\AiReplyService;
 use App\Services\ConversationMessageService;
 use App\Services\TelegramConnectionService;
 use App\Support\QueueDispatch;
+use App\Support\ProviderError;
 use Illuminate\Http\Request;
 
 class WebhookController extends Controller
@@ -219,7 +220,7 @@ class WebhookController extends Controller
         try {
             $avatar = $telegramConnectionService->fetchCustomerAvatar($account, $customerExternalId);
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'telegram']);
 
             $avatar = null;
         }

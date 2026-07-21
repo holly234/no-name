@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\ProviderError;
+
 use App\Models\ConnectedAccount;
 use App\Models\Conversation;
 use App\Models\MessageAttachment;
@@ -336,7 +338,7 @@ class TelegramConnectionService
                 ->get($this->fileEndpoint($account, $filePath))
                 ->throw();
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'telegram']);
 
             return [];
         }

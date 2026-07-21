@@ -8,6 +8,7 @@ use App\Services\AiCreditLedgerService;
 use App\Services\AiReplyRecoveryService;
 use App\Services\GmailConnectionService;
 use App\Support\QueueDispatch;
+use App\Support\ProviderError;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -59,7 +60,7 @@ Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=
                 $this->line("{$account->account_name}: queued.");
             }
         } catch (Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'gmail']);
             $failed++;
 
             AutomationLog::create([
@@ -70,7 +71,7 @@ Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=
                 'message' => 'Automatic Gmail sync failed.',
                 'metadata' => [
                     'mailbox' => $mailbox,
-                    'error' => $exception->getMessage(),
+                    'error' => ProviderError::message($exception),
                 ],
             ]);
 
@@ -137,7 +138,7 @@ Artisan::command('gmail:renew-watch {--force : Renew every connected Gmail watch
 
             $this->line("{$account->account_name}: watch renewed.");
         } catch (Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'gmail']);
             $failed++;
 
             AutomationLog::create([
@@ -146,7 +147,7 @@ Artisan::command('gmail:renew-watch {--force : Renew every connected Gmail watch
                 'event_type' => 'gmail_watch_renew_failed',
                 'status' => 'failed',
                 'message' => 'Gmail Pub/Sub watch renewal failed.',
-                'metadata' => ['error' => $exception->getMessage()],
+                'metadata' => ['error' => ProviderError::message($exception)],
             ]);
 
             $this->components->warn("{$account->account_name}: watch renewal failed.");
@@ -199,4 +200,16 @@ Schedule::command('gmail:renew-watch')
 
 Schedule::command('ai:recover-unanswered --limit=50')
     ->everyMinute()
+    ->withoutOverlapping();
+
+Schedule::command('ops:prune')
+    ->dailyAt('03:10')
+    ->withoutOverlapping();
+
+Schedule::command('queue:prune-failed --hours=720')
+    ->dailyAt('03:20')
+    ->withoutOverlapping();
+
+Schedule::command('queue:prune-batches --hours=168 --unfinished=168 --cancelled=168')
+    ->dailyAt('03:30')
     ->withoutOverlapping();

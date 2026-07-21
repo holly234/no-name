@@ -50,6 +50,10 @@ Workspace owners and admins can permanently delete an inbox conversation from it
 
 The inbox conversation rail now uses cursor-based infinite scrolling in batches of 50. Loading older rows preserves the active state, channel, search, date, time, and sort query, and avoids unstable offset pagination when new messages arrive.
 
+Final backend hardening adds `ProviderError` credential redaction, critical logs for exhausted queue jobs, stale/reserved job and account health indicators, conservative scheduled operational retention, paginated knowledge/team collections, and consolidated monthly AI-credit aggregates. Customer conversations and attachments are deliberately excluded from automatic retention.
+
+The public landing page now intentionally uses a separate marketing identity from the dashboard: warm ivory editorial surfaces, charcoal typography, terracotta accents, sharp rules, narrative whitespace, and framed product demonstrations. The authenticated product keeps its dense operational app shell; future UI work must preserve this distinction rather than making marketing pages look like dashboard screens.
+
 The next major milestone is verified prepaid AI-credit checkout. Do not spend the next development block repeatedly redesigning the AI setup unless production evidence reveals a blocking defect. Prompt/personality tuning remains an iterative later task.
 
 1. **Deploy and smoke-test the unanswered-chat recovery batch.** Pull commit `9d1e6fe`, rebuild Laravel caches, and restart Supervisor workers. Confirm one normal reply, one authority-requiring handover with acknowledgement, and recovery of one eligible historical unanswered AI-controlled conversation.

@@ -10,6 +10,7 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
 use App\Support\GmailMessageClassifier;
+use App\Support\ProviderError;
 use App\Models\MessageAttachment;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Carbon;
@@ -133,7 +134,7 @@ class GmailConnectionService
         try {
             $this->registerWatchIfConfigured($account);
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'gmail']);
 
             AutomationLog::create([
                 'business_id' => $business->id,
@@ -141,7 +142,7 @@ class GmailConnectionService
                 'event_type' => 'gmail_watch_failed',
                 'status' => 'failed',
                 'message' => 'Gmail account connected, but Pub/Sub watch registration failed.',
-                'metadata' => ['error' => $exception->getMessage()],
+                'metadata' => ['error' => ProviderError::message($exception)],
             ]);
         }
 
@@ -238,7 +239,7 @@ class GmailConnectionService
                     'last_pubsub_sync_result' => $result,
                 ]);
             } catch (\Throwable $exception) {
-                report($exception);
+                ProviderError::report($exception, ['provider' => 'gmail']);
                 $failed++;
 
                 $this->recordPubSubAttempt($account, [
@@ -246,7 +247,7 @@ class GmailConnectionService
                     'last_pubsub_message_id' => $messageId,
                     'last_pubsub_history_id' => $historyId,
                     'last_pubsub_received_at' => now()->toIso8601String(),
-                    'last_pubsub_error' => $exception->getMessage(),
+                    'last_pubsub_error' => ProviderError::message($exception),
                 ]);
 
                 AutomationLog::create([
@@ -259,7 +260,7 @@ class GmailConnectionService
                         'email' => $email,
                         'history_id' => $historyId,
                         'message_id' => $messageId,
-                        'error' => $exception->getMessage(),
+                        'error' => ProviderError::message($exception),
                     ],
                 ]);
             }

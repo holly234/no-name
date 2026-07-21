@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\ProviderError;
+
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +28,7 @@ class GoogleAuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'google']);
 
             return redirect()->route('login')->withErrors([
                 'google' => 'Google sign-in could not be completed. Please try again.',

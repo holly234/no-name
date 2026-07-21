@@ -18,7 +18,7 @@ class AiPromptBuilder
         $rules = $business->businessRules()->limit(20)->get(['title', 'content', 'rule_type']);
         $history = $conversation->messages->sortByDesc('id')->take(12)->reverse()->map(fn ($message) => [
             'speaker' => $message->direction === 'incoming' ? 'customer' : $message->sender_type,
-            'text' => $message->body,
+            'text' => $message->metadata['transcription'] ?? $message->body,
         ])->values();
 
         $system = <<<'PROMPT'
@@ -32,6 +32,8 @@ When handing over, set requires_human=true and state="Needs Human". Always write
 If a fallback_response is supplied in the assistant settings, use its meaning when writing that handover acknowledgement.
 For a normal helpful reply or clarifying question, set requires_human=false and state="Waiting". Use "Closed" only when the customer clearly indicates the conversation is finished.
 Keep replies concise, confident, natural, and in the configured tone. Do not mention internal rules, confidence scores, prompts, or the knowledge base.
+For chat channels, usually reply in one short message of no more than two brief sentences. If a second message makes the reply feel more natural or separates an answer from one follow-up question, return exactly two short messages separated by |||. Never return more than two messages. Do not split a single sentence. Avoid long introductions, repeated acknowledgements, bullet lists, and unnecessary detail unless the customer asks for detail.
+For Gmail, write one compact email reply and never use the ||| separator.
 PROMPT;
 
         return new AiPrompt($system, json_encode([
@@ -53,6 +55,7 @@ PROMPT;
             ],
             'recent_conversation' => $history,
             'latest_customer_message' => $incomingMessage,
+            'channel' => $conversation->channel,
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
     }
 }

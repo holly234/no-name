@@ -12,8 +12,11 @@ use App\Models\Message;
 use App\Services\AiCreditLedgerService;
 use App\Services\AiPromptBuilder;
 use App\Services\ConversationMessageService;
+use App\Services\GeminiVoiceTranscriptionService;
 use App\Services\OutboundChannelService;
+use App\Support\AiReplyFormatter;
 use App\Support\QueueName;
+use App\Support\ProviderError;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
@@ -40,6 +43,7 @@ class ProcessAiReply implements ShouldQueue
         AiCreditLedgerService $credits,
         OutboundChannelService $outbound,
         ConversationMessageService $messages,
+        GeminiVoiceTranscriptionService $voiceTranscription,
     ): void {
         $incoming = Message::with('conversation.business')->find($this->messageId);
 
@@ -85,7 +89,20 @@ class ProcessAiReply implements ShouldQueue
         ]);
 
         try {
-            $generation = $provider->generate($promptBuilder->build($conversation, (string) $incoming->body));
+            $incomingText = (string) ($incoming->metadata['transcription'] ?? $incoming->body);
+
+            if (! isset($incoming->metadata['transcription'])) {
+                $transcription = $voiceTranscription->transcribe($incoming);
+
+                if ($transcription !== null) {
+                    $incoming->update([
+                        'metadata' => array_merge($incoming->metadata ?? [], ['transcription' => $transcription]),
+                    ]);
+                    $incomingText = $transcription;
+                }
+            }
+
+            $generation = $provider->generate($promptBuilder->build($conversation, $incomingText));
             $actualCredits = $credits->creditsForTokens($generation->inputTokens, $generation->outputTokens);
 
             if ($generation->requiresHuman || $generation->state === Conversation::STATE_NEEDS_HUMAN || $generation->reply === '') {
@@ -100,10 +117,10 @@ class ProcessAiReply implements ShouldQueue
                     $conversation->update(['status' => Conversation::STATE_NEEDS_HUMAN]);
                     $this->completeUsage($usage, $generation, 0, [
                         'outcome' => 'handover_delivery_failed',
-                        'error' => $deliveryException->getMessage(),
+                        'error' => ProviderError::message($deliveryException),
                     ], 'delivery_failed');
                     $this->log($conversation, 'ai_handover_delivery_failed', 'The conversation was handed over, but its acknowledgement could not be delivered.');
-                    report($deliveryException);
+                    ProviderError::report($deliveryException, ['provider' => 'outbound']);
 
                     return;
                 }
@@ -124,38 +141,62 @@ class ProcessAiReply implements ShouldQueue
                 return;
             }
 
-            try {
-                $delivery = $outbound->sendText($conversation->fresh('connectedAccount'), $generation->reply);
-            } catch (Throwable $deliveryException) {
-                $credits->release($business, $reservation, 'outbound_delivery_failed');
-                $conversation->update(['status' => Conversation::STATE_NEEDS_HUMAN]);
-                $this->completeUsage($usage, $generation, 0, [
-                    'outcome' => 'delivery_failed',
-                    'error' => $deliveryException->getMessage(),
-                ], 'delivery_failed');
-                $this->log($conversation, 'ai_reply_delivery_failed', 'AI reply delivery failed and credits were released.');
-                report($deliveryException);
+            $segments = AiReplyFormatter::segments($generation->reply, $conversation->channel);
+            $delivered = 0;
 
-                return;
+            foreach ($segments as $index => $segment) {
+                try {
+                    $delivery = $outbound->sendText($conversation->fresh('connectedAccount'), $segment);
+                } catch (Throwable $deliveryException) {
+                    $conversation->update(['status' => Conversation::STATE_NEEDS_HUMAN]);
+
+                    if ($delivered === 0) {
+                        $credits->release($business, $reservation, 'outbound_delivery_failed');
+                        $charged = 0;
+                        $outcome = 'delivery_failed';
+                        $logMessage = 'AI reply delivery failed and credits were released.';
+                    } else {
+                        $charged = $credits->settle($business, $reservation, $actualCredits, ['outcome' => 'partial_delivery_failed']);
+                        $outcome = 'partial_delivery_failed';
+                        $logMessage = 'Part of the AI reply was delivered before the channel failed. Staff attention is required.';
+                    }
+
+                    $this->completeUsage($usage, $generation, $charged, [
+                        'outcome' => $outcome,
+                        'delivered_segments' => $delivered,
+                        'error' => ProviderError::message($deliveryException),
+                    ], 'delivery_failed');
+                    $this->log($conversation, 'ai_reply_delivery_failed', $logMessage);
+                    ProviderError::report($deliveryException, ['provider' => 'outbound']);
+
+                    return;
+                }
+
+                $messages->saveOutgoing($conversation, $segment, 'ai', [
+                    'provider' => $generation->provider,
+                    'model' => $generation->model,
+                    'confidence' => $generation->confidence,
+                    'intent' => $generation->intent,
+                    'segment' => $index + 1,
+                    'segment_count' => count($segments),
+                    'delivery' => $delivery,
+                ]);
+                $delivered++;
             }
 
             $charged = $credits->settle($business, $reservation, $actualCredits, ['outcome' => 'replied']);
-            $messages->saveOutgoing($conversation, $generation->reply, 'ai', [
-                'provider' => $generation->provider,
-                'model' => $generation->model,
-                'confidence' => $generation->confidence,
-                'intent' => $generation->intent,
-                'delivery' => $delivery,
+            $this->completeUsage($usage, $generation, $charged, [
+                'outcome' => 'replied',
+                'delivered_segments' => $delivered,
             ]);
-            $this->completeUsage($usage, $generation, $charged, ['outcome' => 'replied']);
             $this->log($conversation, 'ai_reply_sent', 'AI generated and sent a reply.');
         } catch (Throwable $exception) {
             $credits->release($business, $reservation, 'provider_failed');
             $usage->update([
                 'status' => 'failed',
-                'metadata' => array_merge($usage->metadata ?? [], ['error' => $exception->getMessage()]),
+                'metadata' => array_merge($usage->metadata ?? [], ['error' => ProviderError::message($exception)]),
             ]);
-            report($exception);
+            ProviderError::report($exception, ['provider' => config('ai.provider')]);
 
             throw $exception;
         }

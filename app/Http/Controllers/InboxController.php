@@ -11,6 +11,7 @@ use App\Services\GmailConnectionService;
 use App\Services\TelegramConnectionService;
 use App\Services\MetaConnectionService;
 use App\Support\InboxUi;
+use App\Support\ProviderError;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
@@ -284,18 +285,18 @@ class InboxController extends Controller
                     'telegram_attachment_responses' => $attachmentResponses,
                 ];
             } catch (ConnectionException $exception) {
-                report($exception);
+                ProviderError::report($exception, ['provider' => 'telegram']);
 
                 $this->logReplyFailure($business->id, $conversation, 'Telegram connection failed while sending reply.', [
-                    'error' => $exception->getMessage(),
+                    'error' => ProviderError::message($exception),
                 ]);
 
                 return back()->with('error', 'Reply saved locally, but Telegram could not be reached from this machine.');
             } catch (RequestException $exception) {
-                report($exception);
+                ProviderError::report($exception, ['provider' => 'telegram']);
 
                 $response = $exception->response?->json();
-                $telegramReason = $response['description'] ?? $exception->getMessage();
+                $telegramReason = ProviderError::message($response['description'] ?? $exception);
 
                 $this->logReplyFailure($business->id, $conversation, 'Telegram rejected the reply.', [
                     'telegram_response' => $response,
@@ -304,13 +305,13 @@ class InboxController extends Controller
 
                 return back()->with('error', 'Reply saved locally, but Telegram rejected it: '.$telegramReason);
             } catch (\Throwable $exception) {
-                report($exception);
+                ProviderError::report($exception, ['provider' => 'telegram']);
 
                 $this->logReplyFailure($business->id, $conversation, 'Telegram reply failed unexpectedly.', [
-                    'error' => $exception->getMessage(),
+                    'error' => ProviderError::message($exception),
                 ]);
 
-                return back()->with('error', 'Reply saved locally, but Telegram did not confirm delivery: '.$exception->getMessage());
+                return back()->with('error', 'Reply saved locally, but Telegram did not confirm delivery: '.ProviderError::message($exception));
             }
         }
 
@@ -326,18 +327,18 @@ class InboxController extends Controller
                     'gmail_label_ids' => $gmailResponse['labelIds'] ?? null,
                 ];
             } catch (ConnectionException $exception) {
-                report($exception);
+                ProviderError::report($exception, ['provider' => 'gmail']);
 
                 $this->logReplyFailure($business->id, $conversation, 'Gmail connection failed while sending reply.', [
-                    'error' => $exception->getMessage(),
+                    'error' => ProviderError::message($exception),
                 ]);
 
                 return back()->with('error', 'Reply saved locally, but Gmail could not be reached from this machine.');
             } catch (RequestException $exception) {
-                report($exception);
+                ProviderError::report($exception, ['provider' => 'gmail']);
 
                 $response = $exception->response?->json();
-                $gmailReason = $response['error']['message'] ?? $exception->getMessage();
+                $gmailReason = ProviderError::message($response['error']['message'] ?? $exception);
 
                 $this->logReplyFailure($business->id, $conversation, 'Gmail rejected the reply.', [
                     'gmail_response' => $response,
@@ -346,13 +347,13 @@ class InboxController extends Controller
 
                 return back()->with('error', 'Reply saved locally, but Gmail rejected it: '.$gmailReason);
             } catch (\Throwable $exception) {
-                report($exception);
+                ProviderError::report($exception, ['provider' => 'gmail']);
 
                 $this->logReplyFailure($business->id, $conversation, 'Gmail reply failed unexpectedly.', [
-                    'error' => $exception->getMessage(),
+                    'error' => ProviderError::message($exception),
                 ]);
 
-                return back()->with('error', 'Reply saved locally, but Gmail did not confirm delivery: '.$exception->getMessage());
+                return back()->with('error', 'Reply saved locally, but Gmail did not confirm delivery: '.ProviderError::message($exception));
             }
         }
 
@@ -364,8 +365,8 @@ class InboxController extends Controller
                     'whatsapp_message_id' => $metaResponse['messages'][0]['id'] ?? null,
                 ];
             } catch (\Throwable $exception) {
-                report($exception);
-                $this->logReplyFailure($business->id, $conversation, 'Meta rejected the WhatsApp reply.', ['error' => $exception->getMessage()]);
+                ProviderError::report($exception, ['provider' => 'meta']);
+                $this->logReplyFailure($business->id, $conversation, 'Meta rejected the WhatsApp reply.', ['error' => ProviderError::message($exception)]);
 
                 return back()->with('error', 'Reply saved locally, but Meta did not confirm WhatsApp delivery.');
             }
@@ -382,8 +383,8 @@ class InboxController extends Controller
                     'meta_recipient_id' => $metaResponse['recipient_id'] ?? null,
                 ];
             } catch (\Throwable $exception) {
-                report($exception);
-                $this->logReplyFailure($business->id, $conversation, 'Meta rejected the '.$conversation->channel.' reply.', ['error' => $exception->getMessage()]);
+                ProviderError::report($exception, ['provider' => 'meta']);
+                $this->logReplyFailure($business->id, $conversation, 'Meta rejected the '.$conversation->channel.' reply.', ['error' => ProviderError::message($exception)]);
 
                 return back()->with('error', 'Reply saved locally, but Meta did not confirm '.$conversation->channel.' delivery.');
             }

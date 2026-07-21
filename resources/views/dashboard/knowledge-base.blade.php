@@ -4,10 +4,10 @@
         $textareaClass = 'w-full resize-y rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm font-medium leading-6 text-[#111827] placeholder:text-[#6B7280] focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20';
         $labelClass = 'text-xs font-bold uppercase tracking-[0.12em] text-[#6B7280]';
         $tabs = [
-            'faqs' => ['label' => 'FAQs', 'count' => $faqs->count(), 'title' => 'FAQs', 'description' => 'Common questions and approved answers.'],
-            'products' => ['label' => 'Services', 'count' => $products->count(), 'title' => 'Products and services', 'description' => 'Offers, pricing, availability, and reply guidance.'],
-            'rules' => ['label' => 'Policies', 'count' => $rules->count(), 'title' => 'Business policies', 'description' => 'Facts and limits the assistant must follow.'],
-            'saved-replies' => ['label' => 'Team replies', 'count' => $savedReplies->count(), 'title' => 'Team saved replies', 'description' => 'Manual shortcuts for staff. These are not used to train the AI assistant.'],
+            'faqs' => ['label' => 'FAQs', 'count' => $sectionCounts['faqs'], 'title' => 'FAQs', 'description' => 'Common questions and approved answers.'],
+            'products' => ['label' => 'Services', 'count' => $sectionCounts['products'], 'title' => 'Products and services', 'description' => 'Offers, pricing, availability, and reply guidance.'],
+            'rules' => ['label' => 'Policies', 'count' => $sectionCounts['rules'], 'title' => 'Business policies', 'description' => 'Facts and limits the assistant must follow.'],
+            'saved-replies' => ['label' => 'Team replies', 'count' => $sectionCounts['saved-replies'], 'title' => 'Team saved replies', 'description' => 'Manual shortcuts for staff. These are not used to train the AI assistant.'],
         ];
         $ruleTypeOptions = ['pricing' => 'Pricing', 'availability' => 'Availability', 'policy' => 'Policy', 'other' => 'Other'];
         $section = $tabs[$activeSection] ?? $tabs['faqs'];
@@ -228,6 +228,9 @@
                     <p class="px-4 py-5 text-sm text-[#6B7280] sm:px-5">No saved replies yet.</p>
                 @endforelse
             </div>
+        @endif
+        @if ($activeItems->hasPages())
+            <div class="border-t border-[#E5E7EB] px-4 py-4 sm:px-5">{{ $activeItems->links() }}</div>
         @endif
     </section>
 </x-app-layout>

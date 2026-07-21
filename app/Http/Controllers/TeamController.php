@@ -17,8 +17,8 @@ class TeamController extends Controller
         $business = $request->attributes->get('currentBusiness');
 
         return view('dashboard.team', [
-            'members' => $business->users()->orderBy('name')->get(),
-            'invites' => TeamInvite::where('business_id', $business->id)->latest()->get(),
+            'members' => $business->users()->orderBy('name')->paginate(50, ['users.*'], 'members_page')->withQueryString(),
+            'invites' => TeamInvite::where('business_id', $business->id)->latest()->paginate(50, ['*'], 'invites_page')->withQueryString(),
             'canManageAdmins' => $request->user()->hasWorkspaceRole($business, 'owner'),
         ]);
     }

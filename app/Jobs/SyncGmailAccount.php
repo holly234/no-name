@@ -6,6 +6,7 @@ use App\Models\AutomationLog;
 use App\Models\ConnectedAccount;
 use App\Services\GmailConnectionService;
 use App\Support\QueueName;
+use App\Support\ProviderError;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -44,7 +45,7 @@ class SyncGmailAccount implements ShouldQueue
                 $this->mailbox
             ) + ['status' => 'processed'];
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'gmail', 'account_id' => $this->accountId]);
 
             AutomationLog::create([
                 'business_id' => $account->business_id,
@@ -54,7 +55,7 @@ class SyncGmailAccount implements ShouldQueue
                 'message' => 'Gmail sync job failed.',
                 'metadata' => [
                     'mailbox' => $this->mailbox,
-                    'error' => $exception->getMessage(),
+                    'error' => ProviderError::message($exception),
                 ],
             ]);
 

@@ -3,8 +3,10 @@
         @foreach ([
             ['Pending queue jobs', $pendingJobs, $pendingJobs > 100 ? 'warning' : 'healthy'],
             ['Failed queue jobs', $failedJobs, $failedJobs > 0 ? 'attention needed' : 'healthy'],
+            ['Stale reserved jobs', $staleReservedJobs, $staleReservedJobs > 0 ? 'worker may be stuck' : 'healthy'],
             ['Errors in 24 hours', $recentErrors, $recentErrors > 0 ? 'review logs' : 'healthy'],
             ['Expired connections', $expiredConnections, $expiredConnections > 0 ? 'reconnect required' : 'healthy'],
+            ['Disconnected accounts', $disconnectedAccounts, $disconnectedAccounts > 0 ? 'review accounts' : 'healthy'],
         ] as [$label, $value, $state])
             <div class="fi-section" style="padding:1.25rem;border-radius:1rem">
                 <div style="font-size:.8rem;color:#9ca3af">{{ $label }}</div>

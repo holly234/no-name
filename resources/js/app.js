@@ -8,11 +8,36 @@ import * as FilePond from 'filepond';
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 import FilePondPluginFileValidateSize from 'filepond-plugin-file-validate-size';
+import { siFacebook, siGmail, siInstagram, siTelegram, siWhatsapp } from 'simple-icons';
 import 'plyr/dist/plyr.css';
 import 'filepond/dist/filepond.min.css';
 import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
 
 window.Alpine = Alpine;
+
+const landingPlatformIcons = {
+    facebook: siFacebook,
+    gmail: siGmail,
+    instagram: siInstagram,
+    telegram: siTelegram,
+    whatsapp: siWhatsapp,
+};
+
+function renderLandingPlatformIcons() {
+    document.querySelectorAll('[data-platform-icon]').forEach((element) => {
+        const icon = landingPlatformIcons[element.dataset.platformIcon];
+        if (!icon) return;
+
+        element.style.color = `#${icon.hex}`;
+        element.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" class="h-full w-full"><path d="${icon.path}"/></svg>`;
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderLandingPlatformIcons, { once: true });
+} else {
+    renderLandingPlatformIcons();
+}
 
 let metaSdkPromise;
 window.metaEmbeddedSignup = (appId, configId, graphVersion, endpoint, csrf, nonce) => ({

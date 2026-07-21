@@ -44,6 +44,9 @@
                         </div>
                     @endforeach
                 </div>
+                @if ($members->hasPages())
+                    <div class="border-t border-[#E5E7EB] px-5 py-4">{{ $members->links() }}</div>
+                @endif
             </article>
 
             <article class="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
@@ -83,6 +86,9 @@
                     <div class="rounded-xl border border-dashed border-[#D1D5DB] py-8 text-center text-sm text-[#6B7280]">No invitations yet.</div>
                 @endforelse
             </div>
+            @if ($invites->hasPages())
+                <div class="mt-4">{{ $invites->links() }}</div>
+            @endif
         </section>
     </div>
 </x-app-layout>

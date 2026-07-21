@@ -8,6 +8,7 @@ use App\Models\ConnectedAccount;
 use App\Services\GmailConnectionService;
 use App\Services\MetaConnectionService;
 use App\Services\TelegramConnectionService;
+use App\Support\ProviderError;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -123,13 +124,13 @@ class ConnectedAccountController extends Controller
                 ->route('dashboard.accounts')
                 ->with('error', $exception->getMessage());
         } catch (ConnectionException $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'gmail']);
 
             return redirect()
                 ->route('dashboard.accounts')
                 ->with('error', 'Gmail connection failed because this machine could not reach Google OAuth. Check firewall, proxy, VPN, or network access to oauth2.googleapis.com:443.');
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'gmail']);
 
             return redirect()
                 ->route('dashboard.accounts')
@@ -158,7 +159,7 @@ class ConnectedAccountController extends Controller
         try {
             $result = $gmailConnectionService->syncRecentInboxMessages($account, mailbox: $mailbox);
         } catch (ConnectionException $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'gmail']);
 
             AutomationLog::create([
                 'business_id' => $business->id,
@@ -170,7 +171,7 @@ class ConnectedAccountController extends Controller
 
             return back()->with('error', 'Gmail sync failed because this machine could not reach Google Gmail API. Check firewall, proxy, VPN, or network access to gmail.googleapis.com:443.');
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'gmail']);
 
             AutomationLog::create([
                 'business_id' => $business->id,
@@ -231,7 +232,7 @@ class ConnectedAccountController extends Controller
         try {
             $webhook = $telegramConnectionService->registerWebhook($account);
         } catch (ConnectionException $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'telegram']);
 
             $account->forceFill([
                 'provider_meta' => array_merge($account->provider_meta ?? [], [
@@ -242,7 +243,7 @@ class ConnectedAccountController extends Controller
 
             return back()->with('error', 'Telegram account saved, but this machine could not reach Telegram to register the webhook.');
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'telegram']);
 
             $account->forceFill([
                 'provider_meta' => array_merge($account->provider_meta ?? [], [
@@ -281,7 +282,7 @@ class ConnectedAccountController extends Controller
                 $validated['phone_number_id'],
             );
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'meta']);
 
             return back()->with('error', 'WhatsApp connection failed. Check the Meta app configuration and try again.');
         } finally {
@@ -336,9 +337,9 @@ class ConnectedAccountController extends Controller
                 subscribe: (bool) ($validated['subscribe_webhooks'] ?? true),
             );
         } catch (\Throwable $exception) {
-            report($exception);
+            ProviderError::report($exception, ['provider' => 'meta']);
 
-            return back()->with('error', 'Meta rejected the development connection: '.$exception->getMessage())
+            return back()->with('error', 'Meta rejected the development connection. Check the account details and try again.')
                 ->withInput($request->except('access_token'));
         }
 
@@ -364,7 +365,7 @@ class ConnectedAccountController extends Controller
             try {
                 $telegramConnectionService->forgetWebhook($account);
             } catch (\Throwable $exception) {
-                report($exception);
+                ProviderError::report($exception, ['provider' => strtolower($account->platform)]);
             }
         }
 

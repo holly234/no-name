@@ -21,11 +21,22 @@ class KnowledgeBaseController extends Controller
             $activeSection = 'faqs';
         }
 
+        $queries = [
+            'faqs' => Faq::where('business_id', $business->id)->latest(),
+            'products' => Product::where('business_id', $business->id)->latest(),
+            'rules' => BusinessRule::where('business_id', $business->id)->latest(),
+            'saved-replies' => SavedReply::where('business_id', $business->id)->latest(),
+        ];
+        $sectionCounts = collect($queries)->map(fn ($query) => (clone $query)->count());
+        $activeItems = $queries[$activeSection]->paginate(25)->withQueryString();
+
         return view('dashboard.knowledge-base', [
-            'faqs' => Faq::where('business_id', $business->id)->latest()->get(),
-            'products' => Product::where('business_id', $business->id)->latest()->get(),
-            'rules' => BusinessRule::where('business_id', $business->id)->latest()->get(),
-            'savedReplies' => SavedReply::where('business_id', $business->id)->latest()->get(),
+            'faqs' => $activeSection === 'faqs' ? $activeItems : collect(),
+            'products' => $activeSection === 'products' ? $activeItems : collect(),
+            'rules' => $activeSection === 'rules' ? $activeItems : collect(),
+            'savedReplies' => $activeSection === 'saved-replies' ? $activeItems : collect(),
+            'sectionCounts' => $sectionCounts,
+            'activeItems' => $activeItems,
             'activeSection' => $activeSection,
         ]);
     }

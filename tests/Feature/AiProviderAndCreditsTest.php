@@ -16,6 +16,7 @@ use App\Models\ConnectedAccount;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
+use App\Models\MessageAttachment;
 use App\Models\User;
 use App\Services\AiCreditLedgerService;
 use App\Services\AiPromptBuilder;
@@ -25,6 +26,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AiProviderAndCreditsTest extends TestCase
@@ -158,6 +160,99 @@ class AiProviderAndCreditsTest extends TestCase
             'credits_used' => 2,
         ]);
         $this->assertSame(98, AiCreditWallet::where('business_id', $business->id)->value('balance'));
+    }
+
+    public function test_ai_job_delivers_a_natural_two_part_chat_reply_as_two_messages(): void
+    {
+        [$business, $conversation, $incoming] = $this->conversation();
+        app(AiCreditLedgerService::class)->grant($business, 100, 'Beta grant');
+        $this->app->instance(AiProvider::class, new class implements AiProvider
+        {
+            public function generate(AiPrompt $prompt): AiGeneration
+            {
+                return new AiGeneration(
+                    reply: 'Yes, we offer interior detailing.|||What day would you like to come in?',
+                    state: Conversation::STATE_WAITING,
+                    confidence: 0.95,
+                    requiresHuman: false,
+                    reason: null,
+                    intent: 'booking',
+                    provider: 'gemini',
+                    model: 'gemini-3.1-flash-lite',
+                    inputTokens: 100,
+                    outputTokens: 20,
+                    providerCostUsd: 0,
+                    latencyMs: 90,
+                );
+            }
+        });
+
+        app()->call([new ProcessAiReply($incoming->id), 'handle']);
+
+        $replies = $conversation->messages()->where('sender_type', 'ai')->orderBy('id')->pluck('body')->all();
+        $this->assertSame([
+            'Yes, we offer interior detailing.',
+            'What day would you like to come in?',
+        ], $replies);
+    }
+
+    public function test_ai_job_transcribes_a_voice_note_and_uses_it_as_the_customer_message(): void
+    {
+        config([
+            'ai.providers.gemini.api_key' => 'test-key',
+            'ai.providers.gemini.model' => 'gemini-3.1-flash-lite',
+        ]);
+        Storage::fake('local');
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'Can I book for Friday morning?']]]]],
+            ]),
+        ]);
+        [$business, $conversation, $incoming] = $this->conversation();
+        $incoming->update(['body' => '[Voice note]']);
+        Storage::disk('local')->put('voice/test.ogg', 'fake-audio');
+        MessageAttachment::create([
+            'message_id' => $incoming->id,
+            'business_id' => $business->id,
+            'provider' => 'telegram',
+            'provider_attachment_id' => 'voice-file-1',
+            'filename' => 'voice.ogg',
+            'mime_type' => 'audio/ogg',
+            'size' => 10,
+            'disk' => 'local',
+            'storage_path' => 'voice/test.ogg',
+            'metadata' => ['media_type' => 'voice'],
+        ]);
+        app(AiCreditLedgerService::class)->grant($business, 100, 'Beta grant');
+        $this->app->instance(AiProvider::class, new class implements AiProvider
+        {
+            public function generate(AiPrompt $prompt): AiGeneration
+            {
+                if (! str_contains($prompt->message, 'Can I book for Friday morning?')) {
+                    throw new \RuntimeException('The transcript was not passed to the AI prompt.');
+                }
+
+                return new AiGeneration(
+                    reply: 'Yes. What time on Friday morning?',
+                    state: Conversation::STATE_WAITING,
+                    confidence: 0.9,
+                    requiresHuman: false,
+                    reason: null,
+                    intent: 'booking',
+                    provider: 'gemini',
+                    model: 'gemini-3.1-flash-lite',
+                    inputTokens: 100,
+                    outputTokens: 12,
+                    providerCostUsd: 0,
+                    latencyMs: 80,
+                );
+            }
+        });
+
+        app()->call([new ProcessAiReply($incoming->id), 'handle']);
+
+        $this->assertSame('Can I book for Friday morning?', $incoming->fresh()->metadata['transcription']);
+        Http::assertSent(fn ($request) => data_get($request->data(), 'contents.0.parts.1.inlineData.mimeType') === 'audio/ogg');
     }
 
     public function test_ai_job_sends_the_generated_acknowledgement_before_handover(): void
