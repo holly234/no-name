@@ -18,6 +18,7 @@ use App\Http\Controllers\WorkspaceController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', LandingController::class)->name('landing');
+Route::view('/products/instagram', 'marketing.instagram')->name('marketing.instagram');
 Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
 Route::get('/data-deletion', [LegalController::class, 'dataDeletion'])->name('legal.data-deletion');
