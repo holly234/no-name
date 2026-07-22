@@ -183,7 +183,7 @@
                 <div class="mega-products">
                     <a class="mega-product" href="{{ route('marketing.instagram') }}"><span class="channel-badge"><span class="platform-icon" data-platform-icon="instagram"></span></span><strong>Instagram</strong><span>Automate your Instagram conversations</span></a>
                     <a class="mega-product" href="#product"><span class="channel-badge" style="color:#18bf54"><span class="platform-icon" data-platform-icon="whatsapp"></span></span><strong>WhatsApp</strong><span>Connect with customers instantly</span></a>
-                    <a class="mega-product" href="#product"><span class="channel-badge" style="color:#4458d8">✦</span><strong>Messenger</strong><span>Bring Facebook messages together</span></a>
+                    <a class="mega-product" href="{{ route('marketing.facebook') }}"><span class="channel-badge"><span class="platform-icon" data-platform-icon="facebook"></span></span><strong>Messenger</strong><span>Bring Facebook messages together</span></a>
                     <a class="mega-product" href="#product"><span class="channel-badge" style="background:#111;color:#fff">♪</span><strong>TikTok</strong><span>Turn conversations into momentum</span></a>
                     <a class="mega-product" href="#ai"><span class="channel-badge" style="background:#ff6c4f;color:#fff">✦</span><strong>MYinboxLAB AI</strong><span>A smarter way to handle your inbox</span></a>
                 </div>
