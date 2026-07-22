@@ -16,9 +16,10 @@ class ExampleTest extends TestCase
 
         $response
             ->assertStatus(200)
-            ->assertSee('Your customer conversations, finally under control.')
-            ->assertSee('marketing-shell', false)
+            ->assertSee('Every inbox.')
+            ->assertSee('site', false)
             ->assertSee('Live workspace')
+            ->assertSee('perpetual-hero-wide.png', false)
             ->assertDontSee('app-sidebar', false);
     }
 }

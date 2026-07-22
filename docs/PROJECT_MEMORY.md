@@ -806,3 +806,9 @@ Direction update on 2026-07-16:
   - Reduced setup further to one automatic-reply switch. Name, tone, hours, acknowledgement, escalation guidance, structured business knowledge, and team saved replies are all optional customization.
   - AI handover is engagement-safe: `ProcessAiReply` delivers and stores Gemini's acknowledgement before setting `Needs Human`. If Gemini returns no text, workspace fallback copy or a safe built-in acknowledgement is sent, so escalation never intentionally leaves the customer in silence.
   - `ai:recover-unanswered` runs every minute and requeues stale unanswered messages only when auto reply remains enabled and `ai_mode=auto`. Human-controlled chats are excluded, and a ten-minute per-message lock prevents duplicate recovery dispatches.
+
+## Marketing site visual direction (2026-07-22)
+
+- The public marketing site is branded `MYinboxLAB` and uses Bricolage Grotesque as its primary font across base marketing copy, hero, section headings, navigation brand, menus, comparison cards, and supporting taglines. DM Sans remains only as a fallback.
+- The mobile hero/header uses a full-viewport image, a compact top navigation, a smooth full-screen menu sweep, and a deliberately slow wordmark collapse to `MIB`; no chat bubbles are part of the mobile hero.
+- The before/after section follows the channel marquee. Its red accent is a Lucide-style sparkles illustration inside a coral circle, not a placeholder lightning glyph. The section headline uses the same Bricolage Grotesque display treatment.
