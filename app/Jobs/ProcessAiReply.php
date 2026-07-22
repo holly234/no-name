@@ -35,6 +35,9 @@ class ProcessAiReply implements ShouldQueue
     )
     {
         $this->onQueue(QueueName::AI);
+        // Give customers a short pause to finish sending a thought split across
+        // several bubbles before the assistant generates its reply.
+        $this->delay(now()->addSeconds(6));
     }
 
     public function handle(
@@ -53,6 +56,17 @@ class ProcessAiReply implements ShouldQueue
 
         $conversation = $incoming->conversation;
         $business = $conversation->business;
+
+        if (! $this->recovery) {
+            $newerIncoming = $conversation->messages()
+                ->where('direction', 'incoming')
+                ->where('id', '>', $incoming->id)
+                ->exists();
+
+            if ($newerIncoming) {
+                return;
+            }
+        }
 
         $recoverableHandover = $this->recovery && $conversation->status === Conversation::STATE_NEEDS_HUMAN;
 

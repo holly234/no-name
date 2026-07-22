@@ -3,6 +3,8 @@ import './bootstrap';
 import Alpine from 'alpinejs';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Plyr from 'plyr';
 import * as FilePond from 'filepond';
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
@@ -12,6 +14,8 @@ import { siFacebook, siGmail, siInstagram, siTelegram, siWhatsapp } from 'simple
 import 'plyr/dist/plyr.css';
 import 'filepond/dist/filepond.min.css';
 import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
+
+gsap.registerPlugin(ScrollTrigger);
 
 window.Alpine = Alpine;
 
@@ -33,10 +37,93 @@ function renderLandingPlatformIcons() {
     });
 }
 
+function initializeProductEcosystem() {
+    const section = document.querySelector('.pes-root');
+    if (!section || section.dataset.initialized) return;
+    section.dataset.initialized = 'true';
+    const blocks = [...section.querySelectorAll('.pes-stage-block')];
+    const nav = [...section.querySelectorAll('.pes-nav span')];
+    const bubble = section.querySelector('.pes-bubble');
+    const bubbleChannel = section.querySelector('.pes-bubble-channel');
+    const bubbleText = section.querySelector('.pes-bubble-text');
+    const bubbleTime = section.querySelector('.pes-bubble-time');
+    const channelPills = [...section.querySelectorAll('.pes-channel-pill')];
+    const channelStories = [
+        ['Instagram', 'Hey, do you have this in black?', '10:42 AM', 'Turn Instagram interest into qualified enquiries.', 'Bring comments and DMs into one view, answer product questions quickly, and hand serious buyers to your team with the full conversation attached.'],
+        ['WhatsApp', 'Can I book this for Saturday?', '10:44 AM', 'Move WhatsApp customers from question to booking.', 'Keep fast-moving chats organised, collect the details your business needs, and let your team take over when a customer is ready to proceed.'],
+        ['Facebook', 'How much is delivery to Lekki?', '10:47 AM', 'Keep Facebook enquiries from disappearing.', 'Bring Messenger conversations into the same workspace, identify buying intent, and follow up before an interested customer goes cold.'],
+        ['Telegram', 'Is the premium package still available?', '10:51 AM', 'Give Telegram customers a clear next step.', 'Respond with useful business information, keep customer context together, and route valuable conversations to the right teammate.'],
+        ['Gmail', 'Please send me the full quote.', '10:56 AM', 'Turn important emails into visible opportunities.', 'Separate genuine customer enquiries from inbox noise, preserve the complete email history, and make every follow-up easier to own.'],
+    ];
+    const stageList = section.querySelector('.pes-stage-list');
+    if (stageList && blocks.length < channelStories.length) {
+        channelStories.slice(blocks.length).forEach((story, offset) => {
+            const block = document.createElement('div');
+            block.className = 'pes-stage-block';
+            block.innerHTML = `<span class="pes-stage-num">0${blocks.length + offset + 1}</span><div><p class="pes-stage-title">${story[0]} channel</p><p class="pes-stage-copy">The conversation moves towards a useful next step.</p></div>`;
+            stageList.appendChild(block);
+        });
+        blocks.push(...stageList.querySelectorAll('.pes-stage-block:nth-last-child(-n+2)'));
+    }
+    blocks.forEach((block, index) => {
+        const story = channelStories[index];
+        if (!story) return;
+        const title = block.querySelector('.pes-stage-title');
+        const copy = block.querySelector('.pes-stage-copy');
+        if (title) title.textContent = story[3];
+        if (copy) copy.textContent = story[4];
+    });
+    if (!blocks.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        section.classList.add('is-visible');
+        return;
+    }
+    gsap.set(blocks, { autoAlpha: 0, y: 18 });
+    gsap.set(bubble, { autoAlpha: 0, x: -35, y: -20 });
+    gsap.set(blocks[0], { autoAlpha: 1, y: 0 });
+    gsap.set(bubble, { autoAlpha: 1, x: 0, y: 0 });
+    const timeline = gsap.timeline({
+        scrollTrigger: {
+            trigger: section,
+            start: 'top top',
+            end: '+=260%',
+            scrub: 1.2,
+            pin: window.matchMedia('(min-width: 900px)').matches,
+            anticipatePin: 1,
+            invalidateOnRefresh: true,
+        },
+    });
+    timeline.to(bubble, { autoAlpha: 1, x: 0, y: 0, duration: .8, ease: 'power2.out' });
+    blocks.forEach((block, index) => {
+        const story = channelStories[index % channelStories.length];
+        if (index > 0) {
+            timeline.to(bubble, { autoAlpha: .15, y: -10, scale: .985, duration: .32, ease: 'power1.inOut' }, '>-0.05');
+        }
+        timeline.to(block, { autoAlpha: 1, y: 0, duration: .55, ease: 'power2.out', onStart: () => {
+            nav.forEach((item, itemIndex) => item.classList.toggle('is-active', itemIndex === index));
+            channelPills.forEach((pill, pillIndex) => pill.classList.toggle('pes-active', pillIndex === index));
+        } }, '>-0.1');
+        timeline.call(() => {
+            if (!story) return;
+            if (bubbleChannel) bubbleChannel.textContent = story[0];
+            if (bubbleText) bubbleText.textContent = story[1];
+            if (bubbleTime) bubbleTime.textContent = story[2];
+            channelPills.forEach((pill) => pill.classList.toggle('pes-active', pill.textContent.trim() === story[0]));
+        }, [], '<');
+        if (index > 0) {
+            timeline.to(bubble, { autoAlpha: 1, y: 0, scale: 1, duration: .48, ease: 'power2.out' }, '>');
+        }
+        if (index < blocks.length - 1) timeline.to(block, { autoAlpha: 0, y: -12, duration: .4, onComplete: () => nav[index]?.classList.remove('is-active') }, '+=.45');
+    });
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', renderLandingPlatformIcons, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+        renderLandingPlatformIcons();
+        initializeProductEcosystem();
+    }, { once: true });
 } else {
     renderLandingPlatformIcons();
+    initializeProductEcosystem();
 }
 
 let metaSdkPromise;

@@ -153,6 +153,9 @@
         }
         @media(max-width:420px){.wrap{width:calc(100% - 24px)}header .wrap,.hero .wrap{width:calc(100% - 32px)}.hero-copy h1{font-size:3.2rem}.footer-links{grid-template-columns:1fr}.channel-pill{font-size:.76rem}}
         .mobile-menu-links .mobile-menu-group>button,.mobile-menu-links .mobile-menu-direct{font-family:'Bricolage Grotesque','DM Sans',sans-serif!important;font-size:.95rem!important;font-weight:500!important;letter-spacing:-.01em!important}
+        .pes-root{background:#e7ff3f;color:#0a0a0a;overflow:hidden}.pes-pin{min-height:100vh;padding:110px 0 75px}.pes-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:9%;align-items:center}.pes-headline{max-width:720px;margin:12px 0 24px;font-size:clamp(4rem,6.7vw,7.6rem);line-height:.82;letter-spacing:-.075em}.pes-sub{max-width:540px;font-size:1.08rem;line-height:1.6}.pes-stage{position:relative}.pes-bubble{position:absolute;z-index:2;left:-70px;top:-45px;width:230px;padding:17px;background:#fff;border-radius:14px;box-shadow:7px 7px 0 #0a0a0a}.pes-bubble p{margin:0}.pes-bubble-channel{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;opacity:.55}.pes-bubble-text{padding:8px 0;font-weight:700}.pes-bubble-time{font-size:.68rem;opacity:.5}.pes-card{min-height:430px;padding:34px;border-radius:24px;background:#0a0a0a;color:#fff}.pes-card-label{margin:0 0 25px;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;opacity:.55}.pes-channels{display:flex;gap:8px;flex-wrap:wrap}.pes-channel-pill{padding:7px 11px;border:1px solid #555;border-radius:999px;font-size:.7rem}.pes-channel-pill:first-child{background:#e7ff3f;border-color:#e7ff3f;color:#111}.pes-stage-list{margin-top:42px}.pes-stage-block{display:grid;grid-template-columns:42px 1fr;gap:18px;padding:20px 0;border-top:1px solid #333}.pes-stage-num{color:#e7ff3f;font-size:.75rem}.pes-stage-title{margin:0 0 4px;font-size:1.05rem;font-weight:700}.pes-stage-copy{margin:0;color:#aaa;font-size:.9rem}.pes-nav{display:flex;gap:38px;margin-top:60px;padding-top:18px;border-top:1px solid rgba(0,0,0,.2);font-size:.75rem;font-weight:700}.pes-nav span{opacity:.45}.pes-nav span:first-child{opacity:1}.pes-root.is-visible .pes-card{animation:pes-rise .8s cubic-bezier(.22,1,.36,1) both}.pes-root.is-visible .pes-bubble{animation:pes-rise .8s .15s cubic-bezier(.22,1,.36,1) both}@keyframes pes-rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}@media(max-width:899px){.pes-pin{min-height:auto;padding:85px 0}.pes-grid{grid-template-columns:1fr;gap:65px}.pes-headline{font-size:clamp(3.5rem,14vw,5rem)}.pes-bubble{position:relative;left:0;top:0;margin-bottom:18px}.pes-card{min-height:auto;padding:25px 20px}.pes-nav{display:none}}
+        .pes-bubble{z-index:8;left:-105px;top:-78px;border:2px solid #0a0a0a;border-radius:18px;box-shadow:10px 10px 0 #0a0a0a}.pes-bubble::after{content:'';position:absolute;right:18px;bottom:-15px;width:24px;height:24px;background:#fff;border-right:2px solid #0a0a0a;border-bottom:2px solid #0a0a0a;transform:skewY(25deg) rotate(35deg)}.pes-card{position:relative;z-index:1}.pes-bubble-channel{color:#666}@media(max-width:899px){.pes-bubble{left:0;top:0;margin-bottom:28px}}
+        .pes-card{min-height:300px;height:auto}.pes-stage-list{margin-top:30px}.pes-stage-block{padding:14px 0}.pes-card-label{margin-bottom:18px}
     </style>
 </head>
 @php
@@ -286,6 +289,33 @@
                 </div>
             </div>
         </section>
+
+        <section class="pes-root" id="ecosystem">
+            <div class="pes-pin"><div class="wrap"><div class="pes-grid">
+                <div><div class="eyebrow">MYinboxLAB ecosystem</div><h2 class="pes-headline display">Everything that happens after “hello.”</h2><p class="pes-sub">From the first message to the final reply, MYinboxLAB helps your team move every customer conversation forward.</p></div>
+                <div class="pes-stage"><div class="pes-bubble"><p class="pes-bubble-channel">Instagram</p><p class="pes-bubble-text">Hey, do you have this in black?</p><p class="pes-bubble-time">10:42 AM</p></div><div class="pes-card"><p class="pes-card-label">MYinboxLAB</p><div class="pes-channels"><span class="pes-channel-pill"><i class="platform-icon" data-platform-icon="instagram"></i>Instagram</span><span class="pes-channel-pill"><i class="platform-icon" data-platform-icon="whatsapp"></i>WhatsApp</span><span class="pes-channel-pill"><i class="platform-icon" data-platform-icon="facebook"></i>Facebook</span><span class="pes-channel-pill"><i class="platform-icon" data-platform-icon="telegram"></i>Telegram</span><span class="pes-channel-pill"><i class="platform-icon" data-platform-icon="gmail"></i>Gmail</span></div><div class="pes-stage-list"><div class="pes-stage-block"><span class="pes-stage-num">01</span><div><p class="pes-stage-title">Unified inbox</p><p class="pes-stage-copy">Every conversation arrives in one place.</p></div></div><div class="pes-stage-block"><span class="pes-stage-num">02</span><div><p class="pes-stage-title">Understood and organised</p><p class="pes-stage-copy">Context stays attached and buying intent stays visible.</p></div></div><div class="pes-stage-block"><span class="pes-stage-num">03</span><div><p class="pes-stage-title">Moved to the right person</p><p class="pes-stage-copy">Your team takes over when judgment matters.</p></div></div></div></div></div>
+            </div><div class="pes-nav"><span>Unified inbox</span><span>Conversation context</span><span>Team handover</span><span>Clear outcomes</span></div></div></div>
+        </section>
+
+        <style>
+            .pes-root .pes-stage{padding-top:105px}
+            .pes-root .pes-card{min-height:0;height:380px;padding:28px 32px;overflow:visible}
+            .pes-root .pes-channel-pill:first-child{background:transparent;border-color:#555;color:#fff}
+            .pes-root .pes-channel-pill.pes-active{background:#e7ff3f;border-color:#e7ff3f;color:#111}
+            .pes-root .pes-channel-pill{transition:background-color .55s cubic-bezier(.22,1,.36,1),border-color .55s ease,color .45s ease,transform .55s cubic-bezier(.22,1,.36,1)}
+            .pes-root .pes-channel-pill.pes-active{transform:translateY(-2px)}
+            .pes-root .pes-stage-num{display:none}
+            .pes-root .pes-stage-block{grid-template-columns:1fr}
+            .pes-root .pes-stage-title{max-width:430px;font-size:1.25rem;line-height:1.15}
+            .pes-root .pes-stage-copy{max-width:460px;margin-top:10px;line-height:1.55}
+            .pes-root .eyebrow{font-family:'Bricolage Grotesque','DM Sans',sans-serif;font-size:.9rem;font-weight:700;letter-spacing:-.02em;text-transform:none}
+            .pes-root .pes-channel-pill{display:inline-flex;align-items:center;gap:7px}.pes-root .pes-channel-pill .platform-icon{display:inline-flex;width:14px;height:14px}
+            .pes-root .pes-stage-list{position:relative;height:125px;margin-top:24px}
+            .pes-root .pes-stage-block{position:absolute;inset:0;padding:12px 0;border-top:1px solid #333}
+            .pes-root .pes-stage-block:first-child{opacity:1;transform:none}
+            .pes-root .pes-bubble{top:0;left:-35px}
+            @media(max-width:899px){.pes-root .pes-stage{padding-top:0}.pes-root .pes-card{height:auto;min-height:340px}.pes-root .pes-stage-list{height:135px}.pes-root .pes-bubble{top:0;left:0}}
+        </style>
 
         <section class="faq" id="faq">
             <div class="wrap">

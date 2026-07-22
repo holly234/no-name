@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'current.business' => \App\Http\Middleware\EnsureCurrentBusiness::class,
             'workspace.role' => \App\Http\Middleware\RequireWorkspaceRole::class,
         ]);
+        $middleware->append(\App\Http\Middleware\LogoutAfterInactivity::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
