@@ -41,6 +41,7 @@ function initializeProductEcosystem() {
     const section = document.querySelector('.pes-root');
     if (!section || section.dataset.initialized) return;
     section.dataset.initialized = 'true';
+    const isMobile = window.matchMedia('(max-width: 899px)').matches;
     const blocks = [...section.querySelectorAll('.pes-stage-block')];
     const nav = [...section.querySelectorAll('.pes-nav span')];
     const bubble = section.querySelector('.pes-bubble');
@@ -84,10 +85,10 @@ function initializeProductEcosystem() {
     const timeline = gsap.timeline({
         scrollTrigger: {
             trigger: section,
-            start: 'top top',
+            start: isMobile ? 'bottom bottom' : 'top top',
             end: '+=260%',
             scrub: 1.2,
-            pin: window.matchMedia('(min-width: 900px)').matches,
+            pin: true,
             anticipatePin: 1,
             invalidateOnRefresh: true,
         },
