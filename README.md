@@ -1,4 +1,4 @@
-# Perpetual Inbox AI
+# MYinboxLAB
 
 Perpetual Inbox AI is the current working name for a Nigeria-first Laravel/Blade SaaS product launching under the **Perpetual Devs** brand. The final product name may change. It gives businesses one organized inbox for Instagram, Facebook, WhatsApp, Gmail, and Telegram-style customer conversations.
 
