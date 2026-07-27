@@ -32,6 +32,7 @@ class InboxController extends Controller
         $search = trim((string) $request->query('q', ''));
         $activeChannel = $request->query('channel', 'All');
         $activeDate = $request->query('date', 'all');
+        $activeExactDate = trim((string) $request->query('exact_date', ''));
         $activeTime = $request->query('time', 'all');
         $activeSort = $request->query('sort', 'newest');
         $allowedChannels = ['All', 'Instagram', 'WhatsApp', 'Facebook', 'Gmail', 'Telegram'];
@@ -45,6 +46,10 @@ class InboxController extends Controller
 
         if (! in_array($activeDate, $allowedDates, true)) {
             $activeDate = 'all';
+        }
+
+        if ($activeExactDate !== '' && ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $activeExactDate)) {
+            $activeExactDate = '';
         }
 
         if (! in_array($activeTime, $allowedTimes, true)) {
@@ -102,16 +107,20 @@ class InboxController extends Controller
             });
         }
 
-        match ($activeDate) {
-            'today' => $conversationQuery->whereDate('last_message_at', today()),
-            'yesterday' => $conversationQuery->whereBetween('last_message_at', [
-                today()->subDay()->startOfDay(),
-                today()->subDay()->endOfDay(),
-            ]),
-            '7d' => $conversationQuery->where('last_message_at', '>=', now()->subDays(7)),
-            '30d' => $conversationQuery->where('last_message_at', '>=', now()->subDays(30)),
-            default => null,
-        };
+        if ($activeExactDate !== '') {
+            $conversationQuery->whereDate('last_message_at', $activeExactDate);
+        } else {
+            match ($activeDate) {
+                'today' => $conversationQuery->whereDate('last_message_at', today()),
+                'yesterday' => $conversationQuery->whereBetween('last_message_at', [
+                    today()->subDay()->startOfDay(),
+                    today()->subDay()->endOfDay(),
+                ]),
+                '7d' => $conversationQuery->where('last_message_at', '>=', now()->subDays(7)),
+                '30d' => $conversationQuery->where('last_message_at', '>=', now()->subDays(30)),
+                default => null,
+            };
+        }
 
         match ($activeTime) {
             'morning' => $conversationQuery->whereTime('last_message_at', '>=', '06:00:00')->whereTime('last_message_at', '<', '12:00:00'),
@@ -185,6 +194,7 @@ class InboxController extends Controller
             'activeState' => $activeState,
             'activeChannel' => $activeChannel,
             'activeDate' => $activeDate,
+            'activeExactDate' => $activeExactDate,
             'activeTime' => $activeTime,
             'activeSort' => $activeSort,
             'counts' => $counts,

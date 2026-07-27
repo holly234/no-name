@@ -13,6 +13,7 @@
             'channel' => $activeChannel === 'All' ? null : $activeChannel,
             'q' => $search ?: null,
             'date' => $activeDate === 'all' ? null : $activeDate,
+            'exact_date' => $activeExactDate ?: null,
             'time' => $activeTime === 'all' ? null : $activeTime,
             'sort' => $activeSort === 'newest' ? null : $activeSort,
         ]);
@@ -34,7 +35,7 @@
             'newest' => 'Newest',
             'oldest' => 'Oldest',
         ];
-        $advancedFiltersActive = $activeDate !== 'all' || $activeTime !== 'all' || $activeSort !== 'newest';
+        $advancedFiltersActive = $activeDate !== 'all' || $activeExactDate !== '' || $activeTime !== 'all' || $activeSort !== 'newest';
         $compactStateLabels = [
             'All' => 'Inbox',
             \App\Models\Conversation::STATE_NEEDS_HUMAN => 'Needs reply',
@@ -64,6 +65,7 @@
                         <input type="hidden" name="state" value="{{ $activeState }}">
                         <input type="hidden" name="channel" value="{{ $activeChannel }}">
                         <input type="hidden" name="date" value="{{ $activeDate }}">
+                        <input type="hidden" name="exact_date" value="{{ $activeExactDate }}">
                         <input type="hidden" name="time" value="{{ $activeTime }}">
                         <input type="hidden" name="sort" value="{{ $activeSort }}">
                         <label class="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white px-3 py-3 text-[#6B7280] shadow-sm transition sm:px-4">
@@ -97,6 +99,7 @@
                                 'channel' => $channel === 'All' ? null : $channel,
                                 'q' => $search ?: null,
                                 'date' => $activeDate === 'all' ? null : $activeDate,
+                                'exact_date' => $activeExactDate ?: null,
                                 'time' => $activeTime === 'all' ? null : $activeTime,
                                 'sort' => $activeSort === 'newest' ? null : $activeSort,
                             ]));
@@ -121,6 +124,7 @@
                                 'channel' => $activeChannel === 'All' ? null : $activeChannel,
                                 'q' => $search ?: null,
                                 'date' => $activeDate === 'all' ? null : $activeDate,
+                                'exact_date' => $activeExactDate ?: null,
                                 'time' => $activeTime === 'all' ? null : $activeTime,
                                 'sort' => $activeSort === 'newest' ? null : $activeSort,
                             ]));
@@ -169,7 +173,7 @@
                             <input type="hidden" name="q" value="{{ $search }}">
                         @endif
                         <div class="grid gap-4">
-                            <div x-data="window.inboxFilterMenu(@js($activeDate), @js($dateOptions))" x-on:click.outside="open = false" class="relative min-w-0">
+                            <div x-data="window.inboxFilterMenu(@js($activeDate), @js($dateOptions))" x-on:click.outside="open = false" data-filter-kind="date" class="relative min-w-0">
                                 <input type="hidden" name="date" x-bind:value="value">
                                 <p class="mb-2 text-xs font-semibold text-[#6B7280]">Date</p>
                                 <button type="button" x-on:click="open = ! open" class="flex h-12 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-left text-sm font-semibold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/15">
@@ -185,6 +189,18 @@
                                         </button>
                                     @endforeach
                                 </div>
+                            </div>
+                            <div class="min-w-0">
+                                <label for="inbox-exact-date" class="mb-2 block text-xs font-semibold text-[#6B7280]">Specific date</label>
+                                <input
+                                    id="inbox-exact-date"
+                                    type="date"
+                                    name="exact_date"
+                                    value="{{ $activeExactDate }}"
+                                    max="{{ today()->toDateString() }}"
+                                    x-on:change="$el.form.querySelector('input[name=date]').value = 'all'; $el.form.requestSubmit()"
+                                    class="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-semibold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8] focus:border-[#2563EB] focus:ring-[#2563EB]/15"
+                                >
                             </div>
                             <div x-data="window.inboxFilterMenu(@js($activeTime), @js($timeOptions))" x-on:click.outside="open = false" class="relative min-w-0">
                                 <input type="hidden" name="time" x-bind:value="value">
@@ -239,6 +255,12 @@
                         $channel = $conversation->getAttribute('channel_meta');
                         $latestReplyDisabled = (bool) $conversation->getAttribute('reply_disabled');
                         $avatarUrl = $conversation->customer?->avatarUrl();
+                        $lastMessageAt = $conversation->last_message_at;
+                        $lastMessageLabel = $lastMessageAt
+                            ? ($lastMessageAt->lt(now()->subHours(24))
+                                ? $lastMessageAt->format($lastMessageAt->year === now()->year ? 'd M' : 'd M y')
+                                : $lastMessageAt->format('H:i'))
+                            : '';
                     @endphp
                     <a href="{{ route('dashboard.inbox', $filterQuery + ['conversation' => $conversation->id]) }}" class="group block w-full min-w-0 max-w-full overflow-hidden px-4 transition hover:bg-[#F5F6F8] sm:px-5 {{ $selectedConversation?->id === $conversation->id ? 'bg-[#EFF6FF]' : '' }}">
                         <div class="flex w-full min-w-0 max-w-full gap-3 overflow-hidden border-b border-[#E5E7EB] py-3.5">
@@ -259,7 +281,7 @@
                             <div class="min-w-0 max-w-full flex-1 overflow-hidden">
                                 <div class="flex min-w-0 items-start justify-between gap-3">
                                     <p class="min-w-0 flex-1 truncate text-[15px] font-semibold text-[#111827]">{{ $conversation->customer_name }}</p>
-                                    <span class="shrink-0 text-xs font-semibold {{ $unreadCount > 0 ? 'text-[#10B981]' : 'text-[#6B7280]' }}">{{ $conversation->last_message_at?->format('H:i') }}</span>
+                                    <time datetime="{{ $lastMessageAt?->toIso8601String() }}" title="{{ $lastMessageAt?->format('d M Y, H:i') }}" class="shrink-0 text-xs font-semibold {{ $unreadCount > 0 ? 'text-[#10B981]' : 'text-[#6B7280]' }}">{{ $lastMessageLabel }}</time>
                                 </div>
                                 <div class="mt-1 flex min-w-0 items-center justify-between gap-2">
                                     <p class="min-w-0 flex-1 truncate text-sm text-[#6B7280]">

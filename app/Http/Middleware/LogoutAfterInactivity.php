@@ -9,22 +9,23 @@ use Symfony\Component\HttpFoundation\Response;
 
 class LogoutAfterInactivity
 {
-    private const IDLE_MINUTES = 15;
-
     public function handle(Request $request, Closure $next): Response
     {
         if (Auth::check() && ! $request->is('webhooks/*') && ! $request->is('up')) {
             $lastActivity = $request->session()->get('auth.last_activity');
+            $idleMinutes = (int) config('session.idle_timeout', 10);
 
-            if ($lastActivity && now()->diffInMinutes($lastActivity) >= self::IDLE_MINUTES) {
+            if ($lastActivity && now()->diffInSeconds($lastActivity, true) >= $idleMinutes * 60) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
 
-                return redirect()->route('login')->with('status', 'You were signed out after 15 minutes of inactivity.');
+                return redirect()->route('login')->with('status', "You were signed out after {$idleMinutes} minutes of inactivity.");
             }
 
-            $request->session()->put('auth.last_activity', now());
+            if (! $request->routeIs('dashboard.inbox.pulse')) {
+                $request->session()->put('auth.last_activity', now());
+            }
         }
 
         return $next($request);

@@ -4,6 +4,11 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        @auth
+            <meta name="authenticated" content="true">
+            <meta name="idle-timeout-minutes" content="{{ config('session.idle_timeout', 10) }}">
+            <meta name="logout-url" content="{{ route('logout') }}">
+        @endauth
 
         <title>{{ config('app.name', 'Perpetual Inbox AI') }}</title>
 

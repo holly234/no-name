@@ -1,5 +1,63 @@
 import './bootstrap';
 
+function initializeIdleLogout() {
+    if (document.querySelector('meta[name="authenticated"]')?.content !== 'true') {
+        return;
+    }
+
+    const timeoutMinutes = Number(document.querySelector('meta[name="idle-timeout-minutes"]')?.content || 10);
+    const logoutUrl = document.querySelector('meta[name="logout-url"]')?.content;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const timeoutMs = timeoutMinutes * 60 * 1000;
+    let idleTimer;
+    let lastActivity = Date.now();
+    let lastRecordedActivity = 0;
+
+    if (!logoutUrl || !csrfToken || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+        return;
+    }
+
+    const logout = () => {
+        const form = document.createElement('form');
+        const token = document.createElement('input');
+
+        form.method = 'POST';
+        form.action = logoutUrl;
+        form.dataset.spa = 'false';
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = csrfToken;
+        form.appendChild(token);
+        document.body.appendChild(form);
+        form.submit();
+    };
+
+    const scheduleLogout = () => {
+        window.clearTimeout(idleTimer);
+        idleTimer = window.setTimeout(logout, Math.max(0, timeoutMs - (Date.now() - lastActivity)));
+    };
+
+    const recordActivity = () => {
+        const now = Date.now();
+
+        if (now - lastRecordedActivity < 1000) {
+            return;
+        }
+
+        lastRecordedActivity = now;
+        lastActivity = now;
+        scheduleLogout();
+    };
+
+    ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach((eventName) => {
+        window.addEventListener(eventName, recordActivity, { passive: true });
+    });
+
+    scheduleLogout();
+}
+
+initializeIdleLogout();
+
 import Alpine from 'alpinejs';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
@@ -386,6 +444,14 @@ window.inboxFilterMenu = (currentValue, options) => ({
     choose(value) {
         this.value = value;
         this.open = false;
+
+        if (this.$root.dataset.filterKind === 'date') {
+            const exactDate = this.$root.closest('form')?.querySelector('input[name="exact_date"]');
+
+            if (exactDate) {
+                exactDate.value = '';
+            }
+        }
 
         if (this.$root.closest('form')?.dataset?.filterApply !== 'true') {
             return;
