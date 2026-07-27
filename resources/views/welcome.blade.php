@@ -1404,15 +1404,15 @@
             height: 25px;
             border: 0;
             border-radius: 7px;
-            background: #111;
+            background: #ef4444;
             color: #fff;
             font-family: Arial, sans-serif;
             font-weight: 800
         }
 
         .compare.after .bullet {
-            background: #fff;
-            color: #33205f
+            background: #22c55e;
+            color: #fff
         }
 
         .steps {
