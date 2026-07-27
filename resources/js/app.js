@@ -68,10 +68,12 @@ import * as FilePond from 'filepond';
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 import FilePondPluginFileValidateSize from 'filepond-plugin-file-validate-size';
+import flatpickr from 'flatpickr';
 import { siFacebook, siGmail, siInstagram, siTelegram, siWhatsapp } from 'simple-icons';
 import 'plyr/dist/plyr.css';
 import 'filepond/dist/filepond.min.css';
 import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
+import 'flatpickr/dist/flatpickr.min.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -461,6 +463,33 @@ window.inboxFilterMenu = (currentValue, options) => ({
 
         this.$nextTick(() => {
             this.$root.closest('form')?.requestSubmit();
+        });
+    },
+});
+
+window.inboxDatePicker = () => ({
+    picker: null,
+    init() {
+        this.picker = flatpickr(this.$refs.input, {
+            altInput: true,
+            altFormat: 'j M Y',
+            dateFormat: 'Y-m-d',
+            disableMobile: true,
+            maxDate: 'today',
+            monthSelectorType: 'static',
+            nextArrow: '<span aria-hidden="true">&#8250;</span>',
+            prevArrow: '<span aria-hidden="true">&#8249;</span>',
+            onChange: () => {
+                const form = this.$root.closest('form');
+                const datePreset = form?.querySelector('input[name="date"]');
+
+                if (datePreset) {
+                    datePreset.value = 'all';
+                }
+
+                this.$dispatch('close-filters');
+                form?.requestSubmit();
+            },
         });
     },
 });

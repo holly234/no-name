@@ -190,17 +190,24 @@
                                     @endforeach
                                 </div>
                             </div>
-                            <div class="min-w-0">
+                            <div x-data="window.inboxDatePicker()" class="inbox-date-picker min-w-0">
                                 <label for="inbox-exact-date" class="mb-2 block text-xs font-semibold text-[#6B7280]">Specific date</label>
-                                <input
-                                    id="inbox-exact-date"
-                                    type="date"
-                                    name="exact_date"
-                                    value="{{ $activeExactDate }}"
-                                    max="{{ today()->toDateString() }}"
-                                    x-on:change="$el.form.querySelector('input[name=date]').value = 'all'; $el.form.requestSubmit()"
-                                    class="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-semibold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8] focus:border-[#2563EB] focus:ring-[#2563EB]/15"
-                                >
+                                <div class="relative">
+                                    <input
+                                        x-ref="input"
+                                        id="inbox-exact-date"
+                                        type="text"
+                                        name="exact_date"
+                                        value="{{ $activeExactDate }}"
+                                        placeholder="Choose a date"
+                                        autocomplete="off"
+                                        class="h-12 w-full cursor-pointer rounded-xl border border-[#E5E7EB] bg-white px-3 pr-11 text-sm font-semibold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8]"
+                                    >
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute right-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-[#6B7280]">
+                                        <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                                        <path d="M16 3v4M8 3v4M3 10h18"></path>
+                                    </svg>
+                                </div>
                             </div>
                             <div x-data="window.inboxFilterMenu(@js($activeTime), @js($timeOptions))" x-on:click.outside="open = false" class="relative min-w-0">
                                 <input type="hidden" name="time" x-bind:value="value">
