@@ -272,6 +272,30 @@ class GmailIntegrationTest extends TestCase
         $this->assertSame(1, Message::where('metadata->gmail_message_id', 'msg-duplicate')->count());
     }
 
+    public function test_gmail_sync_surfaces_the_actual_failure_reason_on_the_account(): void
+    {
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createGmailAccount($business);
+
+        Http::fake([
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages?*' => Http::response([
+                'error' => [
+                    'message' => 'Invalid Credentials',
+                ],
+            ], 401),
+        ]);
+
+        $response = $this->actingAs($user)->post(route('dashboard.accounts.gmail.sync', $account));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error', 'Gmail sync failed: Invalid Credentials');
+
+        $account->refresh();
+        $this->assertSame('Invalid Credentials', $account->provider_meta['last_sync_error']);
+        $this->assertNotEmpty($account->provider_meta['last_sync_failed_at']);
+    }
+
     public function test_gmail_sync_backfills_attachments_for_already_imported_messages(): void
     {
         Storage::fake('local');

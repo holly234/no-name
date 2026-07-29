@@ -80,6 +80,12 @@
                             <span class="font-semibold uppercase tracking-[0.14em] text-[#6B7280]">Last connected</span>
                             <span class="font-semibold text-[#6B7280]">{{ $account?->connected_at?->diffForHumans() ?? 'Not yet' }}</span>
                         </div>
+                        @if ($platformKey === 'gmail' && ($account?->provider_meta['last_sync_error'] ?? null))
+                            <div class="rounded-lg bg-white px-3 py-2 text-xs text-[#B91C1C]">
+                                <span class="block font-semibold uppercase tracking-[0.14em] text-[#6B7280]">Last sync error</span>
+                                <span class="mt-1 block break-words">{{ $account->provider_meta['last_sync_error'] }}</span>
+                            </div>
+                        @endif
                     </div>
 
                     @if ($isDemoPlatform)

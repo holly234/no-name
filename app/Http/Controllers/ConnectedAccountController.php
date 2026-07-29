@@ -9,6 +9,7 @@ use App\Services\GmailConnectionService;
 use App\Services\MetaConnectionService;
 use App\Services\TelegramConnectionService;
 use App\Support\ProviderError;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -170,8 +171,9 @@ class ConnectedAccountController extends Controller
             ]);
 
             return back()->with('error', 'Gmail sync failed because this machine could not reach Google Gmail API. Check firewall, proxy, VPN, or network access to gmail.googleapis.com:443.');
-        } catch (\Throwable $exception) {
+        } catch (RequestException $exception) {
             ProviderError::report($exception, ['provider' => 'gmail']);
+            $errorMessage = $this->extractGmailSyncErrorMessage($exception);
 
             AutomationLog::create([
                 'business_id' => $business->id,
@@ -179,14 +181,55 @@ class ConnectedAccountController extends Controller
                 'event_type' => 'gmail_sync',
                 'status' => 'failed',
                 'message' => 'Gmail sync failed.',
+                'metadata' => ['error' => $errorMessage],
             ]);
 
-            return back()->with('error', 'Gmail sync failed. Please reconnect Gmail and try again.');
+            $account->forceFill([
+                'provider_meta' => array_merge($account->provider_meta ?? [], [
+                    'last_sync_error' => $errorMessage,
+                    'last_sync_failed_at' => now()->toIso8601String(),
+                ]),
+            ])->save();
+
+            return back()->with('error', 'Gmail sync failed: '.$errorMessage);
+        } catch (\Throwable $exception) {
+            ProviderError::report($exception, ['provider' => 'gmail']);
+            $errorMessage = ProviderError::message($exception);
+
+            AutomationLog::create([
+                'business_id' => $business->id,
+                'connected_account_id' => $account->id,
+                'event_type' => 'gmail_sync',
+                'status' => 'failed',
+                'message' => 'Gmail sync failed.',
+                'metadata' => ['error' => $errorMessage],
+            ]);
+
+            $account->forceFill([
+                'provider_meta' => array_merge($account->provider_meta ?? [], [
+                    'last_sync_error' => $errorMessage,
+                    'last_sync_failed_at' => now()->toIso8601String(),
+                ]),
+            ])->save();
+
+            return back()->with('error', 'Gmail sync failed: '.$errorMessage);
         }
 
         $mailboxLabel = GmailConnectionService::mailboxOptions()[$mailbox] ?? 'Gmail';
 
         return back()->with('status', "{$mailboxLabel} sync complete: {$result['imported']} imported, {$result['skipped']} skipped.");
+    }
+
+    private function extractGmailSyncErrorMessage(RequestException $exception): string
+    {
+        $response = $exception->response;
+        $message = $response?->json('error.message')
+            ?? $response?->json('error.error.message')
+            ?? $response?->json('message')
+            ?? $response?->json('error')
+            ?? $exception->getMessage();
+
+        return ProviderError::message((string) $message);
     }
 
     public function connectTelegram(Request $request, TelegramConnectionService $telegramConnectionService)
