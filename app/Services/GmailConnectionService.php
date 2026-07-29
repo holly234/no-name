@@ -564,7 +564,10 @@ class GmailConnectionService
                 continue;
             }
 
-            $providerAttachmentId = ($gmailMessage['id'] ?? 'unknown-message').':'.$attachmentId;
+            $providerAttachmentId = $this->gmailAttachmentKey(
+                (string) ($gmailMessage['id'] ?? 'unknown-message'),
+                (string) $attachmentId
+            );
 
             if (MessageAttachment::where('business_id', $account->business_id)
                 ->where('provider', 'gmail')
@@ -642,6 +645,11 @@ class GmailConnectionService
         $mimeType = strtolower((string) $mimeType);
 
         return str_starts_with($mimeType, 'audio/') || str_starts_with($mimeType, 'video/');
+    }
+
+    private function gmailAttachmentKey(string $gmailMessageId, string $attachmentId): string
+    {
+        return 'gmail:'.sha1($gmailMessageId.'|'.$attachmentId);
     }
 
     private function mailboxQuery(string $mailbox): string
