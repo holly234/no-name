@@ -509,7 +509,9 @@
                                         </div>
                                     </div>
                                     @if ($gmailHtmlBody)
-                                        <div class="gmail-message-body break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::gmailHtml($gmailHtmlBody, $message->attachments) !!}</div>
+                                        <div class="gmail-message-body overflow-hidden break-words leading-6 text-[#111827] [&_img]:block [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:object-contain [&_table]:block [&_table]:max-w-full [&_table]:table-fixed [&_table]:overflow-x-auto [&_iframe]:max-w-full">
+                                            {!! \App\Support\MessageText::gmailHtml($gmailHtmlBody, $message->attachments) !!}
+                                        </div>
                                     @else
                                         <div class="whitespace-pre-line break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::linkify($messageBody !== '' ? $messageBody : '(empty email)') !!}</div>
                                     @endif
@@ -631,8 +633,8 @@
                                                                 </svg>
                                                             </span>
                                                         </div>
-                                                        <iframe src="{{ $inlineUrl }}" title="{{ $attachment->filename }}" class="block h-[22rem] w-full bg-[#F5F6F8]" loading="lazy"></iframe>
                                                     </button>
+                                                    <iframe src="{{ $inlineUrl }}" title="{{ $attachment->filename }}" class="block h-[18rem] w-full bg-[#F5F6F8]" loading="lazy"></iframe>
                                                 </div>
                                             @endif
                                             @unless ($hasInlinePreview)

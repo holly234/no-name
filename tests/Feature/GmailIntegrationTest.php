@@ -554,6 +554,7 @@ class GmailIntegrationTest extends TestCase
         $response->assertSee('src="'.route('dashboard.attachments.download', ['attachment' => $attachment, 'inline' => 1]).'"', false);
         $response->assertSee('src="https://example.com/avatar.png"', false);
         $response->assertDontSee('javascript:alert(1)', false);
+        $response->assertSee('max-w-full');
     }
 
     public function test_no_reply_gmail_threads_disable_replies_in_ui_and_controller(): void
@@ -724,6 +725,7 @@ class GmailIntegrationTest extends TestCase
         $response->assertOk();
         $response->assertSee('iframe', false);
         $response->assertSee('invoice.pdf');
+        $response->assertSee('h-[18rem]');
     }
 
     public function test_attachment_download_is_scoped_to_current_business(): void

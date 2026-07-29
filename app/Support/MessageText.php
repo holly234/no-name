@@ -201,6 +201,8 @@ class MessageText
                 }
 
                 if ($tag === 'img') {
+                    $node->removeAttribute('width');
+                    $node->removeAttribute('height');
                     $node->setAttribute('loading', 'lazy');
                     $node->setAttribute('decoding', 'async');
                     $node->setAttribute('style', 'max-width:100%;height:auto;');
