@@ -964,8 +964,6 @@ function normalizeInboxViewport() {
 function scrollActiveChatToBottom() {
     const chatPane = document.querySelector('[data-chat-scroll]');
 
-    normalizeInboxViewport();
-
     if (!chatPane) {
         return;
     }
@@ -1096,7 +1094,6 @@ async function visit(url, options = {}) {
         }
 
         if (isInboxPage()) {
-            normalizeInboxViewport();
             scrollActiveChatToBottom();
         } else {
             window.scrollTo({ top: 0, behavior: 'instant' });
@@ -1269,7 +1266,6 @@ async function submitForm(form, submitter = null) {
         document.title = next.title || document.title;
         window.history.replaceState({}, '', response.url || targetUrl.href);
         if (isInboxPage()) {
-            normalizeInboxViewport();
             scrollActiveChatToBottom();
         } else {
             window.scrollTo({ top: 0, behavior: 'instant' });

@@ -171,7 +171,11 @@ class MessageText
                 $tag = strtolower($node->tagName);
 
                 if (! in_array($tag, $allowedTags, true)) {
-                    self::unwrapNode($node);
+                    if (in_array($tag, ['style', 'script', 'head', 'meta', 'link', 'title', 'noscript', 'template'], true)) {
+                        self::removeNode($node);
+                    } else {
+                        self::unwrapNode($node);
+                    }
                     return;
                 }
 
@@ -232,5 +236,14 @@ class MessageText
         }
 
         $parent->removeChild($node);
+    }
+
+    private static function removeNode(\DOMNode $node): void
+    {
+        $parent = $node->parentNode;
+
+        if ($parent) {
+            $parent->removeChild($node);
+        }
     }
 }
