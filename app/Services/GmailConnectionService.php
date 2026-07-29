@@ -589,19 +589,8 @@ class GmailConnectionService
             $contentId = $this->headerValue($part['headers'] ?? [], 'content-id');
             $fallbackBase = $contentId !== null ? Str::slug($contentId) : 'attachment';
             $sourceName = $filename !== '' ? $filename : $fallbackBase;
-            $safeFilename = Str::limit(Str::slug(pathinfo($sourceName, PATHINFO_FILENAME)), 80, '');
-            $extension = pathinfo($sourceName, PATHINFO_EXTENSION);
-            if ($extension === '' && str_starts_with($mimeType, 'image/')) {
-                $extension = match ($mimeType) {
-                    'image/jpeg' => 'jpg',
-                    'image/png' => 'png',
-                    'image/gif' => 'gif',
-                    'image/webp' => 'webp',
-                    default => 'img',
-                };
-            }
-            $storedFilename = ($safeFilename ?: 'attachment').($extension ? '.'.$extension : '');
-            $path = 'gmail-attachments/'.$account->business_id.'/'.$message->id.'/'.$attachmentId.'-'.$storedFilename;
+            $storedFilename = $this->gmailStoredAttachmentName($account->business_id, $message->id, $attachmentId, $sourceName, $mimeType);
+            $path = 'gmail-attachments/'.$account->business_id.'/'.$message->id.'/'.$storedFilename;
 
             Storage::disk('local')->put($path, $contents);
 
@@ -650,6 +639,22 @@ class GmailConnectionService
     private function gmailAttachmentKey(string $gmailMessageId, string $attachmentId): string
     {
         return 'gmail:'.sha1($gmailMessageId.'|'.$attachmentId);
+    }
+
+    private function gmailStoredAttachmentName(int $businessId, int $messageId, string $attachmentId, string $sourceName, string $mimeType): string
+    {
+        $extension = pathinfo($sourceName, PATHINFO_EXTENSION);
+        if ($extension === '' && str_starts_with($mimeType, 'image/')) {
+            $extension = match ($mimeType) {
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/gif' => 'gif',
+                'image/webp' => 'webp',
+                default => 'img',
+            };
+        }
+
+        return 'att-'.sha1($businessId.'|'.$messageId.'|'.$attachmentId.'|'.$sourceName).($extension !== '' ? '.'.$extension : '');
     }
 
     private function mailboxQuery(string $mailbox): string
