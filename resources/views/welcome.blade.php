@@ -2778,10 +2778,6 @@
             animation: pes-rise .8s cubic-bezier(.22, 1, .36, 1) both
         }
 
-        .pes-root.is-visible .pes-bubble {
-            animation: pes-rise .8s .15s cubic-bezier(.22, 1, .36, 1) both
-        }
-
         @keyframes pes-rise {
             from {
                 opacity: 0;
@@ -2830,22 +2826,44 @@
             z-index: 8;
             left: -105px;
             top: -78px;
-            border: 2px solid #0a0a0a;
-            border-radius: 18px;
-            box-shadow: 10px 10px 0 #0a0a0a
+            overflow: visible;
+            border: 3px solid #0a0a0a;
+            border-radius: 21px 17px 20px 18px;
+            box-shadow:
+                8px 8px 0 #0a0a0a,
+                12px 12px 0 rgba(10, 10, 10, .14)
+        }
+
+        .pes-bubble::before {
+            content: '';
+            position: absolute;
+            z-index: 0;
+            inset: 5px;
+            border-radius: 15px 12px 14px 13px;
+            background-image: radial-gradient(circle, rgba(10, 10, 10, .14) 1px, transparent 1.2px);
+            background-size: 6px 6px;
+            clip-path: polygon(62% 0, 100% 0, 100% 58%, 84% 42%);
+            pointer-events: none
         }
 
         .pes-bubble::after {
             content: '';
             position: absolute;
+            z-index: 1;
             right: 18px;
-            bottom: -15px;
-            width: 24px;
-            height: 24px;
+            bottom: -17px;
+            width: 27px;
+            height: 27px;
             background: #fff;
-            border-right: 2px solid #0a0a0a;
-            border-bottom: 2px solid #0a0a0a;
-            transform: skewY(25deg) rotate(35deg)
+            border-right: 3px solid #0a0a0a;
+            border-bottom: 3px solid #0a0a0a;
+            box-shadow: 4px 4px 0 rgba(10, 10, 10, .14);
+            transform: skewY(20deg) rotate(38deg)
+        }
+
+        .pes-bubble>p {
+            position: relative;
+            z-index: 2
         }
 
         .pes-card {
@@ -2854,7 +2872,13 @@
         }
 
         .pes-bubble-channel {
-            color: #666
+            color: #555;
+            letter-spacing: .12em
+        }
+
+        .pes-bubble-text {
+            font-size: 1.02rem;
+            line-height: 1.35
         }
 
         @media(max-width:899px) {

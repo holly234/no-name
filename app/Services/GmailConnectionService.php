@@ -827,6 +827,7 @@ class GmailConnectionService
         }
 
         $html = preg_replace('/<\s*(script|style|head|noscript)\b[^>]*>.*?<\s*\/\s*\1\s*>/is', ' ', $html) ?? $html;
+        $html = $this->preserveHtmlLinks($html);
         $html = preg_replace('/<\s*br\s*\/?>/i', "\n", $html) ?? $html;
         $html = preg_replace('/<\s*\/\s*(p|div|tr|li|h[1-6])\s*>/i', "\n", $html) ?? $html;
         $text = strip_tags($html);
@@ -834,6 +835,25 @@ class GmailConnectionService
         $text = $this->normalizeEmailText($text);
 
         return trim($text);
+    }
+
+    private function preserveHtmlLinks(string $html): string
+    {
+        return preg_replace_callback('/<a\b[^>]*\bhref=(["\'])(.*?)\1[^>]*>(.*?)<\/a>/is', function (array $matches): string {
+            $href = html_entity_decode(trim((string) $matches[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $label = trim(strip_tags((string) $matches[3]));
+            $label = html_entity_decode($label, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            if (! preg_match('/^https?:\/\//i', $href)) {
+                return $label;
+            }
+
+            if ($label === '' || strcasecmp($label, $href) === 0) {
+                return $href;
+            }
+
+            return $label.' '.$href;
+        }, $html) ?? $html;
     }
 
     private function normalizeEmailText(string $body): string

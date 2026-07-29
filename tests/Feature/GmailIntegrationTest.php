@@ -388,6 +388,42 @@ class GmailIntegrationTest extends TestCase
         $response->assertDontSee('<script>alert("x")</script>', false);
     }
 
+    public function test_gmail_html_anchor_links_are_preserved_during_import(): void
+    {
+        $this->withoutVite();
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createGmailAccount($business);
+
+        $this->fakeGmailHtmlSync(
+            'msg-html-link',
+            'thread-html-link',
+            'Adobe <mail@example.com>',
+            'Your file is ready',
+            '<html><body><p>Your export is ready.</p><p><a href="https://example.com/export?id=42&amp;token=abc">Download file</a></p><p><a href="javascript:alert(1)">Unsafe link</a></p></body></html>'
+        );
+
+        $this->actingAs($user)->post(route('dashboard.accounts.gmail.sync', $account))->assertRedirect();
+
+        $message = Message::where('metadata->gmail_message_id', 'msg-html-link')->firstOrFail();
+
+        $this->assertStringContainsString('Download file https://example.com/export?id=42&token=abc', $message->body);
+        $this->assertStringContainsString('Unsafe link', $message->body);
+        $this->assertStringNotContainsString('javascript:alert', $message->body);
+
+        $conversation = Conversation::where('business_id', $business->id)
+            ->where('channel', 'Gmail')
+            ->firstOrFail();
+
+        $response = $this->actingAs($user)->get(route('dashboard.inbox', [
+            'conversation' => $conversation->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('href="https://example.com/export?id=42&amp;token=abc"', false);
+    }
+
     public function test_no_reply_gmail_threads_disable_replies_in_ui_and_controller(): void
     {
         $this->withoutVite();
@@ -887,6 +923,34 @@ class GmailIntegrationTest extends TestCase
                     ],
                     'mimeType' => 'text/plain',
                     'body' => ['data' => $this->base64Url($body)],
+                ],
+            ]),
+        ]);
+    }
+
+    private function fakeGmailHtmlSync(string $messageId, string $threadId, string $from, string $subject, string $html): void
+    {
+        Http::fake([
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages?*' => Http::response([
+                'messages' => [['id' => $messageId, 'threadId' => $threadId]],
+            ]),
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/'.$messageId.'*' => Http::response([
+                'id' => $messageId,
+                'threadId' => $threadId,
+                'internalDate' => (string) now()->valueOf(),
+                'payload' => [
+                    'headers' => [
+                        ['name' => 'From', 'value' => $from],
+                        ['name' => 'To', 'value' => 'support@example.com'],
+                        ['name' => 'Subject', 'value' => $subject],
+                    ],
+                    'mimeType' => 'multipart/alternative',
+                    'parts' => [
+                        [
+                            'mimeType' => 'text/html',
+                            'body' => ['data' => $this->base64Url($html)],
+                        ],
+                    ],
                 ],
             ]),
         ]);

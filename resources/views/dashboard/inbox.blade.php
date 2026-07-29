@@ -203,7 +203,7 @@
                                         autocomplete="off"
                                         class="h-12 w-full cursor-pointer rounded-xl border border-[#E5E7EB] bg-white px-3 pr-11 text-sm font-semibold text-[#374151] shadow-sm transition hover:bg-[#F5F6F8]"
                                     >
-                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute right-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-[#6B7280]">
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#6B7280]">
                                         <rect x="3" y="5" width="18" height="16" rx="2"></rect>
                                         <path d="M16 3v4M8 3v4M3 10h18"></path>
                                     </svg>

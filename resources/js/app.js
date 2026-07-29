@@ -104,10 +104,10 @@ function initializeProductEcosystem() {
     const isMobile = window.matchMedia('(max-width: 899px)').matches;
     const blocks = [...section.querySelectorAll('.pes-stage-block')];
     const nav = [...section.querySelectorAll('.pes-nav span')];
-    const bubble = section.querySelector('.pes-bubble');
     const bubbleChannel = section.querySelector('.pes-bubble-channel');
     const bubbleText = section.querySelector('.pes-bubble-text');
     const bubbleTime = section.querySelector('.pes-bubble-time');
+    const bubbleCopy = [bubbleChannel, bubbleText, bubbleTime].filter(Boolean);
     const channelPills = [...section.querySelectorAll('.pes-channel-pill')];
     const channelStories = [
         ['Instagram', 'Hey, do you have this in black?', '10:42 AM', 'Turn Instagram interest into qualified enquiries.', 'Bring comments and DMs into one view, answer product questions quickly, and hand serious buyers to your team with the full conversation attached.'],
@@ -139,9 +139,9 @@ function initializeProductEcosystem() {
         return;
     }
     gsap.set(blocks, { autoAlpha: 0, y: 18 });
-    gsap.set(bubble, { autoAlpha: 0, x: -35, y: -20 });
+    gsap.set(bubbleCopy, { autoAlpha: 0, y: 8 });
     gsap.set(blocks[0], { autoAlpha: 1, y: 0 });
-    gsap.set(bubble, { autoAlpha: 1, x: 0, y: 0 });
+    gsap.set(bubbleCopy, { autoAlpha: 1, y: 0 });
     const timeline = gsap.timeline({
         scrollTrigger: {
             trigger: section,
@@ -153,11 +153,11 @@ function initializeProductEcosystem() {
             invalidateOnRefresh: true,
         },
     });
-    timeline.to(bubble, { autoAlpha: 1, x: 0, y: 0, duration: .8, ease: 'power2.out' });
+    timeline.to(bubbleCopy, { autoAlpha: 1, y: 0, duration: .55, stagger: .04, ease: 'power2.out' });
     blocks.forEach((block, index) => {
         const story = channelStories[index % channelStories.length];
         if (index > 0) {
-            timeline.to(bubble, { autoAlpha: .15, y: -10, scale: .985, duration: .32, ease: 'power1.inOut' }, '>-0.05');
+            timeline.to(bubbleCopy, { autoAlpha: .15, y: -5, duration: .22, stagger: .02, ease: 'power1.inOut' }, '>-0.05');
         }
         timeline.to(block, { autoAlpha: 1, y: 0, duration: .55, ease: 'power2.out', onStart: () => {
             nav.forEach((item, itemIndex) => item.classList.toggle('is-active', itemIndex === index));
@@ -171,7 +171,7 @@ function initializeProductEcosystem() {
             channelPills.forEach((pill) => pill.classList.toggle('pes-active', pill.textContent.trim() === story[0]));
         }, [], '<');
         if (index > 0) {
-            timeline.to(bubble, { autoAlpha: 1, y: 0, scale: 1, duration: .48, ease: 'power2.out' }, '>');
+            timeline.to(bubbleCopy, { autoAlpha: 1, y: 0, duration: .32, stagger: .02, ease: 'power2.out' }, '>');
         }
         if (index < blocks.length - 1) timeline.to(block, { autoAlpha: 0, y: -12, duration: .4, onComplete: () => nav[index]?.classList.remove('is-active') }, '+=.45');
     });
