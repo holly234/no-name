@@ -18,12 +18,12 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=20 : Number of recent messages to inspect per account}', function () {
+Artisan::command('gmail:sync {--mailbox=all : Gmail mailbox to sync} {--limit=50 : Number of recent messages to inspect per account}', function () {
     $mailbox = (string) $this->option('mailbox');
     $limit = max(1, min(100, (int) $this->option('limit')));
 
-    if (! in_array($mailbox, GmailConnectionService::MAILBOXES, true) || $mailbox === GmailConnectionService::MAILBOX_ALL) {
-        $mailbox = GmailConnectionService::MAILBOX_INBOX;
+    if (! in_array($mailbox, GmailConnectionService::MAILBOXES, true)) {
+        $mailbox = GmailConnectionService::MAILBOX_ALL;
     }
 
     $accounts = ConnectedAccount::query()
@@ -86,7 +86,7 @@ Artisan::command('gmail:sync {--mailbox=inbox : Gmail mailbox to sync} {--limit=
     $this->components->info($summary);
 
     return $failed > 0 ? self::FAILURE : self::SUCCESS;
-})->purpose('Sync recent Gmail inbox messages for every connected Gmail account');
+})->purpose('Sync recent Gmail messages for every connected Gmail account');
 
 Artisan::command('gmail:renew-watch {--force : Renew every connected Gmail watch even if it is not close to expiring}', function (GmailConnectionService $gmailConnectionService) {
     if (! config('services.gmail.pubsub_topic')) {
@@ -190,7 +190,7 @@ Artisan::command('ai:recover-unanswered {--limit=50 : Maximum conversations to r
     return self::SUCCESS;
 })->purpose('Recover AI-controlled conversations that never received a reply');
 
-Schedule::command('gmail:sync --mailbox=inbox --limit=20')
+Schedule::command('gmail:sync --mailbox=all --limit=50')
     ->everyMinute()
     ->withoutOverlapping();
 

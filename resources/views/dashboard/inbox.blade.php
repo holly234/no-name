@@ -433,6 +433,9 @@
                             }
 
                             $messageBody = trim($messageBody);
+                            $gmailFileLinks = $isGmailMessage
+                                ? \App\Support\MessageText::fileLinks(trim($messageBody."\n".(string) $gmailHtmlBody))
+                                : [];
                             $replyContext = $message->metadata['reply_to'] ?? null;
                         @endphp
                         @php
@@ -509,6 +512,32 @@
                                         <div class="gmail-message-body break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::gmailHtml($gmailHtmlBody, $message->attachments) !!}</div>
                                     @else
                                         <div class="whitespace-pre-line break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::linkify($messageBody !== '' ? $messageBody : '(empty email)') !!}</div>
+                                    @endif
+                                    @if ($gmailFileLinks !== [])
+                                        <div class="mt-3 space-y-2">
+                                            @foreach ($gmailFileLinks as $fileLink)
+                                                <a href="{{ $fileLink['url'] }}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3 transition hover:border-[#D1D5DB] hover:bg-white">
+                                                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#2563EB]">
+                                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                            <path d="M14 2v6h6"></path>
+                                                            <path d="M8 13h8"></path>
+                                                            <path d="M8 17h5"></path>
+                                                        </svg>
+                                                    </span>
+                                                    <span class="min-w-0 flex-1">
+                                                        <span class="block truncate text-sm font-bold text-[#111827]">{{ $fileLink['label'] }}</span>
+                                                        <span class="mt-0.5 block truncate text-xs font-semibold text-[#6B7280]">{{ $fileLink['type'] }} / Opens from Google</span>
+                                                    </span>
+                                                    <span class="shrink-0 text-[#6B7280]">
+                                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                            <path d="M7 17 17 7"></path>
+                                                            <path d="M7 7h10v10"></path>
+                                                        </svg>
+                                                    </span>
+                                                </a>
+                                            @endforeach
+                                        </div>
                                     @endif
                                 @else
                                     @unless ($mediaOnlyPlaceholder)

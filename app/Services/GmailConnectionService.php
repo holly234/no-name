@@ -168,8 +168,6 @@ class GmailConnectionService
         $response = $this->gmail($this->validAccessToken($account))
             ->post(self::GMAIL_API_BASE.'/users/me/watch', [
                 'topicName' => $topicName,
-                'labelIds' => ['INBOX'],
-                'labelFilterBehavior' => 'include',
             ])
             ->throw()
             ->json();
@@ -227,7 +225,7 @@ class GmailConnectionService
 
         foreach ($accounts as $account) {
             try {
-                $result = $this->syncRecentInboxMessages($account, 20, self::MAILBOX_INBOX);
+                $result = $this->syncRecentInboxMessages($account, 50, self::MAILBOX_ALL);
                 $imported += $result['imported'];
                 $skipped += $result['skipped'];
 
@@ -291,7 +289,7 @@ class GmailConnectionService
         ];
     }
 
-    public function syncRecentInboxMessages(ConnectedAccount $account, int $limit = 20, string $mailbox = self::MAILBOX_INBOX): array
+    public function syncRecentInboxMessages(ConnectedAccount $account, int $limit = 50, string $mailbox = self::MAILBOX_ALL): array
     {
         $mailbox = in_array($mailbox, self::MAILBOXES, true) ? $mailbox : self::MAILBOX_INBOX;
         $token = $this->validAccessToken($account);
@@ -625,7 +623,7 @@ class GmailConnectionService
     private function mailboxQuery(string $mailbox): string
     {
         return match ($mailbox) {
-            self::MAILBOX_ALL => 'newer_than:30d -in:sent -in:drafts -in:chats',
+            self::MAILBOX_ALL => 'newer_than:30d -in:drafts -in:chats',
             self::MAILBOX_SPAM => 'in:spam',
             self::MAILBOX_PROMOTIONS => 'category:promotions',
             self::MAILBOX_SOCIAL => 'category:social',

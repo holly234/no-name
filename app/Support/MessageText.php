@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use Illuminate\Support\Arr;
 use Illuminate\Support\HtmlString;
 
 class MessageText
@@ -42,6 +41,64 @@ class MessageText
         $html = self::sanitizeHtml($html);
 
         return new HtmlString($html);
+    }
+
+    public static function fileLinks(string $text): array
+    {
+        preg_match_all('~https?://[^\s<>"\']+~i', $text, $matches);
+
+        $links = [];
+
+        foreach ($matches[0] ?? [] as $url) {
+            [$cleanUrl] = self::splitTrailingPunctuation(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            $host = parse_url($cleanUrl, PHP_URL_HOST);
+
+            if (! is_string($host)) {
+                continue;
+            }
+
+            $host = strtolower($host);
+            $isGoogleFile = str_ends_with($host, 'drive.google.com')
+                || str_ends_with($host, 'docs.google.com');
+
+            if (! $isGoogleFile) {
+                continue;
+            }
+
+            $links[$cleanUrl] = [
+                'url' => $cleanUrl,
+                'label' => self::googleFileLabel($cleanUrl),
+                'type' => self::googleFileType($cleanUrl),
+            ];
+        }
+
+        return array_values($links);
+    }
+
+    private static function googleFileType(string $url): string
+    {
+        $path = strtolower((string) parse_url($url, PHP_URL_PATH));
+
+        return match (true) {
+            str_contains($path, '/document/') => 'Google Doc',
+            str_contains($path, '/spreadsheets/') => 'Google Sheet',
+            str_contains($path, '/presentation/') => 'Google Slides',
+            str_contains($path, '/forms/') => 'Google Form',
+            str_contains($path, '/file/') => 'Drive file',
+            default => 'Google Drive',
+        };
+    }
+
+    private static function googleFileLabel(string $url): string
+    {
+        $type = self::googleFileType($url);
+        $path = (string) parse_url($url, PHP_URL_PATH);
+
+        if (preg_match('~/d/([^/]+)~', $path, $matches)) {
+            return $type.' '.substr($matches[1], 0, 8);
+        }
+
+        return $type;
     }
 
     private static function splitTrailingPunctuation(string $url): array

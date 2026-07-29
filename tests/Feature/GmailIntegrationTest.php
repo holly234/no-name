@@ -121,7 +121,7 @@ class GmailIntegrationTest extends TestCase
 
         Http::assertSent(fn ($request) => $request->url() === 'https://gmail.googleapis.com/gmail/v1/users/me/watch'
             && $request['topicName'] === 'projects/perpetual/topics/gmail-inbound'
-            && $request['labelIds'] === ['INBOX']);
+            && ! isset($request['labelIds']));
 
         $account = ConnectedAccount::where('platform', 'gmail')->firstOrFail();
 
@@ -369,7 +369,7 @@ class GmailIntegrationTest extends TestCase
             'thread-link',
             'Customer <customer@example.com>',
             'Website',
-            'Please check https://example.com/path?tab=deposit&currency=btc. <script>alert("x")</script>'
+            'Please check https://example.com/path?tab=deposit&currency=btc and https://drive.google.com/file/d/1WHuSD8LpZ/view?usp=sharing. <script>alert("x")</script>'
         );
 
         $this->actingAs($user)->post(route('dashboard.accounts.gmail.sync', $account))->assertRedirect();
@@ -384,6 +384,8 @@ class GmailIntegrationTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('href="https://example.com/path?tab=deposit&amp;currency=btc"', false);
+        $response->assertSee('Drive file');
+        $response->assertSee('Opens from Google');
         $response->assertSee('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;', false);
         $response->assertDontSee('<script>alert("x")</script>', false);
     }
@@ -685,7 +687,7 @@ class GmailIntegrationTest extends TestCase
             ->assertExitCode(0);
 
         Bus::assertDispatched(SyncGmailAccount::class, fn (SyncGmailAccount $job) => $job->accountId === $account->id
-            && $job->mailbox === 'inbox');
+            && $job->mailbox === 'all');
     }
 
     public function test_gmail_sync_job_imports_connected_account_messages(): void
