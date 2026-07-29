@@ -402,12 +402,15 @@ class GmailConnectionService
             return false;
         }
 
-        $headers = $this->headers($gmailMessage['payload']['headers'] ?? []);
+        $payload = $gmailMessage['payload'] ?? [];
+        $headers = $this->headers($payload['headers'] ?? []);
         $labelIds = $gmailMessage['labelIds'] ?? [];
         [$fromName, $fromEmail] = $this->parseAddress($headers['from'] ?? 'Unknown Sender');
         [, $toEmail] = $this->parseAddress($headers['to'] ?? ($account->provider_meta['email'] ?? $account->account_name));
         $subject = $headers['subject'] ?? '(no subject)';
-        $body = $this->sanitizeEmailBody($this->bodyFromPayload($gmailMessage['payload'] ?? [])) ?: '(empty email)';
+        $plainBody = $this->bodyFromPayload($payload);
+        $htmlBody = $this->htmlFromPayload($payload);
+        $body = $this->sanitizeEmailBody($plainBody !== '' ? $plainBody : $this->textFromHtml($htmlBody)) ?: '(empty email)';
         $date = $this->messageDate($gmailMessage, $headers);
         $replyDisabled = $this->replyDisabled($headers, $fromEmail);
         $classification = GmailMessageClassifier::classify(
@@ -479,6 +482,7 @@ class GmailConnectionService
                 'reply_disabled_reason' => $replyDisabled['reason'],
                 'gmail_kind' => $informational ? 'informational' : 'actionable',
                 'gmail_classification_reason' => $classification['reason'],
+                'gmail_html_body' => $htmlBody !== '' ? $htmlBody : null,
             ],
             'created_at' => $date,
             'updated_at' => $date,
@@ -534,7 +538,7 @@ class GmailConnectionService
             $filename = trim((string) ($part['filename'] ?? ''));
             $mimeType = $part['mimeType'] ?? 'application/octet-stream';
 
-            if (! $attachmentId || $filename === '' || $this->shouldSkipAttachment($mimeType)) {
+            if (! $attachmentId || $this->shouldSkipAttachment($mimeType)) {
                 continue;
             }
 
@@ -557,8 +561,20 @@ class GmailConnectionService
                 continue;
             }
 
-            $safeFilename = Str::limit(Str::slug(pathinfo($filename, PATHINFO_FILENAME)), 80, '');
-            $extension = pathinfo($filename, PATHINFO_EXTENSION);
+            $contentId = $this->headerValue($part['headers'] ?? [], 'content-id');
+            $fallbackBase = $contentId !== null ? Str::slug($contentId) : 'attachment';
+            $sourceName = $filename !== '' ? $filename : $fallbackBase;
+            $safeFilename = Str::limit(Str::slug(pathinfo($sourceName, PATHINFO_FILENAME)), 80, '');
+            $extension = pathinfo($sourceName, PATHINFO_EXTENSION);
+            if ($extension === '' && str_starts_with($mimeType, 'image/')) {
+                $extension = match ($mimeType) {
+                    'image/jpeg' => 'jpg',
+                    'image/png' => 'png',
+                    'image/gif' => 'gif',
+                    'image/webp' => 'webp',
+                    default => 'img',
+                };
+            }
             $storedFilename = ($safeFilename ?: 'attachment').($extension ? '.'.$extension : '');
             $path = 'gmail-attachments/'.$account->business_id.'/'.$message->id.'/'.$attachmentId.'-'.$storedFilename;
 
@@ -577,6 +593,8 @@ class GmailConnectionService
                 'metadata' => [
                     'gmail_message_id' => $gmailMessage['id'] ?? null,
                     'gmail_attachment_id' => $attachmentId,
+                    'content_id' => $this->headerValue($part['headers'] ?? [], 'content-id'),
+                    'content_disposition' => $this->headerValue($part['headers'] ?? [], 'content-disposition'),
                 ],
             ]);
         }
@@ -586,7 +604,7 @@ class GmailConnectionService
     {
         $parts = [];
 
-        if (! empty($part['filename']) && ! empty($part['body']['attachmentId'])) {
+        if (! empty($part['body']['attachmentId']) && ! $this->shouldSkipAttachment($part['mimeType'] ?? null)) {
             $parts[] = $part;
         }
 
@@ -690,6 +708,21 @@ class GmailConnectionService
         return $normalized;
     }
 
+    private function headerValue(array $headers, string $name): ?string
+    {
+        foreach ($headers as $header) {
+            if (! isset($header['name'], $header['value'])) {
+                continue;
+            }
+
+            if (strcasecmp((string) $header['name'], $name) === 0) {
+                return $this->decodeHeader((string) $header['value']);
+            }
+        }
+
+        return null;
+    }
+
     private function replyDisabled(array $headers, string $fromEmail): array
     {
         $fromEmail = strtolower($fromEmail);
@@ -742,6 +775,11 @@ class GmailConnectionService
         }
 
         return $this->textFromHtml($this->partBody($payload, 'text/html'));
+    }
+
+    private function htmlFromPayload(array $payload): string
+    {
+        return $this->partBody($payload, 'text/html');
     }
 
     private function partBody(array $part, string $mimeType): string

@@ -402,6 +402,7 @@
                             $gmailSubject = $message->metadata['subject'] ?? null;
                             $gmailFrom = $message->metadata['from_email'] ?? $selectedConversation->customer_external_id;
                             $gmailTo = $message->metadata['to_email'] ?? null;
+                            $gmailHtmlBody = $message->metadata['gmail_html_body'] ?? null;
                             $gmailReplyDisabled = (bool) (($message->metadata['reply_disabled'] ?? false) || preg_match('/(^|[._+-])(no-?reply|do-?not-?reply|donotreply)([._+-]|@)/i', strtolower((string) $gmailFrom)));
                             $gmailReplyDisabledReason = $message->metadata['reply_disabled_reason'] ?? 'Automated sender';
                             $senderLabel = match (true) {
@@ -504,7 +505,11 @@
                                             @endif
                                         </div>
                                     </div>
-                                    <div class="whitespace-pre-line break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::linkify($messageBody !== '' ? $messageBody : '(empty email)') !!}</div>
+                                    @if ($gmailHtmlBody)
+                                        <div class="gmail-message-body break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::gmailHtml($gmailHtmlBody, $message->attachments) !!}</div>
+                                    @else
+                                        <div class="whitespace-pre-line break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::linkify($messageBody !== '' ? $messageBody : '(empty email)') !!}</div>
+                                    @endif
                                 @else
                                     @unless ($mediaOnlyPlaceholder)
                                         <p class="mb-1 text-xs font-bold {{ $message->sender_type === 'ai' ? 'text-[#047857]' : 'text-[#6B7280]' }}">{{ $senderLabel }}</p>
@@ -520,7 +525,7 @@
                                                 $isVoiceNote = ($attachment->metadata['media_type'] ?? null) === 'voice' || str_starts_with($attachment->filename, 'voice-note-');
                                                 $isAudio = $isVoiceNote || str_starts_with((string) $attachment->mime_type, 'audio/');
                                                 $isVideo = ! $isVoiceNote && str_starts_with((string) $attachment->mime_type, 'video/');
-                                                $hasInlinePreview = $isImage || $isAudio || $isVideo;
+                                                $hasInlinePreview = $isImage || $isAudio || $isVideo || $isPdf;
                                                 $inlineUrl = route('dashboard.attachments.download', ['attachment' => $attachment, 'inline' => 1]);
                                                 $size = (int) ($attachment->size ?? 0);
                                                 if ($size >= 1048576) {
@@ -575,9 +580,34 @@
                                                         <span class="text-[11px] font-semibold tabular-nums text-[#6B7280]" x-text="displayTime"></span>
                                                     </div>
                                                 </div>
+                                            @elseif ($isPdf)
+                                                <div data-media-frame class="media-preview-frame media-preview-frame--pdf overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
+                                                    <button type="button" x-on:click.stop="openMedia({ type: 'pdf', src: @js($inlineUrl), alt: @js($attachment->filename) })" class="block w-full text-left" aria-label="Open PDF preview">
+                                                        <div class="flex items-center gap-3 border-b border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2.5">
+                                                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-pink-50 text-[#BE185D]">
+                                                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                                    <path d="M14 2v6h6"></path>
+                                                                    <path d="M8 16h8"></path>
+                                                                    <path d="M8 12h4"></path>
+                                                                </svg>
+                                                            </span>
+                                                            <span class="min-w-0 flex-1">
+                                                                <span class="block truncate text-sm font-bold text-[#111827]">{{ $attachment->filename }}</span>
+                                                                <span class="block truncate text-xs font-semibold text-[#6B7280]">PDF / {{ $sizeLabel }}</span>
+                                                            </span>
+                                                            <span class="text-[#6B7280]">
+                                                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                                                    <path d="m9 18 6-6-6-6"></path>
+                                                                </svg>
+                                                            </span>
+                                                        </div>
+                                                        <iframe src="{{ $inlineUrl }}" title="{{ $attachment->filename }}" class="block h-[22rem] w-full bg-[#F5F6F8]" loading="lazy"></iframe>
+                                                    </button>
+                                                </div>
                                             @endif
                                             @unless ($hasInlinePreview)
-                                            <a href="{{ route('dashboard.attachments.download', $attachment) }}" class="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3 transition hover:bg-[#EEF0F3]">
+                                            <a href="{{ route('dashboard.attachments.download', $attachment) }}" class="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3 transition hover:border-[#D1D5DB] hover:bg-white">
                                                 <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {{ $isPdf ? 'bg-pink-50 text-[#BE185D]' : ($isImage ? 'bg-[#EFF6FF] text-[#2563EB]' : ($isVideo ? 'bg-[#EEF2FF] text-[#4F46E5]' : ($isAudio ? 'bg-[#ECFDF5] text-[#047857]' : 'bg-[#EEF0F3] text-[#374151]'))) }}">
                                                     @if ($isPdf)
                                                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
@@ -931,6 +961,9 @@
                 </template>
                 <template x-if="mediaViewer.type === 'video'">
                     <video x-ref="mediaVideo" x-bind:src="mediaViewer.src" controls playsinline preload="metadata" class="h-[82dvh] max-h-[82dvh] w-auto max-w-[96vw] rounded-2xl bg-[#111827] object-contain shadow-2xl sm:h-[84dvh]"></video>
+                </template>
+                <template x-if="mediaViewer.type === 'pdf'">
+                    <iframe x-bind:src="mediaViewer.src" class="h-[88dvh] w-[96vw] max-w-4xl rounded-2xl bg-white shadow-2xl" title="PDF preview"></iframe>
                 </template>
             </div>
         </div>

@@ -424,6 +424,54 @@ class GmailIntegrationTest extends TestCase
         $response->assertSee('href="https://example.com/export?id=42&amp;token=abc"', false);
     }
 
+    public function test_gmail_rich_html_renders_inline_and_remote_images(): void
+    {
+        $this->withoutVite();
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createGmailAccount($business);
+
+        $this->fakeGmailHtmlSync(
+            'msg-html-image',
+            'thread-html-image',
+            'Brand <brand@example.com>',
+            'Visual email',
+            '<html><body><p>Welcome</p><img src="cid:logo-123" alt="Logo"><img src="https://example.com/avatar.png" alt="Profile picture"><script>alert(1)</script></body></html>',
+            [
+                [
+                    'filename' => 'logo.png',
+                    'mime_type' => 'image/png',
+                    'attachment_id' => 'inline-logo',
+                    'contents' => 'fake-inline-logo',
+                    'headers' => [
+                        ['name' => 'Content-ID', 'value' => '<logo-123>'],
+                    ],
+                ],
+            ]
+        );
+
+        $this->actingAs($user)->post(route('dashboard.accounts.gmail.sync', $account))->assertRedirect();
+
+        $message = Message::where('metadata->gmail_message_id', 'msg-html-image')->firstOrFail();
+        $attachment = $message->attachments()->where('filename', 'logo.png')->firstOrFail();
+
+        Storage::disk('local')->assertExists($attachment->storage_path);
+
+        $conversation = Conversation::where('business_id', $business->id)
+            ->where('channel', 'Gmail')
+            ->firstOrFail();
+
+        $response = $this->actingAs($user)->get(route('dashboard.inbox', [
+            'conversation' => $conversation->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('src="'.route('dashboard.attachments.download', ['attachment' => $attachment, 'inline' => 1]).'"', false);
+        $response->assertSee('src="https://example.com/avatar.png"', false);
+        $response->assertDontSee('javascript:alert(1)', false);
+    }
+
     public function test_no_reply_gmail_threads_disable_replies_in_ui_and_controller(): void
     {
         $this->withoutVite();
@@ -535,6 +583,7 @@ class GmailIntegrationTest extends TestCase
 
     public function test_gmail_sync_imports_document_and_image_attachments_and_skips_audio_and_video(): void
     {
+        $this->withoutVite();
         Storage::fake('local');
 
         $user = User::factory()->create();
@@ -582,6 +631,15 @@ class GmailIntegrationTest extends TestCase
         $this->assertSame('fake image', Storage::disk('local')->get($imageAttachment->storage_path));
         $this->assertDatabaseMissing('message_attachments', ['filename' => 'voice.mp3']);
         $this->assertDatabaseMissing('message_attachments', ['filename' => 'clip.mp4']);
+
+        $conversation = $attachment->message->conversation;
+        $response = $this->actingAs($user)->get(route('dashboard.inbox', [
+            'conversation' => $conversation->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('iframe', false);
+        $response->assertSee('invoice.pdf');
     }
 
     public function test_attachment_download_is_scoped_to_current_business(): void
@@ -928,32 +986,55 @@ class GmailIntegrationTest extends TestCase
         ]);
     }
 
-    private function fakeGmailHtmlSync(string $messageId, string $threadId, string $from, string $subject, string $html): void
+    private function fakeGmailHtmlSync(string $messageId, string $threadId, string $from, string $subject, string $html, array $extraParts = []): void
     {
-        Http::fake([
+        $parts = [
+            [
+                'mimeType' => 'text/html',
+                'body' => ['data' => $this->base64Url($html)],
+            ],
+        ];
+
+        foreach ($extraParts as $part) {
+            $parts[] = [
+                'filename' => $part['filename'] ?? '',
+                'mimeType' => $part['mime_type'],
+                'headers' => $part['headers'] ?? [],
+                'body' => [
+                    'attachmentId' => $part['attachment_id'],
+                    'size' => strlen($part['contents']),
+                ],
+            ];
+        }
+
+        $responses = [
             'https://gmail.googleapis.com/gmail/v1/users/me/messages?*' => Http::response([
                 'messages' => [['id' => $messageId, 'threadId' => $threadId]],
             ]),
-            'https://gmail.googleapis.com/gmail/v1/users/me/messages/'.$messageId.'*' => Http::response([
-                'id' => $messageId,
-                'threadId' => $threadId,
-                'internalDate' => (string) now()->valueOf(),
-                'payload' => [
-                    'headers' => [
-                        ['name' => 'From', 'value' => $from],
-                        ['name' => 'To', 'value' => 'support@example.com'],
-                        ['name' => 'Subject', 'value' => $subject],
-                    ],
-                    'mimeType' => 'multipart/alternative',
-                    'parts' => [
-                        [
-                            'mimeType' => 'text/html',
-                            'body' => ['data' => $this->base64Url($html)],
-                        ],
-                    ],
+        ];
+
+        foreach ($extraParts as $part) {
+            $responses['https://gmail.googleapis.com/gmail/v1/users/me/messages/'.$messageId.'/attachments/'.$part['attachment_id']] = Http::response([
+                'data' => $this->base64Url($part['contents']),
+            ]);
+        }
+
+        $responses['https://gmail.googleapis.com/gmail/v1/users/me/messages/'.$messageId.'*'] = Http::response([
+            'id' => $messageId,
+            'threadId' => $threadId,
+            'internalDate' => (string) now()->valueOf(),
+            'payload' => [
+                'headers' => [
+                    ['name' => 'From', 'value' => $from],
+                    ['name' => 'To', 'value' => 'support@example.com'],
+                    ['name' => 'Subject', 'value' => $subject],
                 ],
-            ]),
+                'mimeType' => 'multipart/alternative',
+                'parts' => $parts,
+            ],
         ]);
+
+        Http::fake($responses);
     }
 
     private function fakeGmailSyncWithAttachments(string $messageId, string $threadId, array $attachments): void
