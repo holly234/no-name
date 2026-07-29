@@ -272,6 +272,64 @@ class GmailIntegrationTest extends TestCase
         $this->assertSame(1, Message::where('metadata->gmail_message_id', 'msg-duplicate')->count());
     }
 
+    public function test_gmail_sync_backfills_attachments_for_already_imported_messages(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create();
+        $business = $this->createBusiness($user);
+        $account = $this->createGmailAccount($business);
+
+        $conversation = Conversation::create([
+            'business_id' => $business->id,
+            'connected_account_id' => $account->id,
+            'customer_name' => 'Kemi',
+            'customer_external_id' => 'kemi@example.com',
+            'channel' => 'Gmail',
+            'status' => Conversation::STATE_NEEDS_HUMAN,
+            'ai_mode' => 'human',
+            'last_message_at' => now(),
+        ]);
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'business_id' => $business->id,
+            'direction' => 'incoming',
+            'sender_type' => 'customer',
+            'body' => 'Please see attached.',
+            'metadata' => [
+                'source' => 'gmail',
+                'gmail_message_id' => 'msg-existing-attachment',
+                'gmail_thread_id' => 'thread-existing-attachment',
+            ],
+        ]);
+
+        $this->fakeGmailSyncWithAttachments('msg-existing-attachment', 'thread-existing-attachment', [
+            [
+                'attachment_id' => 'pdf-existing',
+                'filename' => 'quote.pdf',
+                'mime_type' => 'application/pdf',
+                'contents' => '%PDF quote',
+            ],
+            [
+                'attachment_id' => 'image-existing',
+                'filename' => 'sample.png',
+                'mime_type' => 'image/png',
+                'contents' => 'fake image',
+            ],
+        ]);
+
+        $this->actingAs($user)->post(route('dashboard.accounts.gmail.sync', $account))->assertRedirect();
+
+        $this->assertSame(1, Message::where('metadata->gmail_message_id', 'msg-existing-attachment')->count());
+
+        $pdf = MessageAttachment::where('filename', 'quote.pdf')->firstOrFail();
+        $image = MessageAttachment::where('filename', 'sample.png')->firstOrFail();
+
+        Storage::disk('local')->assertExists($pdf->storage_path);
+        Storage::disk('local')->assertExists($image->storage_path);
+    }
+
     public function test_gmail_sync_classifies_no_reply_mail_as_informational(): void
     {
         $user = User::factory()->create();

@@ -396,7 +396,7 @@ class GmailConnectionService
         $gmailMessageId = $gmailMessage['id'] ?? null;
         $gmailThreadId = $gmailMessage['threadId'] ?? $gmailMessageId;
 
-        if (! $gmailMessageId || $this->messageAlreadyImported($account->business_id, $gmailMessageId)) {
+        if (! $gmailMessageId) {
             return false;
         }
 
@@ -410,6 +410,30 @@ class GmailConnectionService
         $htmlBody = $this->htmlFromPayload($payload);
         $body = $this->sanitizeEmailBody($plainBody !== '' ? $plainBody : $this->textFromHtml($htmlBody)) ?: '(empty email)';
         $date = $this->messageDate($gmailMessage, $headers);
+
+        $existingMessage = $this->importedMessage($account->business_id, $gmailMessageId);
+
+        if ($existingMessage) {
+            $existingMessage->forceFill([
+                'metadata' => array_merge($existingMessage->metadata ?? [], [
+                    'gmail_thread_id' => $gmailThreadId,
+                    'subject' => $subject,
+                    'from_email' => $fromEmail,
+                    'to_email' => $toEmail,
+                    'internal_date' => $gmailMessage['internalDate'] ?? null,
+                    'label_ids' => $labelIds,
+                    'gmail_mailbox' => $this->mailboxFromLabels($labelIds),
+                    'rfc_message_id' => $headers['message-id'] ?? null,
+                    'references' => $headers['references'] ?? null,
+                    'gmail_html_body' => $htmlBody !== '' ? $htmlBody : ($existingMessage->metadata['gmail_html_body'] ?? null),
+                ]),
+            ])->save();
+
+            $this->importAttachments($account, $existingMessage, $gmailMessage);
+
+            return false;
+        }
+
         $replyDisabled = $this->replyDisabled($headers, $fromEmail);
         $classification = GmailMessageClassifier::classify(
             $headers,
@@ -674,11 +698,11 @@ class GmailConnectionService
         ];
     }
 
-    private function messageAlreadyImported(int $businessId, string $gmailMessageId): bool
+    private function importedMessage(int $businessId, string $gmailMessageId): ?Message
     {
         return Message::where('business_id', $businessId)
             ->where('metadata->gmail_message_id', $gmailMessageId)
-            ->exists();
+            ->first();
     }
 
     private function findConversationByThread(ConnectedAccount $account, string $threadId): ?Conversation
