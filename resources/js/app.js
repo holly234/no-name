@@ -964,7 +964,7 @@ function normalizeInboxViewport() {
 function captureInboxScrollState() {
     return {
         windowTop: window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0,
-        conversationTop: document.querySelector('[x-ref="conversationScroller"]')?.scrollTop ?? 0,
+        conversationTop: document.querySelector('[data-conversation-scroller]')?.scrollTop ?? 0,
     };
 }
 
@@ -973,8 +973,8 @@ function restoreInboxScrollState(state) {
         return;
     }
 
-    requestAnimationFrame(() => {
-        const conversationScroller = document.querySelector('[x-ref="conversationScroller"]');
+    const apply = () => {
+        const conversationScroller = document.querySelector('[data-conversation-scroller]');
 
         if (conversationScroller) {
             conversationScroller.scrollTop = state.conversationTop || 0;
@@ -983,6 +983,14 @@ function restoreInboxScrollState(state) {
         window.scrollTo({ top: state.windowTop || 0, left: 0, behavior: 'instant' });
         document.documentElement.scrollTop = state.windowTop || 0;
         document.body.scrollTop = state.windowTop || 0;
+    };
+
+    requestAnimationFrame(() => {
+        apply();
+        requestAnimationFrame(() => {
+            apply();
+            window.setTimeout(apply, 50);
+        });
     });
 }
 
@@ -1121,12 +1129,12 @@ async function visit(url, options = {}) {
 
         if (isInboxPage()) {
             scrollActiveChatToBottom();
-            restoreInboxScrollState(scrollState);
         } else {
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
         window.Alpine?.initTree(document.querySelector('[data-spa-frame]') || document.querySelector('[data-spa-shell]'));
         window.Alpine?.initTree(document.querySelector('.app-sidebar') || document.querySelector('[data-spa-shell]'));
+        restoreInboxScrollState(scrollState);
         syncInboxVersionFromDom();
     } catch (error) {
         window.location.href = targetUrl.href;
@@ -1295,11 +1303,11 @@ async function submitForm(form, submitter = null) {
         window.history.replaceState({}, '', response.url || targetUrl.href);
         if (isInboxPage()) {
             scrollActiveChatToBottom();
-            restoreInboxScrollState(scrollState);
         } else {
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
         window.Alpine?.initTree(document.querySelector('[data-spa-shell]'));
+        restoreInboxScrollState(scrollState);
         syncInboxVersionFromDom();
     } catch (error) {
         form.submit();

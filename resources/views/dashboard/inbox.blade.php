@@ -252,7 +252,7 @@
                 </div>
             </div>
 
-            <div x-ref="conversationScroller" class="min-h-0 w-full max-w-full flex-1 overflow-y-auto overflow-x-hidden bg-white">
+            <div x-ref="conversationScroller" data-conversation-scroller class="min-h-0 w-full max-w-full flex-1 overflow-y-auto overflow-x-hidden bg-white">
                 <div x-ref="conversationList" data-conversation-list data-next-cursor="{{ $nextConversationCursor }}">
                 @forelse ($conversations as $conversation)
                     @php
