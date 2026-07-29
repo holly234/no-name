@@ -509,8 +509,8 @@
                                         </div>
                                     </div>
                                     @if ($gmailHtmlBody)
-                                        <div class="gmail-message-body overflow-hidden break-words leading-6 text-[#111827] [&_img]:block [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:object-contain [&_table]:block [&_table]:max-w-full [&_table]:table-fixed [&_table]:overflow-x-auto [&_iframe]:max-w-full">
-                                            {!! \App\Support\MessageText::gmailHtml($gmailHtmlBody, $message->attachments) !!}
+                                        <div class="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+                                            {!! \App\Support\MessageText::gmailFrame($gmailHtmlBody, $message->attachments) !!}
                                         </div>
                                     @else
                                         <div class="whitespace-pre-line break-words leading-6 text-[#111827]">{!! \App\Support\MessageText::linkify($messageBody !== '' ? $messageBody : '(empty email)') !!}</div>

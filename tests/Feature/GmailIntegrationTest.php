@@ -505,7 +505,10 @@ class GmailIntegrationTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('href="https://example.com/export?id=42&amp;token=abc"', false);
+        $response->assertSee('srcdoc=', false);
+        $response->assertSee('https://example.com/export?id=42', false);
+        $response->assertSee('token=abc', false);
+        $response->assertDontSee(e('href="javascript:alert(1)"'), false);
     }
 
     public function test_gmail_rich_html_renders_inline_and_remote_images(): void
@@ -551,10 +554,12 @@ class GmailIntegrationTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('src="'.route('dashboard.attachments.download', ['attachment' => $attachment, 'inline' => 1]).'"', false);
-        $response->assertSee('src="https://example.com/avatar.png"', false);
+        $response->assertSee('srcdoc=', false);
+        $response->assertSee('/dashboard/attachments/', false);
+        $response->assertSee('?inline=1', false);
+        $response->assertSee('https://example.com/avatar.png', false);
         $response->assertDontSee('javascript:alert(1)', false);
-        $response->assertSee('max-w-full');
+        $response->assertSee(e('img,video,iframe,table{max-width:100%}'), false);
     }
 
     public function test_no_reply_gmail_threads_disable_replies_in_ui_and_controller(): void

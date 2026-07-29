@@ -43,6 +43,23 @@ class MessageText
         return new HtmlString($html);
     }
 
+    public static function gmailFrame(string $html, iterable $attachments = []): HtmlString
+    {
+        $sanitized = (string) self::gmailHtml($html, $attachments);
+
+        if ($sanitized === '') {
+            return new HtmlString('');
+        }
+
+        $document = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
+        $document .= '<style>html,body{margin:0;padding:0;background:#fff;color:#111827}body{font:inherit;line-height:1.5;overflow-wrap:anywhere;word-break:break-word}*{box-sizing:border-box}img,video,iframe,table{max-width:100%}img{height:auto}table{border-collapse:collapse}a{color:#2563eb}</style>';
+        $document .= '</head><body><div style="padding:16px">'. $sanitized .'</div></body></html>';
+
+        return new HtmlString(
+            '<iframe class="block w-full rounded-xl border border-[#E5E7EB] bg-white" style="height:min(70vh,760px);min-height:22rem;" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" loading="lazy" title="Email message" srcdoc="'.e($document).'"></iframe>'
+        );
+    }
+
     public static function fileLinks(string $text): array
     {
         preg_match_all('~https?://[^\s<>"\']+~i', $text, $matches);
@@ -174,8 +191,13 @@ class MessageText
                     if (in_array($tag, ['style', 'script', 'head', 'meta', 'link', 'title', 'noscript', 'template'], true)) {
                         self::removeNode($node);
                     } else {
+                        foreach (iterator_to_array($node->childNodes ?? []) as $child) {
+                            $sanitizeNode($child);
+                        }
+
                         self::unwrapNode($node);
                     }
+
                     return;
                 }
 

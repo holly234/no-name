@@ -961,6 +961,31 @@ function normalizeInboxViewport() {
     document.body.scrollTop = 0;
 }
 
+function captureInboxScrollState() {
+    return {
+        windowTop: window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0,
+        conversationTop: document.querySelector('[x-ref="conversationScroller"]')?.scrollTop ?? 0,
+    };
+}
+
+function restoreInboxScrollState(state) {
+    if (!isInboxPage() || !state) {
+        return;
+    }
+
+    requestAnimationFrame(() => {
+        const conversationScroller = document.querySelector('[x-ref="conversationScroller"]');
+
+        if (conversationScroller) {
+            conversationScroller.scrollTop = state.conversationTop || 0;
+        }
+
+        window.scrollTo({ top: state.windowTop || 0, left: 0, behavior: 'instant' });
+        document.documentElement.scrollTop = state.windowTop || 0;
+        document.body.scrollTop = state.windowTop || 0;
+    });
+}
+
 function scrollActiveChatToBottom() {
     const chatPane = document.querySelector('[data-chat-scroll]');
 
@@ -1035,6 +1060,7 @@ async function pollInbox() {
 
 async function visit(url, options = {}) {
     const targetUrl = new URL(url, window.location.href);
+    const scrollState = captureInboxScrollState();
 
     if (!isDashboardUrl(targetUrl)) {
         window.location.href = targetUrl.href;
@@ -1095,6 +1121,7 @@ async function visit(url, options = {}) {
 
         if (isInboxPage()) {
             scrollActiveChatToBottom();
+            restoreInboxScrollState(scrollState);
         } else {
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
@@ -1166,6 +1193,7 @@ async function submitForm(form, submitter = null) {
     const action = submitter?.getAttribute('formaction') || form.action || window.location.href;
     const method = (submitter?.getAttribute('formmethod') || form.method || 'GET').toUpperCase();
     const targetUrl = new URL(action, window.location.href);
+    const scrollState = captureInboxScrollState();
 
     if (!isDashboardUrl(targetUrl)) {
         form.submit();
@@ -1267,6 +1295,7 @@ async function submitForm(form, submitter = null) {
         window.history.replaceState({}, '', response.url || targetUrl.href);
         if (isInboxPage()) {
             scrollActiveChatToBottom();
+            restoreInboxScrollState(scrollState);
         } else {
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
