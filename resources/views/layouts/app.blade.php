@@ -10,10 +10,10 @@
             <meta name="logout-url" content="{{ route('logout') }}">
         @endauth
 
-        <title>{{ config('app.name', 'Perpetual Inbox AI') }}</title>
+        <title>{{ config('app.name', 'MYinboxLAB') }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=bricolage-grotesque:500,600,700,800|figtree:400,500,600,700&display=swap" rel="stylesheet" />
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
@@ -101,9 +101,9 @@
                     >
                         <div class="px-5 py-5">
                             <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#10B981] text-sm font-black text-white shadow-sm">PI</span>
+                                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#10B981] text-sm font-black text-white shadow-sm">ML</span>
                                 <span>
-                                    <span class="block text-base font-bold text-[#111827]">Perpetual Inbox</span>
+                                    <span class="block text-lg font-black tracking-[-0.05em] text-[#111827]" style="font-family: 'Bricolage Grotesque', sans-serif;">MYinboxLAB</span>
                                     <span class="block text-xs font-semibold uppercase text-[#6B7280]">Customer operations</span>
                                 </span>
                             </a>

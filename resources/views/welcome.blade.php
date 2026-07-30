@@ -3422,7 +3422,7 @@ $channels = [['Instagram','instagram'],['WhatsApp','whatsapp'],['Facebook','face
                     <div><strong>Account</strong>@auth<a href="{{ route('dashboard') }}">Dashboard</a>@else<a href="{{ route('login') }}">Log in</a><a href="{{ route('register') }}">Create account</a>@endauth</div>
                 </div>
             </div>
-            <div class="footer-bottom"><span>© {{ date('Y') }} Perpetual. Built for better conversations.</span><span>Privacy · Terms · Security</span></div>
+            <div class="footer-bottom"><span>© {{ date('Y') }} MYinboxLAB. Built for better conversations.</span><span>Privacy · Terms · Security</span></div>
         </div>
     </footer>
     </div>

@@ -1,6 +1,6 @@
-# Perpetual Inbox AI
+# MYinboxLAB
 
-Perpetual Inbox AI is the current working name for a Nigeria-first Laravel/Blade SaaS product launching under the **Perpetual Devs** brand. The final product name may change. It gives businesses one organized inbox for Instagram, Facebook, WhatsApp, Gmail, and Telegram-style customer conversations.
+MYinboxLAB is a Nigeria-first Laravel/Blade SaaS product for businesses that need one organized inbox for Instagram, Facebook, WhatsApp, Gmail, and Telegram-style customer conversations.
 
 The channel scope is private inbox messages only. Comments, posts, public feed activity, and story replies are intentionally out of scope for now.
 
@@ -213,7 +213,7 @@ X-N8N-SECRET: n8n_or_app_secret
 ## Important Environment Variables
 
 ```env
-APP_NAME="Perpetual Inbox AI"
+APP_NAME="MYinboxLAB"
 APP_WEBHOOK_SECRET=
 META_WEBHOOK_SECRET=
 META_WEBHOOK_VERIFY_TOKEN=use-a-long-random-value

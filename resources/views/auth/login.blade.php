@@ -1,7 +1,7 @@
 <x-guest-layout>
     <div class="text-center">
-        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2563EB] text-sm font-black text-white">PI</span>
-        <p class="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-[#2563EB]">Perpetual Inbox</p>
+        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2563EB] text-sm font-black text-white">ML</span>
+        <p class="mt-5 text-2xl font-black tracking-[-0.06em] text-[#111827]" style="font-family: 'Bricolage Grotesque', sans-serif;">MYinboxLAB</p>
         <h1 class="mt-2 text-2xl font-bold text-[#111827]">Welcome back</h1>
         <p class="mt-2 text-sm leading-6 text-[#6B7280]">Use your Google account to access your workspace securely.</p>
     </div>
@@ -33,7 +33,7 @@
     </p>
 
     <p class="mt-5 text-center text-sm text-[#6B7280]">
-        New to Perpetual Inbox?
+        New to MYinboxLAB?
         <a href="{{ route('register') }}" class="font-bold text-[#2563EB]">Create an account</a>
     </p>
 </x-guest-layout>

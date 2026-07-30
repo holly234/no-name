@@ -17,19 +17,25 @@ function initializeIdleLogout() {
         return;
     }
 
-    const logout = () => {
-        const form = document.createElement('form');
-        const token = document.createElement('input');
-
-        form.method = 'POST';
-        form.action = logoutUrl;
-        form.dataset.spa = 'false';
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = csrfToken;
-        form.appendChild(token);
-        document.body.appendChild(form);
-        form.submit();
+    const logout = async () => {
+        try {
+            await fetch(logoutUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'text/html',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: new URLSearchParams({ _token: csrfToken }),
+            });
+        } catch (error) {
+            // If the session has already expired or the network drops, still
+            // leave the private dashboard instead of stranding the user.
+        } finally {
+            window.location.href = '/login';
+        }
     };
 
     const scheduleLogout = () => {
@@ -965,6 +971,7 @@ function captureInboxScrollState() {
     return {
         windowTop: window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0,
         conversationTop: document.querySelector('[data-conversation-scroller]')?.scrollTop ?? 0,
+        chatTop: document.querySelector('[data-chat-scroll]')?.scrollTop ?? 0,
     };
 }
 
@@ -975,9 +982,14 @@ function restoreInboxScrollState(state) {
 
     const apply = () => {
         const conversationScroller = document.querySelector('[data-conversation-scroller]');
+        const chatPane = document.querySelector('[data-chat-scroll]');
 
         if (conversationScroller) {
             conversationScroller.scrollTop = state.conversationTop || 0;
+        }
+
+        if (chatPane) {
+            chatPane.scrollTop = state.chatTop || 0;
         }
 
         window.scrollTo({ top: state.windowTop || 0, left: 0, behavior: 'instant' });
@@ -1127,9 +1139,7 @@ async function visit(url, options = {}) {
             window.history.pushState({}, '', finalUrl);
         }
 
-        if (isInboxPage()) {
-            scrollActiveChatToBottom();
-        } else {
+        if (!isInboxPage()) {
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
         window.Alpine?.initTree(document.querySelector('[data-spa-frame]') || document.querySelector('[data-spa-shell]'));
@@ -1301,9 +1311,7 @@ async function submitForm(form, submitter = null) {
         currentShell.replaceWith(next.shell);
         document.title = next.title || document.title;
         window.history.replaceState({}, '', response.url || targetUrl.href);
-        if (isInboxPage()) {
-            scrollActiveChatToBottom();
-        } else {
+        if (!isInboxPage()) {
             window.scrollTo({ top: 0, behavior: 'instant' });
         }
         window.Alpine?.initTree(document.querySelector('[data-spa-shell]'));

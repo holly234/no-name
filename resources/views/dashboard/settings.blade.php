@@ -104,7 +104,7 @@
             <div class="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h3 class="font-bold text-red-700">Danger zone</h3>
-                    <p class="mt-1 text-sm leading-6 text-[#6B7280]">Permanently erase this workspace and all customer data stored by Perpetual Inbox.</p>
+                    <p class="mt-1 text-sm leading-6 text-[#6B7280]">Permanently erase this workspace and all customer data stored by MYinboxLAB.</p>
                 </div>
                 <button type="button" x-on:click="open = ! open" class="inline-flex w-fit items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100">
                     Delete workspace
@@ -118,7 +118,7 @@
                         Conversations, messages, customers, attachments, connected-account credentials, knowledge, settings, invitations and activity logs belonging to
                         <strong class="text-[#111827]">{{ $business->name }}</strong> will be permanently deleted.
                         @if (auth()->user()->businesses()->count() === 1 && ! auth()->user()->is_platform_owner)
-                            Your Perpetual Inbox user account will also be deleted and you will be logged out.
+                            Your MYinboxLAB user account will also be deleted and you will be logged out.
                         @else
                             Your user account and access to any other workspace will remain.
                         @endif

@@ -707,27 +707,28 @@
 
                 <div class="chat-composer shrink-0 border-t border-[#E5E7EB] bg-white">
                     @if ($replyDisabled)
-                        <div class="flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div class="flex min-w-0 items-start gap-3">
-                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF0F3] text-[#6B7280]">
-                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                        <div class="flex items-center gap-2 rounded-xl border border-[#E5E7EB] bg-[#F5F6F8] p-2 sm:justify-between">
+                            <div class="flex min-w-0 items-center gap-2">
+                                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EEF0F3] text-[#6B7280]">
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
                                         <path d="M22 2 11 13"></path>
                                         <path d="m22 2-7 20-4-9-9-4 20-7Z"></path>
                                         <path d="m2 2 20 20"></path>
                                     </svg>
                                 </span>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-bold text-[#111827]">Replies disabled</p>
-                                    <p class="mt-1 text-xs leading-5 text-[#6B7280]">This email thread looks like {{ strtolower($replyDisabledReason) }}. Keep it as a record or mark it reviewed.</p>
+                                <div class="min-w-0 leading-tight">
+                                    <p class="text-xs font-bold text-[#111827]">Replies disabled</p>
+                                    <p class="truncate text-[0.68rem] font-medium text-[#6B7280]">Looks like {{ strtolower($replyDisabledReason) }}.</p>
                                 </div>
                             </div>
                             <form method="POST" action="{{ route('dashboard.inbox.close', $selectedConversation) }}" class="shrink-0">
                                 @csrf
-                                <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] sm:w-auto">
+                                <button class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#2563EB] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#1d4ed8]">
                                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
                                         <path d="M20 6 9 17l-5-5"></path>
                                     </svg>
-                                    Mark reviewed
+                                    <span class="hidden sm:inline">Mark reviewed</span>
+                                    <span class="sm:hidden">Done</span>
                                 </button>
                             </form>
                         </div>

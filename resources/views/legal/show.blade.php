@@ -2,7 +2,7 @@
     $content = [
         'privacy' => [
             'eyebrow' => 'Privacy', 'title' => 'Privacy policy',
-            'intro' => 'Perpetual Inbox helps teams manage customer conversations from connected channels. This policy explains what we handle and why.',
+            'intro' => 'MYinboxLAB helps teams manage customer conversations from connected channels. This policy explains what we handle and why.',
             'sections' => [
                 ['title' => 'Information we handle', 'body' => 'We may handle your name, email address, workspace details, connected account identifiers, customer names and identifiers, conversation content, attachments, delivery metadata, and settings you provide. We receive channel data only after you connect and authorize that channel.'],
                 ['title' => 'How we use it', 'body' => 'We use this information to display your inbox, route conversations, send replies you authorize, maintain workspace security, provide support, and improve reliability. We do not sell conversation data.'],
@@ -13,7 +13,7 @@
         ],
         'terms' => [
             'eyebrow' => 'Terms', 'title' => 'Terms of service',
-            'intro' => 'These baseline terms govern use of Perpetual Inbox while the product is being prepared for wider release.',
+            'intro' => 'These baseline terms govern use of MYinboxLAB while the product is being prepared for wider release.',
             'sections' => [
                 ['title' => 'Your workspace', 'body' => 'You are responsible for the workspace information you provide, the people you invite, and the permissions you grant. Keep account credentials and connected provider access secure.'],
                 ['title' => 'Connected channels', 'body' => 'You must have permission to connect each Gmail, WhatsApp, Telegram, or other channel account. You must follow the channel provider terms and applicable messaging laws.'],
@@ -28,7 +28,7 @@
             'sections' => [
                 ['title' => 'Disconnect a channel', 'body' => 'Open Dashboard, choose Accounts, and select Disconnect beside the connected account. This stops future synchronization and removes the stored access token from the active connection.'],
                 ['title' => 'Request workspace deletion', 'body' => 'Email '.config('legal.contact_email').' from an authorized workspace email with the workspace name and the accounts you want removed. We will verify the request before deleting the requested records.'],
-                ['title' => 'Provider data', 'body' => 'Disconnecting Perpetual Inbox does not delete data held by Google, Meta, Telegram, or another provider. Use that provider’s own privacy and deletion controls for provider-side deletion.'],
+                ['title' => 'Provider data', 'body' => 'Disconnecting MYinboxLAB does not delete data held by Google, Meta, Telegram, or another provider. Use that provider’s own privacy and deletion controls for provider-side deletion.'],
             ],
         ],
     ];
@@ -43,7 +43,7 @@
 </head>
 <body class="min-h-screen bg-[#F5F6F8] text-[#111827]">
     <header class="border-b border-[#E5E7EB] bg-white"><div class="mx-auto flex max-w-4xl items-center justify-between px-5 py-5">
-        <a href="{{ route('landing') }}" class="text-lg font-bold">Perpetual Inbox</a>
+        <a href="{{ route('landing') }}" class="text-lg font-black tracking-[-0.05em]" style="font-family: 'Bricolage Grotesque', sans-serif;">MYinboxLAB</a>
         <a href="{{ route('landing') }}" class="text-sm font-semibold text-[#2563EB]">Back home</a>
     </div></header>
     <main class="mx-auto max-w-3xl px-5 py-14 sm:py-20">
