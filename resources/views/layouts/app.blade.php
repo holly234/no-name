@@ -96,75 +96,65 @@
                     <div x-cloak x-show="sidebarOpen" x-transition.opacity class="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-sm lg:hidden" x-on:click="sidebarOpen = false"></div>
 
                     <aside
-                        class="app-sidebar fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[86vw] -translate-x-full flex-col border-r border-[#E5E7EB] transition-transform duration-200 ease-out lg:translate-x-0"
+                        class="app-sidebar fixed inset-y-0 left-0 z-50 flex w-[16rem] max-w-[86vw] -translate-x-full flex-col border-r border-[#E5E7EB] transition-transform duration-200 ease-out lg:w-[4.75rem] lg:overflow-hidden lg:hover:w-[16rem] lg:translate-x-0"
                         x-bind:class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
                     >
                         <div class="px-5 py-5">
-                            <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-                                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#10B981] text-sm font-black text-white shadow-sm">ML</span>
-                                <span>
-                                    <span class="block text-lg font-black tracking-[-0.05em] text-[#111827]" style="font-family: 'Bricolage Grotesque', sans-serif;">MYinboxLAB</span>
-                                    <span class="block text-xs font-semibold uppercase text-[#6B7280]">Customer operations</span>
+                            <a href="{{ route('dashboard') }}" class="sidebar-brand flex items-center gap-3">
+                                <span class="sidebar-brand-badge flex h-10 w-10 items-center justify-center rounded-xl border border-[#ffffff14] bg-[#151517] text-sm font-black text-white">
+                                    MY
                                 </span>
+                                <span class="sidebar-brand-text block text-lg font-black tracking-[-0.05em] text-white" style="font-family: 'Bricolage Grotesque', sans-serif;">MYinboxLAB</span>
                             </a>
                         </div>
-                        <div class="mx-4 rounded-lg border border-[#E5E7EB] bg-[#F5F6F8] p-3">
-                            <p class="text-xs font-semibold uppercase text-[#6B7280]">Workspace</p>
-                            <p class="mt-1 truncate text-sm font-bold text-[#111827]">{{ $currentBusiness->name }}</p>
-                            <p class="mt-1 truncate text-xs text-[#6B7280]">{{ $currentBusiness->category ?? 'Customer operations' }}</p>
-                        </div>
-                        <nav class="mt-5 min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-4">
-                            <p class="px-3 pb-2 text-[0.68rem] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">Workspace</p>
+                        <nav class="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-4 py-6">
                             @foreach ($navItems as $item)
                                 <a href="{{ route($item['route']) }}" x-on:click="sidebarOpen = false" class="app-nav-link whitespace-nowrap {{ request()->routeIs($item['route']) ? 'app-nav-link-active' : '' }}">
                                     <span class="nav-icon">{!! $navIcon($item['icon']) !!}</span>
-                                    <span>{{ $item['label'] }}</span>
+                                    <span class="sidebar-link-text">{{ $item['label'] }}</span>
                                 </a>
                             @endforeach
                         </nav>
                         <div class="mt-auto border-t border-[#E5E7EB] p-4">
-                            <a href="{{ $currentWorkspaceRole === 'owner' ? route('dashboard.settings') : route('dashboard.inbox') }}" class="mb-3 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-[#F5F6F8]">
-                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-sm font-bold text-[#047857]">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
-                                <span class="min-w-0 flex-1">
-                                    <span class="block truncate text-sm font-bold text-[#111827]">{{ auth()->user()->name }}</span>
-                                    <span class="block truncate text-xs text-[#6B7280]">{{ auth()->user()->email }}</span>
-                                    <span class="mt-1 block text-[0.65rem] font-bold uppercase tracking-wide text-[#2563EB]">{{ $currentWorkspaceRole }}</span>
+                            <a href="{{ $currentWorkspaceRole === 'owner' ? route('dashboard.settings') : route('dashboard.inbox') }}" class="sidebar-user-link mb-3 flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-[#151517]">
+                                <span class="sidebar-user-badge flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#151517] text-sm font-bold text-white">
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
+                                        <path d="M20 21a8 8 0 1 0-16 0"></path>
+                                        <circle cx="12" cy="8" r="4"></circle>
+                                    </svg>
                                 </span>
-                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4 text-[#9CA3AF]"><path d="m9 18 6-6-6-6"/></svg>
+                                <span class="sidebar-user-content min-w-0 flex-1">
+                                    <span class="sidebar-user-text block truncate text-sm font-bold text-white">{{ auth()->user()->email }}</span>
+                                </span>
+                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sidebar-user-chevron h-4 w-4 text-white"><path d="m9 18 6-6-6-6"/></svg>
                             </a>
                             <form method="POST" action="{{ route('logout') }}" data-spa="false">
                                 @csrf
-                                <button class="flex w-full items-center justify-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 py-3 text-sm font-bold text-[#111827] shadow-sm transition hover:bg-[#F5F6F8]" aria-label="Logout">
+                                <button class="flex w-full items-center justify-center gap-2 rounded-lg border border-[#ffffff14] bg-[#151517] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#151517]" aria-label="Logout">
                                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5">
                                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                                         <path d="M16 17l5-5-5-5"></path>
                                         <path d="M21 12H9"></path>
                                     </svg>
-                                    <span>Logout</span>
+                                    <span class="sidebar-logout-text">Logout</span>
                                 </button>
                             </form>
                         </div>
                     </aside>
 
-                    <div class="{{ $isInboxPage ? 'app-inbox-frame overflow-hidden' : 'min-h-screen' }} w-full max-w-full lg:pl-72" data-spa-frame>
+                    <div class="{{ $isInboxPage ? 'app-inbox-frame overflow-hidden' : 'min-h-screen' }} app-main-frame w-full max-w-full lg:pl-[4.75rem]" data-spa-frame>
                         <button type="button" class="{{ $isInboxPage ? 'hidden' : 'mobile-menu-button' }} fixed left-4 top-4 z-30 lg:hidden" x-on:click="sidebarOpen = true" aria-label="Open navigation">
                             <span class="mobile-menu-mark" aria-hidden="true"></span>
                         </button>
 
                         @unless ($isInboxPage)
-                            <header class="app-topbar sticky top-0 z-20 border-b border-[#E5E7EB] bg-white/95 backdrop-blur">
-                                <div class="mx-auto flex h-[4.5rem] max-w-7xl items-center gap-3 px-4 pl-20 lg:px-8">
+                            <header class="app-topbar fixed left-0 right-0 top-0 z-20 border-b border-[#ffffff14] bg-[#151517] lg:left-[4.75rem]">
+                                <div class="mx-auto flex h-[4.5rem] max-w-[108rem] items-center gap-3 px-4 pl-20 lg:px-8">
                                     <div class="min-w-0 flex-1">
                                         <p class="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">{{ $currentBusiness->name }}</p>
                                         <h1 class="truncate text-lg font-bold text-[#111827]">{{ $pageTitle }}</h1>
                                     </div>
-                                    @if (in_array($currentWorkspaceRole, ['owner', 'admin'], true))
-                                    <a href="{{ route('dashboard.ai-settings') }}" class="hidden items-center gap-2 rounded-full border border-[#D1FAE5] bg-[#ECFDF5] px-3 py-2 text-xs font-bold text-[#047857] sm:inline-flex">
-                                        <span class="h-2 w-2 rounded-full bg-[#10B981]"></span>
-                                        AI agent
-                                    </a>
-                                    @endif
-                                    <a href="{{ route('dashboard.inbox') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#111827] px-3.5 text-sm font-bold text-white transition hover:bg-black">
+                                    <a href="{{ route('dashboard.inbox') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#ffffff14] bg-transparent px-3.5 text-sm font-bold text-white transition hover:bg-[#151517]">
                                         {!! $navIcon('inbox') !!}
                                         <span class="hidden sm:inline">Open inbox</span>
                                     </a>
@@ -172,7 +162,7 @@
                             </header>
                         @endunless
 
-                        <main class="{{ $isInboxPage ? 'app-inbox-main max-w-full overflow-hidden p-0' : 'mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8' }}" data-spa-main>
+                        <main class="{{ $isInboxPage ? 'app-inbox-main max-w-full overflow-hidden p-0' : 'mx-auto max-w-[108rem] px-4 pb-6 pt-[6rem] lg:px-8 lg:pb-8 lg:pt-[6.5rem]' }}" data-spa-main>
                             {{ $slot }}
                         </main>
                     </div>
@@ -183,8 +173,8 @@
                 @include('layouts.navigation')
 
                 @isset($header)
-                    <header class="bg-white shadow">
-                        <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                    <header class="bg-[#151517] shadow">
+                        <div class="mx-auto max-w-[108rem] px-4 py-6 sm:px-6 lg:px-8">
                             {{ $header }}
                         </div>
                     </header>
